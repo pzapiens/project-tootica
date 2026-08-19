@@ -1,0 +1,2 @@
+# Normalize line endings to LF on commit; keeps Prettier (endOfLine: lf) happy on Windows.
+* text=auto eol=lf

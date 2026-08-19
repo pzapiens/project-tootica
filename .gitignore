@@ -1,0 +1,52 @@
+# Monorepo root .gitignore
+# Each app also has its own .gitignore (backend/, frontend/) which git still
+# honors for its subtree. The globs below are a repo-wide safety net so nothing
+# sensitive or generated slips in from either app.
+
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Build / generated output
+**/dist/
+**/build/
+**/.next/
+**/out/
+**/coverage/
+**/.nyc_output/
+**/*.tsbuildinfo
+**/src/generated/
+
+# Environment & secrets — never commit real secrets.
+# Backend uses .env; frontend uses .env.local. Only *.example is shared.
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+
+# Logs
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+**/logs/
+
+# Editor / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# AI-assistant tooling (Claude Code, etc.) — machine-local / not shared
+**/.claude/
+**/.agents/
+**/.windsurf/
+**/skills-lock.json

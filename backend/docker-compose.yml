@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tootica-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tootica
+      POSTGRES_PASSWORD: tootica_dev_password
+      POSTGRES_DB: tootica
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready ships with the postgres image; marks the container healthy
+      # only once Postgres is actually accepting connections.
+      test: ["CMD-SHELL", "pg_isready -U tootica -d tootica"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: tootica-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP — the backend sends mail here
+      - "8025:8025" # Web UI — open http://localhost:8025 to read OTP emails
+    healthcheck:
+      # The image is Alpine-based, so busybox wget is available. A 200 from the
+      # web UI means MailHog is up.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8025 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres_data:
+    name: tootica_postgres_data

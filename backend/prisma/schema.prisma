@@ -1,0 +1,184 @@
+// Tootica — Prisma schema
+// Multi-tenant dental management system. Every tenant-scoped table carries a
+// `clinic_id` and has a compound index leading with it so per-clinic queries
+// stay index-covered.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7: the connection URL lives in prisma.config.ts (for the CLI) and is
+  // passed to the PrismaClient constructor via a driver adapter at runtime.
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  SUPER_ADMIN
+  CLIENT_ADMIN
+  DOCTOR
+  RECEPTIONIST
+  GUEST_DOCTOR
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ClinicStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum ClinicPlan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+/// A tenant. Each clinic owns its own users, doctors, patients and appointments.
+model Clinic {
+  id        String       @id @default(cuid())
+  name      String
+  status    ClinicStatus @default(ACTIVE)
+  plan      ClinicPlan   @default(FREE)
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  users        User[]
+  doctors      Doctor[]
+  patients     Patient[]
+  appointments Appointment[]
+  doctorShifts DoctorShift[]
+
+  @@map("clinics")
+}
+
+/// Authentication + authorization principal. `clinicId` is nullable so a
+/// SUPER_ADMIN can exist outside any single clinic. Profile data for doctors
+/// lives on the separate `doctors` table.
+model User {
+  id              String     @id @default(cuid())
+  clinicId        String?    @map("clinic_id")
+  email           String     @unique
+  // Nullable: invite-onboarded users (Client Admins, Doctors) exist before they
+  // set a password via the /auth/set-password invite link.
+  passwordHash    String?    @map("password_hash")
+  role            Role
+  status          UserStatus @default(ACTIVE)
+  accessStartDate DateTime?  @map("access_start_date")
+  accessEndDate   DateTime?  @map("access_end_date")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+  doctor Doctor?
+
+  @@index([clinicId, id])
+  @@index([clinicId, createdAt])
+  @@map("users")
+}
+
+/// Doctor profile, one-to-one with a User (the auth record). Kept separate from
+/// `users` so profile fields don't bloat the auth table.
+model Doctor {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  clinicId       String   @map("clinic_id")
+  specialization String?
+  licenseNumber  String?  @map("license_number")
+  phone          String?
+  bio            String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user         User          @relation(fields: [userId], references: [id])
+  clinic       Clinic        @relation(fields: [clinicId], references: [id])
+  shifts       DoctorShift[]
+  appointments Appointment[]
+
+  @@index([clinicId, id])
+  @@map("doctors")
+}
+
+/// A doctor's recurring weekly availability. `dayOfWeek` is 0 (Sunday) – 6
+/// (Saturday); times are stored as "HH:mm" strings in the clinic's local time.
+model DoctorShift {
+  id        String @id @default(cuid())
+  doctorId  String @map("doctor_id")
+  clinicId  String @map("clinic_id")
+  dayOfWeek Int    @map("day_of_week")
+  startTime String @map("start_time")
+  endTime   String @map("end_time")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@index([clinicId, id])
+  @@index([doctorId, dayOfWeek])
+  @@map("doctor_shifts")
+}
+
+/// A patient record, scoped to a single clinic.
+model Patient {
+  id           String    @id @default(cuid())
+  clinicId     String    @map("clinic_id")
+  name         String
+  phone        String?
+  email        String?
+  dob          DateTime? @db.Date
+  medicalNotes String?   @map("medical_notes")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id])
+  appointments Appointment[]
+
+  @@index([clinicId, id])
+  @@index([clinicId, createdAt])
+  @@map("patients")
+}
+
+/// A booked appointment linking a patient and a doctor within a clinic.
+model Appointment {
+  id        String            @id @default(cuid())
+  clinicId  String            @map("clinic_id")
+  patientId String            @map("patient_id")
+  doctorId  String            @map("doctor_id")
+  startTime DateTime          @map("start_time")
+  endTime   DateTime          @map("end_time")
+  status    AppointmentStatus @default(SCHEDULED)
+  notes     String?
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+
+  @@index([clinicId, id])
+  @@index([clinicId, startTime])
+  @@index([doctorId, startTime])
+  @@index([patientId])
+  @@map("appointments")
+}
