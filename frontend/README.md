@@ -122,3 +122,5 @@ public/
 ├── auth/         # Login / forgot-password icons + logo
 └── clinic/       # Clinic-selection icons
 ```
+
+frontend-test-git oooooooooooooooooooooo
