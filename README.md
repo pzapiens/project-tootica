@@ -107,3 +107,5 @@ Project Tootica/            ← monorepo root (git repo)
 └── frontend/               Next.js app (its own .gitignore, package.json)
     └── src/{app,lib}
 ```
+
+----TESTTT GIT_-----------
