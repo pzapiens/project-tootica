@@ -10,6 +10,14 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-manrope: var(--font-manrope);
+  --font-inter: var(--font-inter);
+
+  /* Auth / brand design tokens (from Figma "Auth — Tootica") */
+  --color-brand: #0077c0;
+  --color-ink: #000000;
+  --color-field-border: #c2c6d4;
+  --color-field-placeholder: rgba(0, 0, 0, 0.4);
 }
 
 @media (prefers-color-scheme: dark) {
