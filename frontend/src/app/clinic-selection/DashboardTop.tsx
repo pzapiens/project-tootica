@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+import { apiFetch } from "@/lib/api";
 
 import BranchFilter, { type BranchOption } from "./BranchFilter";
 import { type Branch } from "./BranchList";
@@ -58,16 +60,29 @@ const STAT_CARDS: { key: keyof BranchStats; label: string; icon: string }[] = [
  * to that branch's appointment data (falls back to "all" if a branch has none).
  */
 export default function DashboardTop({
+  greetingName,
   branches,
   statsByBranch,
   todayStatsByBranch,
 }: {
+  greetingName: string;
   branches: Branch[];
   statsByBranch: StatsByBranch;
   todayStatsByBranch: StatsByBranch;
 }) {
+  const router = useRouter();
   const [branchFilter, setBranchFilter] = useState("all");
   const [timeFrame, setTimeFrame] = useState<TimeFrame>({ kind: "all" });
+
+  async function handleLogout() {
+    // Clear the session cookies server-side; navigate home regardless of outcome.
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      // Ignore — the cookie may already be gone; still send the user to login.
+    }
+    router.push("/login");
+  }
 
   const options: BranchOption[] = [
     { id: "all", label: "All Branch" },
@@ -81,18 +96,19 @@ export default function DashboardTop({
       {/* Header */}
       <header className="flex shrink-0 flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
         <h1 className="font-inter text-[26px] font-semibold leading-tight text-ink md:text-[35px] md:leading-[42px]">
-          Good Morning, Dr. Aadhinath
+          Hi, {greetingName}
         </h1>
         <div className="flex flex-wrap items-center gap-3 md:gap-[19px]">
           <BranchFilter options={options} selectedId={branchFilter} onSelect={setBranchFilter} />
           <TimeFilter value={timeFrame} onChange={setTimeFrame} />
-          <Link
-            href="/login"
+          <button
+            type="button"
+            onClick={handleLogout}
             className="flex h-[55px] items-center gap-[9.333px] rounded-full bg-brand px-[25px] font-inter text-[16.333px] font-semibold leading-[23.333px] tracking-[0.408px] text-white transition-opacity hover:opacity-90"
           >
             <Image src="/clinic/logout.svg" alt="" width={24} height={24} className="size-6" />
             LOGOUT
-          </Link>
+          </button>
         </div>
       </header>
 

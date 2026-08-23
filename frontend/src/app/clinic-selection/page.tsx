@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
 
-import { type Branch } from "./BranchList";
-import DashboardTop, { type StatsByBranch } from "./DashboardTop";
-import SelectBranchSection from "./SelectBranchSection";
+import ClinicSelectionClient from "./ClinicSelectionClient";
+import { type StatsByBranch } from "./DashboardTop";
 
 export const metadata: Metadata = {
   title: "Select Branch — Tootica",
 };
-
-// Seeded from the Figma frame. Real data will come from the backend.
-const BRANCHES: Branch[] = [
-  { id: "kasargod", branch: "The Dental Garage, Kasargod", pic: "Dr. Aadhinath", contact: "+91 9654781236" },
-  { id: "kannur", branch: "The Dental Garage, Kannur", pic: "Abhishek TK", contact: "+91 9654235874" },
-  { id: "kozhikode", branch: "The Dental Garage, Kozhikode", pic: "Dr. Meera", contact: "+91 9654098765" },
-];
 
 // All-time appointment stats per branch; "all" aggregates every branch. The
 // branch + time-frame filters read these — swap for a backend fetch (per clinic,
@@ -35,18 +27,13 @@ const TODAY_STATS_BY_BRANCH: StatsByBranch = {
 };
 
 export default function ClinicSelectionPage() {
+  // The greeting + branch list are driven by the signed-in user (fetched client
+  // side from /api/auth/me); the stat cards use the seed data above until the
+  // backend exposes per-branch / per-status analytics.
   return (
-    // Fixed to the viewport on desktop (no page scroll); header, stat cards and
-    // the "Select Branch" toolbar stay put — only the branch list scrolls.
-    <div className="flex min-h-dvh flex-col bg-white lg:h-dvh lg:overflow-hidden">
-      <div className="mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-6 p-6 md:gap-7 md:p-7 lg:min-h-0">
-        <DashboardTop
-          branches={BRANCHES}
-          statsByBranch={STATS_BY_BRANCH}
-          todayStatsByBranch={TODAY_STATS_BY_BRANCH}
-        />
-        <SelectBranchSection branches={BRANCHES} />
-      </div>
-    </div>
+    <ClinicSelectionClient
+      statsByBranch={STATS_BY_BRANCH}
+      todayStatsByBranch={TODAY_STATS_BY_BRANCH}
+    />
   );
 }

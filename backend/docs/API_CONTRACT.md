@@ -78,6 +78,9 @@ Validation (Zod) errors add an `issues` array:
 {
   "id": "cmsy4j5oc0002ngo93xwq2s8v",
   "email": "admin@tootica.local",
+  "firstName": "Sanjay",
+  "lastName": null,
+  "phone": "+91 7025155057",
   "role": "CLIENT_ADMIN",
   "clinicId": "cmsy4j5b60001ngo9kg9b0vfw",
   "status": "ACTIVE",
@@ -87,6 +90,9 @@ Validation (Zod) errors add an `issues` array:
   "updatedAt": "2026-08-18T03:49:37.788Z"
 }
 ```
+
+`firstName` / `lastName` / `phone` are nullable (invite-onboarded users may not
+have set them yet).
 
 **Clinic**
 
@@ -179,7 +185,14 @@ Errors: `400` validation · `401 { "error": "Invalid credentials" }` ·
 `403 { "error": "Account is not active" }` (also "Account access has not started yet" / "…has expired").
 
 ### 2. `GET /api/auth/me` — cookie
-**200** `{ "user": { "...": "PublicUser" } }` · `401` if no/invalid session.
+**200** — the caller plus their clinic (`clinic` is `null` for a SUPER_ADMIN,
+who has no single clinic):
+
+```json
+{ "user": { "...": "PublicUser" }, "clinic": { "...": "Clinic" } | null }
+```
+
+`401` if no/invalid session.
 
 ### 3. `POST /api/auth/refresh` — cookie (refresh)
 Reads the `refresh_token` cookie; rotates both cookies.
@@ -474,14 +487,50 @@ from now).
 
 ---
 
+## Branches ✅ — `/api/branches` (tenant) · `/api/super-admin/branches` (super-admin)
+
+A **Branch** is a location under a Clinic. Its person-in-charge is either a
+linked user (`picUserId`) or free-text (`picName` / `contact`), and it has a
+unique human code (`c001`, `c002`, …). Branch summary shape:
+
+```json
+{ "id": "cmsx...", "clinicId": "cmsx...", "code": "c001", "name": "The Dental Garage - Kasaragod", "picName": "Sanjay Prakash", "contact": "+91 7025155057" }
+```
+
+- `GET /api/branches` — branches for the caller's clinic.
+- `GET /api/super-admin/branches` — every branch across all clinics.
+- `PATCH /api/super-admin/branches/:id` — `{ name?, picName?, contact? }` → updated summary.
+- `DELETE /api/super-admin/branches/:id` — **204**.
+
+`POST /api/super-admin/clinics` accepts an optional first branch and returns the
+clinic plus `branch` (with its assigned `code`):
+
+```json
+{ "name": "New Clinic", "branch": { "name": "New Clinic", "picName": "…", "contact": "+91 9812345678" } }
+```
+
+## Accounts ✅ — `POST /api/super-admin/accounts` (super-admin)
+
+```json
+{ "clinicId": "cmsx...", "firstName": "Sanjay", "lastName": "Prakash", "title": "Mr", "accountType": "ADMIN", "email": "s@clinic.test", "phone": "+91 9812345678" }
+```
+
+`accountType` maps to a role (`ADMIN`→`CLIENT_ADMIN`, `DOCTOR`, `RECEPTIONIST`);
+doctors also get a `Doctor` profile. **201** → PublicUser-shaped account.
+`409 { "error": "Email already in use" }`. `contact`/`phone` must be `+91` + 10 digits.
+
+---
+
 ## Change log / status
 
 | Area                 | Status | Notes                                              |
 | -------------------- | ------ | -------------------------------------------------- |
-| Auth (9 endpoints)   | ✅     | Cookie-based, OTP reset, invite set-password        |
-| Clinic Management    | ✅     | Super-admin CRUD                                    |
+| Auth (9 endpoints)   | ✅     | Cookie-based; `/me` returns `{ user, clinic }`; strong-password policy; distinct login errors |
+| Clinic Management    | ✅     | Super-admin CRUD; create can add a first branch      |
+| Branches             | ✅     | Tenant list + super-admin list/edit/delete; unique `cNNN` codes |
+| Accounts / Staff     | ✅     | Super-admin onboarding (`POST /super-admin/accounts`) |
 | Patients             | ✅     | Tenant-scoped CRUD                                  |
 | Doctors (profiles)   | ✅     | Tenant-scoped CRUD (create needs `userId`)          |
 | Appointments         | ✅     | Tenant-scoped CRUD, time-range validation           |
 | Analytics            | ✅     | Per-clinic summary counts                           |
-| Users / Staff        | 🟡     | Onboarding + invites; needs name columns migration  |
+| User columns         | ✅     | `first_name` / `last_name` / `title` / `phone` added |

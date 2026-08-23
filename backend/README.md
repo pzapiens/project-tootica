@@ -115,7 +115,8 @@ src/
 │   ├── doctors/
 │   ├── appointments/
 │   ├── analytics/
-│   └── super-admin/        # cross-tenant clinic management
+│   ├── branches/           # per-clinic branch list (tenant-scoped)
+│   └── super-admin/        # cross-tenant clinics, branches & account onboarding
 ├── generated/prisma/       # generated Prisma client (gitignored)
 ├── app.ts                  # app factory (middleware + route wiring)
 ├── server.ts               # local / container entry point (app.listen)
@@ -133,11 +134,23 @@ src/
 - **`requireTenant`** derives `req.clinicId` from `req.user` for tenant-scoped
   modules. It is **not** applied to `/api/super-admin/*` (a super admin has no
   single clinic); those routes use `requireSuperAdmin` instead.
+- **Login errors are specific.** Login returns distinct 401 messages —
+  `"No account found with this email address"` vs `"Incorrect password"` — so the
+  client can point at the right field. (This trades a little account-enumeration
+  resistance for clearer UX; the forgot-password flow still hides account
+  existence.)
+- **Password policy.** New passwords (reset / set / change) must be **≥ 8 chars
+  with an uppercase letter, a number and a special character** (shared
+  `passwordSchema`). Login itself only checks the password matches.
 - **Password reset** uses a 6-digit OTP emailed via MailHog, held in an
   in-memory `OtpStore` (swap for Redis in prod), with resend cooldown + attempt
   caps. A successful OTP exchange returns a short-lived reset token.
 - **Invite onboarding:** `password_hash` is nullable; an invited user sets their
   password via `POST /api/auth/set-password` (which also activates the account).
+- **User profile columns.** `users` carries optional `first_name`, `last_name`,
+  `title` and `phone`, used for greetings and person-in-charge display.
+  `GET /api/auth/me` returns `{ user, clinic }` (the caller plus their clinic,
+  `null` for a super admin).
 
 ## API reference
 
@@ -165,8 +178,25 @@ Full request/response JSON shapes for every endpoint (built and planned) are in
 - `GET/POST/PATCH/DELETE /api/patients` — tenant-scoped CRUD
 - `GET/POST/PATCH/DELETE /api/doctors` — tenant-scoped CRUD
 - `GET/POST/PATCH/DELETE /api/appointments` — tenant-scoped CRUD
+- `GET /api/branches` — the caller's clinic branches (`{ id, clinicId, code, name, picName, contact }`)
 - `GET /api/analytics/summary` — per-clinic counts
-- `GET/POST/PATCH/DELETE /api/super-admin/clinics` — SUPER_ADMIN only
+
+### Super Admin (`/api/super-admin`, SUPER_ADMIN only)
+
+- `GET/POST/PATCH/DELETE /clinics` — cross-tenant clinic management. `POST`
+  optionally creates a first **branch** too: `{ name, branch?: { name, picName?, contact? } }`.
+- `GET /branches` — **every** branch across all clinics, each with a unique
+  **code** (`c001`, `c002`, …), person-in-charge and contact.
+- `PATCH /branches/:id` — edit a branch's `{ name?, picName?, contact? }`.
+- `DELETE /branches/:id` — remove a branch.
+- `POST /accounts` — onboard a staff account into a clinic:
+  `{ clinicId, firstName, lastName, title?, accountType: ADMIN|DOCTOR|RECEPTIONIST, email, phone? }`
+  → creates the `User` (mapped to `CLIENT_ADMIN`/`DOCTOR`/`RECEPTIONIST`, plus a
+  doctor profile for doctors). `409` on a duplicate email.
+
+**Branch codes** are unique, auto-assigned as `max + 1` (`cNNN`). **Contact
+numbers** (account `phone`, branch `contact`) are validated as an Indian number —
+the `91` country code + 10 digits.
 
 ## Deployment
 

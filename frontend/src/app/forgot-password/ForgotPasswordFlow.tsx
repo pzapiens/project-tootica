@@ -5,6 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  apiFetch,
+  ApiError,
+  type MessageResponse,
+  type VerifyOtpResponse,
+} from "@/lib/api";
+import { checkPassword, passwordPolicyError } from "@/lib/password";
+import PasswordToggle from "@/components/PasswordToggle";
+
 /**
  * Forgot Password flow — the four connected screens from the Figma prototype
  * ("Login2 - FP" → "Verification" → "RP" → "LA"):
@@ -13,9 +22,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
  *   3. reset  — set and confirm a new password
  *   4. done   — "Login Again" confirmation, back to /login
  *
- * Modelled as one route with internal step state so the email/OTP carry across
- * screens. Backend calls (send OTP, verify, reset) are marked with TODOs — the
- * prototype just advances to the next step.
+ * Modelled as one route with internal step state so the email + reset token
+ * carry across screens. Wired to the backend auth endpoints:
+ *   email  → POST /api/auth/forgot-password
+ *   verify → POST /api/auth/verify-otp   (returns a short-lived resetToken)
+ *   reset  → POST /api/auth/reset-password
  */
 type Step = "email" | "verify" | "reset" | "done";
 
@@ -26,6 +37,8 @@ export default function ForgotPasswordFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
+  // Short-lived token returned by verify-otp; consumed by the reset step.
+  const [resetToken, setResetToken] = useState("");
 
   return (
     <>
@@ -37,9 +50,17 @@ export default function ForgotPasswordFlow() {
         />
       )}
       {step === "verify" && (
-        <VerifyStep email={email} onVerified={() => setStep("reset")} />
+        <VerifyStep
+          email={email}
+          onVerified={(token) => {
+            setResetToken(token);
+            setStep("reset");
+          }}
+        />
       )}
-      {step === "reset" && <ResetStep onReset={() => setStep("done")} />}
+      {step === "reset" && (
+        <ResetStep token={resetToken} onReset={() => setStep("done")} />
+      )}
       {step === "done" && <DoneStep onLogin={() => router.push("/login")} />}
     </>
   );
@@ -56,13 +77,30 @@ function EmailStep({
   onEmailChange: (v: string) => void;
   onSubmit: () => void;
 }) {
-  const canSubmit = email.trim() !== "";
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const canSubmit = email.trim() !== "" && !submitting;
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canSubmit) return;
-    // TODO: request a reset code, e.g. apiFetch("/auth/forgot-password", ...)
-    onSubmit();
+    setSubmitting(true);
+    setError("");
+    try {
+      // Always 200 unless rate-limited (backend hides whether the account exists).
+      await apiFetch<MessageResponse>("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      onSubmit();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -82,7 +120,13 @@ function EmailStep({
           onChange={onEmailChange}
           autoComplete="email"
         />
-        <PrimaryButton type="submit" disabled={!canSubmit} label="Reset Password" withChevron />
+        {error && <ErrorText>{error}</ErrorText>}
+        <PrimaryButton
+          type="submit"
+          disabled={!canSubmit}
+          label={submitting ? "Sending…" : "Reset Password"}
+          withChevron
+        />
       </div>
       <BackToLogin />
     </Card>
@@ -91,14 +135,22 @@ function EmailStep({
 
 /* ------------------------------------------------------------------ Step 2 */
 
-function VerifyStep({ email, onVerified }: { email: string; onVerified: () => void }) {
+function VerifyStep({
+  email,
+  onVerified,
+}: {
+  email: string;
+  onVerified: (resetToken: string) => void;
+}) {
   const [digits, setDigits] = useState<string[]>(() => Array(OTP_LENGTH).fill(""));
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
   const masked = useMemo(() => maskEmail(email), [email]);
   const code = digits.join("");
-  const canSubmit = code.length === OTP_LENGTH;
+  const canSubmit = code.length === OTP_LENGTH && !submitting;
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -108,6 +160,7 @@ function VerifyStep({ email, onVerified }: { email: string; onVerified: () => vo
 
   function setDigit(index: number, value: string) {
     const char = value.replace(/\D/g, "").slice(-1);
+    setError("");
     setDigits((prev) => {
       const next = [...prev];
       next[index] = char;
@@ -132,11 +185,45 @@ function VerifyStep({ email, onVerified }: { email: string; onVerified: () => vo
     inputsRef.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canSubmit) return;
-    // TODO: verify the OTP, e.g. apiFetch("/auth/verify-otp", ...)
-    onVerified();
+    setSubmitting(true);
+    setError("");
+    try {
+      const { resetToken } = await apiFetch<VerifyOtpResponse>(
+        "/auth/verify-otp",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, code }),
+        },
+      );
+      onVerified(resetToken);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
+      setSubmitting(false);
+    }
+  }
+
+  async function handleResend() {
+    setSeconds(RESEND_SECONDS);
+    setError("");
+    try {
+      await apiFetch<MessageResponse>("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't resend the code. Please try again.",
+      );
+    }
   }
 
   return (
@@ -172,7 +259,13 @@ function VerifyStep({ email, onVerified }: { email: string; onVerified: () => vo
         ))}
       </div>
 
-      <PrimaryButton type="submit" disabled={!canSubmit} label="Verify & Proceed" />
+      {error && <ErrorText className="text-center">{error}</ErrorText>}
+
+      <PrimaryButton
+        type="submit"
+        disabled={!canSubmit}
+        label={submitting ? "Verifying…" : "Verify & Proceed"}
+      />
 
       <p className="flex items-center justify-center gap-1 text-center font-inter text-[14px] leading-5 text-ink">
         Didn&apos;t receive the code?{" "}
@@ -181,14 +274,7 @@ function VerifyStep({ email, onVerified }: { email: string; onVerified: () => vo
             Resend in <span className="font-mono">{formatCountdown(seconds)}</span>
           </span>
         ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setSeconds(RESEND_SECONDS);
-              // TODO: re-request a reset code.
-            }}
-            className="font-medium text-brand"
-          >
+          <button type="button" onClick={handleResend} className="font-medium text-brand">
             Resend
           </button>
         )}
@@ -201,25 +287,52 @@ function VerifyStep({ email, onVerified }: { email: string; onVerified: () => vo
 
 /* ------------------------------------------------------------------ Step 3 */
 
-function ResetStep({ onReset }: { onReset: () => void }) {
+function ResetStep({
+  token,
+  onReset,
+}: {
+  token: string;
+  onReset: () => void;
+}) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   // Button stays active once both fields are filled; the match is validated on
   // submit so we can surface a clear error rather than silently disabling it.
-  const canSubmit = password !== "" && confirm !== "";
+  const canSubmit = password !== "" && confirm !== "" && !submitting;
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canSubmit) return;
     if (password !== confirm) {
       setError("Passwords do not match. Please re-enter them.");
       return;
     }
+    // Enforce the password policy up front for a clear message (the backend
+    // validates the same rules on submit).
+    const policyError = passwordPolicyError(password);
+    if (policyError) {
+      setError(policyError);
+      return;
+    }
     setError("");
-    // TODO: submit the new password, e.g. apiFetch("/auth/reset-password", ...)
-    onReset();
+    setSubmitting(true);
+    try {
+      await apiFetch<MessageResponse>("/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ token, password }),
+      });
+      onReset();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -262,12 +375,14 @@ function ResetStep({ onReset }: { onReset: () => void }) {
           }}
           autoComplete="new-password"
         />
-        {error && (
-          <p role="alert" className="-mt-2 font-inter text-[13px] leading-5 text-red-500">
-            {error}
-          </p>
-        )}
-        <PrimaryButton type="submit" disabled={!canSubmit} label="Reset Password" withChevron />
+        {password !== "" && <PasswordChecklist password={password} />}
+        {error && <ErrorText>{error}</ErrorText>}
+        <PrimaryButton
+          type="submit"
+          disabled={!canSubmit}
+          label={submitting ? "Resetting…" : "Reset Password"}
+          withChevron
+        />
       </div>
     </Card>
   );
@@ -279,9 +394,9 @@ function DoneStep({ onLogin }: { onLogin: () => void }) {
   return (
     <Card>
       <Header
-        title="Login Again"
+        title="You're All Set!"
         titleClassName="text-[36px] leading-[44px] tracking-[-0.72px]"
-        subtitle="Please login again with the new credentials"
+        subtitle="Your password has been successfully reset. Log in with your new credentials to continue."
       />
       <div className="pt-2">
         <PrimaryButton type="button" onClick={onLogin} label="Login" withChevron />
@@ -353,6 +468,52 @@ function PrimaryButton({
   );
 }
 
+function PasswordChecklist({ password }: { password: string }) {
+  const rules = checkPassword(password);
+  return (
+    <ul className="-mt-1 flex flex-col gap-1 px-1" aria-label="Password requirements">
+      {rules.map((rule) => (
+        <li
+          key={rule.label}
+          className={`flex items-center gap-2 font-inter text-[12px] leading-4 transition-colors ${
+            rule.met ? "text-green-600" : "text-ink/50"
+          }`}
+        >
+          <span
+            aria-hidden
+            className={`flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] ${
+              rule.met
+                ? "border-green-600 bg-green-600 text-white"
+                : "border-field-border text-transparent"
+            }`}
+          >
+            ✓
+          </span>
+          {rule.label}
+          <span className="sr-only">{rule.met ? " — met" : " — not met"}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ErrorText({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <p
+      role="alert"
+      className={`-mt-2 font-inter text-[13px] leading-5 text-red-500 ${className}`}
+    >
+      {children}
+    </p>
+  );
+}
+
 function BackToLogin() {
   return (
     <div className="flex justify-center pt-2">
@@ -379,6 +540,9 @@ type FieldProps = {
 };
 
 function Field({ id, label, icon, type, placeholder, value, onChange, autoComplete }: FieldProps) {
+  const isPassword = type === "password";
+  const [show, setShow] = useState(false);
+  const inputType = isPassword && show ? "text" : type;
   return (
     <div className="flex flex-col gap-1.5">
       <label
@@ -391,13 +555,14 @@ function Field({ id, label, icon, type, placeholder, value, onChange, autoComple
         <Image src={icon} alt="" width={24} height={24} className="size-6 shrink-0" />
         <input
           id={id}
-          type={type}
+          type={inputType}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
           className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none placeholder:text-field-placeholder"
         />
+        {isPassword && <PasswordToggle visible={show} onToggle={() => setShow((s) => !s)} />}
       </div>
     </div>
   );

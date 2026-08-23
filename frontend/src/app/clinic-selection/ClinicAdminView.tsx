@@ -1,0 +1,88 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import {
+  apiFetch,
+  displayName,
+  greetingLabel,
+  type BranchSummary,
+  type MeResponse,
+} from "@/lib/api";
+
+import { type Branch } from "./BranchList";
+import DashboardTop, { type StatsByBranch } from "./DashboardTop";
+import SelectBranchSection from "./SelectBranchSection";
+
+/**
+ * The per-clinic view (CLIENT_ADMIN / DOCTOR / etc.): greeting + stat cards +
+ * the branch list for the signed-in user's own clinic. Rendered by
+ * ClinicSelectionClient once the session/role is known.
+ *
+ * Appointment stat cards are still seed data — the backend has no per-status /
+ * per-branch analytics endpoint yet.
+ */
+export default function ClinicAdminView({
+  me,
+  statsByBranch,
+  todayStatsByBranch,
+}: {
+  me: MeResponse;
+  statsByBranch: StatsByBranch;
+  todayStatsByBranch: StatsByBranch;
+}) {
+  const [branchList, setBranchList] = useState<BranchSummary[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    apiFetch<BranchSummary[]>("/branches")
+      .then((branches) => {
+        if (active) setBranchList(branches);
+      })
+      .catch(() => {
+        // Leave empty → fall back to a single clinic-derived row below.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Greeting uses the first name ("Hi, Sanjay"), with "Dr" only for doctors;
+  // the branch PIC uses the plain full name.
+  const greetingName = greetingLabel(me.user);
+
+  // Prefer the clinic's real branches (with their PIC + contact). Fall back to a
+  // single row derived from the clinic itself when no branches are defined.
+  const branches: Branch[] =
+    branchList.length > 0
+      ? branchList.map((b) => ({
+          id: b.id,
+          branch: b.name,
+          pic: b.picName ?? "—",
+          contact: b.contact ?? "—",
+        }))
+      : me.clinic
+        ? [
+            {
+              id: me.clinic.id,
+              branch: me.clinic.name,
+              pic: displayName(me.user),
+              contact: me.user.phone ?? "—",
+            },
+          ]
+        : [];
+
+  return (
+    <div className="flex min-h-dvh flex-col bg-white lg:h-dvh lg:overflow-hidden">
+      <div className="mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-6 p-6 md:gap-7 md:p-7 lg:min-h-0">
+        <DashboardTop
+          greetingName={greetingName}
+          branches={branches}
+          statsByBranch={statsByBranch}
+          todayStatsByBranch={todayStatsByBranch}
+        />
+        <SelectBranchSection branches={branches} />
+      </div>
+    </div>
+  );
+}
