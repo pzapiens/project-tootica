@@ -24,7 +24,9 @@ export const authController = {
     if (!req.user) {
       throw new HttpError(401, 'Authentication required');
     }
-    res.json({ user: await authService.me(req.user.id) });
+    // authService.me returns { user, clinic } — the clinic lets the client
+    // render the caller's clinic without a second request.
+    res.json(await authService.me(req.user.id));
   },
 
   refresh: async (req: Request, res: Response) => {

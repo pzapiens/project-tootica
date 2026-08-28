@@ -1,5 +1,17 @@
 import { z } from 'zod';
 
+/**
+ * Password strength policy for new passwords (reset / set / change). At least
+ * 8 characters, with an uppercase letter, a number and a special character.
+ * Login is intentionally excluded — it only checks the password matches.
+ */
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password must contain an uppercase letter')
+  .regex(/[0-9]/, 'Password must contain a number')
+  .regex(/[^A-Za-z0-9]/, 'Password must contain a special character');
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -16,17 +28,17 @@ export const verifyOtpSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8),
+  password: passwordSchema,
 });
 
 export const setPasswordSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8),
+  password: passwordSchema,
 });
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8),
+  newPassword: passwordSchema,
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

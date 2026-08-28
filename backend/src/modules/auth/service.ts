@@ -20,6 +20,10 @@ function toPublicUser(user: UserRecord) {
   return {
     id: user.id,
     email: user.email,
+    title: user.title,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    phone: user.phone,
     role: user.role,
     clinicId: user.clinicId,
     status: user.status,
@@ -28,6 +32,19 @@ function toPublicUser(user: UserRecord) {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+}
+
+/** The caller's clinic, trimmed to the public Clinic shape (or null). */
+function toPublicClinic(user: UserRecord) {
+  return user.clinic
+    ? {
+        id: user.clinic.id,
+        name: user.clinic.name,
+        status: user.clinic.status,
+        plan: user.clinic.plan,
+        createdAt: user.clinic.createdAt,
+      }
+    : null;
 }
 
 function assertActive(user: UserRecord): void {
@@ -57,12 +74,20 @@ function issueTokens(user: UserRecord): { accessToken: string; refreshToken: str
 export const authService = {
   login: async (input: LoginInput) => {
     const user = await authRepository.findByEmail(input.email);
-    if (!user || !user.passwordHash) {
-      throw new HttpError(401, 'Invalid credentials');
+    // NOTE: distinguishing "no such email" from "wrong password" is friendlier
+    // but enables account enumeration. Acceptable here per product decision.
+    if (!user) {
+      throw new HttpError(401, 'No account found with this email address');
+    }
+    if (!user.passwordHash) {
+      throw new HttpError(
+        401,
+        'This account has no password set yet. Use your invite link to set one.',
+      );
     }
     const ok = await verifyPassword(input.password, user.passwordHash);
     if (!ok) {
-      throw new HttpError(401, 'Invalid credentials');
+      throw new HttpError(401, 'Incorrect password');
     }
     assertActive(user);
     return { user: toPublicUser(user), ...issueTokens(user) };
@@ -73,7 +98,7 @@ export const authService = {
     if (!user) {
       throw new HttpError(401, 'Authentication required');
     }
-    return toPublicUser(user);
+    return { user: toPublicUser(user), clinic: toPublicClinic(user) };
   },
 
   refresh: async (refreshToken: string | undefined) => {
@@ -116,12 +141,49 @@ export const authService = {
       lastSentAt: now,
     });
 
+    const expiryMinutes = Math.round(env.otp.ttlSeconds / 60);
     await emailProvider.send({
       to: email,
       subject: 'Your Tootica password reset code',
-      text: `Your password reset code is ${code}. It expires in ${Math.round(
-        env.otp.ttlSeconds / 60,
-      )} minutes.`,
+      text: [
+        'Hi,',
+        '',
+        'We received a request to reset the password for your Tootica account.',
+        'Use the verification code below to continue:',
+        '',
+        `    ${code}`,
+        '',
+        `This code expires in ${expiryMinutes} minutes and can only be used once.`,
+        'Enter it on the password reset screen to set a new password.',
+        '',
+        "If you didn't request a password reset, you can safely ignore this email —",
+        'your password will stay the same.',
+        '',
+        'Thanks,',
+        'The Tootica Team',
+      ].join('\n'),
+      html: `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;color:#1a1a1a;line-height:1.6;">
+    <h2 style="margin:0 0 16px;font-size:20px;">Reset your Tootica password</h2>
+    <p style="margin:0 0 12px;">Hi,</p>
+    <p style="margin:0 0 12px;">
+      We received a request to reset the password for your Tootica account.
+      Use the verification code below to continue:
+    </p>
+    <div style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;
+                background:#f2f5f9;border-radius:10px;padding:18px 0;margin:20px 0;color:#00478d;">
+      ${code}
+    </div>
+    <p style="margin:0 0 12px;">
+      This code expires in <strong>${expiryMinutes} minutes</strong> and can only be used once.
+      Enter it on the password reset screen to set a new password.
+    </p>
+    <p style="margin:0 0 12px;color:#666;">
+      If you didn't request a password reset, you can safely ignore this email —
+      your password will stay the same.
+    </p>
+    <p style="margin:24px 0 0;">Thanks,<br/>The Tootica Team</p>
+  </div>`,
     });
   },
 

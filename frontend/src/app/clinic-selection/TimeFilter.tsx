@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
+import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
+
 /**
  * Selected appointment time window. `all` = every appointment, `today` = the
  * current day, `range` = an inclusive custom FROM–TO window (dates as
@@ -39,17 +41,10 @@ export default function TimeFilter({
   value: TimeFrame;
   onChange: (tf: TimeFrame) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useExclusiveDropdown();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-
-  // Seed the draft date fields from the active value each time the panel opens.
-  useEffect(() => {
-    if (!open) return;
-    setFrom(value.kind === "range" ? value.from : "");
-    setTo(value.kind === "range" ? value.to : "");
-  }, [open, value]);
 
   useEffect(() => {
     if (!open) return;
@@ -65,7 +60,19 @@ export default function TimeFilter({
       document.removeEventListener("mousedown", onDocMouseDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, setOpen]);
+
+  // Seed the draft date fields from the active value when the panel opens.
+  function toggle() {
+    setOpen((wasOpen) => {
+      const next = !wasOpen;
+      if (next) {
+        setFrom(value.kind === "range" ? value.from : "");
+        setTo(value.kind === "range" ? value.to : "");
+      }
+      return next;
+    });
+  }
 
   const rangeValid = from !== "" && to !== "" && from <= to;
 
@@ -78,7 +85,7 @@ export default function TimeFilter({
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-haspopup="dialog"
         aria-expanded={open}
         className="flex h-[54px] items-center gap-2 rounded-full border-[1.167px] border-field-border px-4 font-inter text-[16.333px] font-medium leading-[23.333px] text-ink"

@@ -77,12 +77,16 @@ interface ClinicDef {
   name: string;
   plan: ClinicPlan;
   adminEmail: string;
+  /** Client-admin account name (shown in the sidebar). */
+  adminName: [string, string];
+  /** Receptionist account name (shown in the sidebar). */
+  receptionName: [string, string];
 }
 
 const CLINICS: ClinicDef[] = [
-  { slug: 'brightsmile', name: 'Bright Smile Dental', plan: 'PRO', adminEmail: 'admin@tootica.local' },
-  { slug: 'gentlecare', name: 'Gentle Care Dentistry', plan: 'BASIC', adminEmail: 'admin@gentlecare.test' },
-  { slug: 'sunrise', name: 'Sunrise Family Dental', plan: 'FREE', adminEmail: 'admin@sunrise.test' },
+  { slug: 'brightsmile', name: 'Bright Smile Dental', plan: 'PRO', adminEmail: 'admin@tootica.local', adminName: ['Sanjay', 'Kapoor'], receptionName: ['Riya', 'Sharma'] },
+  { slug: 'gentlecare', name: 'Gentle Care Dentistry', plan: 'BASIC', adminEmail: 'admin@gentlecare.test', adminName: ['Maya', 'Iyer'], receptionName: ['Neha', 'Verma'] },
+  { slug: 'sunrise', name: 'Sunrise Family Dental', plan: 'FREE', adminEmail: 'admin@sunrise.test', adminName: ['Arjun', 'Rao'], receptionName: ['Pooja', 'Menon'] },
 ];
 
 // --- helpers ----------------------------------------------------------------
@@ -149,6 +153,8 @@ async function main(): Promise<void> {
         role: 'CLIENT_ADMIN',
         status: 'ACTIVE',
         clinicId: clinic.id,
+        firstName: def.adminName[0],
+        lastName: def.adminName[1],
       },
     });
 
@@ -160,6 +166,8 @@ async function main(): Promise<void> {
         role: 'RECEPTIONIST',
         status: 'ACTIVE',
         clinicId: clinic.id,
+        firstName: def.receptionName[0],
+        lastName: def.receptionName[1],
       },
     });
 
@@ -181,6 +189,8 @@ async function main(): Promise<void> {
           role,
           status: 'ACTIVE',
           clinicId: clinic.id,
+          firstName: first,
+          lastName: last,
           // Guest doctors get a time-boxed access window.
           accessStartDate: isGuest ? at(-7, 0) : null,
           accessEndDate: isGuest ? at(30, 0) : null,

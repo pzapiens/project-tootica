@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+
+import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
 export type BranchOption = { id: string; label: string };
 
@@ -19,7 +21,7 @@ export default function BranchFilter({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useExclusiveDropdown();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function BranchFilter({
       document.removeEventListener("mousedown", onDocMouseDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   const current = options.find((o) => o.id === selectedId) ?? options[0];
 

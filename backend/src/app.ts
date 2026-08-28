@@ -12,6 +12,7 @@ import { requireTenant } from './common/middleware/tenant.middleware';
 import { analyticsRoutes } from './modules/analytics/routes';
 import { appointmentRoutes } from './modules/appointments/routes';
 import { authRoutes } from './modules/auth/routes';
+import { branchRoutes } from './modules/branches/routes';
 import { doctorRoutes } from './modules/doctors/routes';
 import { patientRoutes } from './modules/patients/routes';
 import { superAdminRoutes } from './modules/super-admin/routes';
@@ -44,6 +45,7 @@ export function createApp(): express.Express {
 
   // Tenant-scoped modules: authenticate, then resolve the clinic from the user.
   app.use('/api/patients', authenticate, requireTenant, patientRoutes);
+  app.use('/api/branches', authenticate, requireTenant, branchRoutes);
   app.use('/api/doctors', authenticate, requireTenant, doctorRoutes);
   app.use('/api/appointments', authenticate, requireTenant, appointmentRoutes);
   app.use('/api/analytics', authenticate, requireTenant, analyticsRoutes);

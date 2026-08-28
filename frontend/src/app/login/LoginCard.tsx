@@ -5,29 +5,70 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { apiFetch, ApiError, type AuthResponse } from "@/lib/api";
+import PasswordToggle from "@/components/PasswordToggle";
+
 /**
  * Login card — the interactive form from the Figma "Login" frame.
- * Per the prototype, a successful Sign In navigates to the Clinic Selection
- * screen. Real authentication (apiFetch("/auth/login")) can be wired in where
- * marked below.
+ * Authenticates against `POST /api/auth/login` (which sets the httpOnly session
+ * cookies); a successful Sign In navigates to the Clinic Selection screen.
  */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginCard() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  const canSubmit = email.trim() !== "" && password !== "" && !submitting;
+  // Per-field messages, plus a general one for unexpected (e.g. network) errors.
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [formError, setFormError] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (submitting) return;
+
+    // Validate each field on its own so the message points at the right input.
+    const trimmedEmail = email.trim();
+    const nextEmailError = !trimmedEmail
+      ? "Please enter your email address."
+      : !EMAIL_RE.test(trimmedEmail)
+        ? "Please enter a valid email address."
+        : "";
+    const nextPasswordError = !password ? "Please enter your password." : "";
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+    setFormError("");
+    if (nextEmailError || nextPasswordError) return;
+
     setSubmitting(true);
-    // TODO: authenticate against the backend, e.g.
-    //   await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
-    // The prototype navigates to Clinic Selection on success.
-    router.push("/clinic-selection");
+    try {
+      await apiFetch<AuthResponse>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: trimmedEmail, password }),
+      });
+      // Flag this navigation as a fresh login so the landing page can show the
+      // "Reset Your Password" popup once (non-super-admin roles only).
+      try {
+        sessionStorage.setItem("tootica:justLoggedIn", "1");
+      } catch {
+        // Ignore storage failures (private mode) — the popup just won't show.
+      }
+      // Everyone lands on the same URL; the page renders the right view by role
+      // (so the super-admin area isn't exposed by a distinct path).
+      router.push("/clinic-selection");
+    } catch (err) {
+      setSubmitting(false);
+      if (err instanceof ApiError) {
+        // Route the backend reason to the field it's about.
+        if (/password/i.test(err.message)) setPasswordError(err.message);
+        else setEmailError(err.message);
+      } else {
+        setFormError("Something went wrong. Please try again.");
+      }
+    }
   }
 
   return (
@@ -66,8 +107,13 @@ export default function LoginCard() {
           type="email"
           placeholder="e.g. dr.smith@clinique.com"
           value={email}
-          onChange={setEmail}
+          onChange={(v) => {
+            setEmail(v);
+            setEmailError("");
+            setFormError("");
+          }}
           autoComplete="email"
+          error={emailError}
         />
         <Field
           id="password"
@@ -76,8 +122,13 @@ export default function LoginCard() {
           type="password"
           placeholder="••••••••••••"
           value={password}
-          onChange={setPassword}
+          onChange={(v) => {
+            setPassword(v);
+            setPasswordError("");
+            setFormError("");
+          }}
           autoComplete="current-password"
+          error={passwordError}
         />
 
         {/* Options row */}
@@ -106,28 +157,24 @@ export default function LoginCard() {
               Keep me logged in
             </span>
           </label>
-          <button
-            type="button"
-            className="flex items-center gap-1 font-inter text-[14px] font-medium leading-5 text-brand"
-          >
-            <Image
-              src="/auth/key-outline.svg"
-              alt=""
-              width={24}
-              height={24}
-              className="size-6"
-            />
-            Save password
-          </button>
         </div>
+
+        {formError && (
+          <p
+            role="alert"
+            className="-mt-2 font-inter text-[13px] leading-5 text-red-500"
+          >
+            {formError}
+          </p>
+        )}
 
         {/* Submit */}
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={submitting}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-4 font-inter text-[15px] font-semibold text-white transition-opacity disabled:opacity-50"
         >
-          Sign In
+          {submitting ? "Signing In…" : "Sign In"}
           <Image
             src="/auth/chevron.svg"
             alt=""
@@ -160,6 +207,7 @@ type FieldProps = {
   value: string;
   onChange: (value: string) => void;
   autoComplete?: string;
+  error?: string;
 };
 
 function Field({
@@ -171,7 +219,11 @@ function Field({
   value,
   onChange,
   autoComplete,
+  error,
 }: FieldProps) {
+  const isPassword = type === "password";
+  const [show, setShow] = useState(false);
+  const inputType = isPassword && show ? "text" : type;
   return (
     <div className="flex flex-col gap-1.5">
       <label
@@ -180,18 +232,30 @@ function Field({
       >
         {label}
       </label>
-      <div className="flex items-center gap-[15px] rounded-lg border border-field-border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus-within:border-brand">
+      <div
+        className={`flex items-center gap-[15px] rounded-lg border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
+          error ? "border-red-500 focus-within:border-red-500" : "border-field-border focus-within:border-brand"
+        }`}
+      >
         <Image src={icon} alt="" width={24} height={24} className="size-6 shrink-0" />
         <input
           id={id}
-          type={type}
+          type={inputType}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
           className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none placeholder:text-field-placeholder"
         />
+        {isPassword && <PasswordToggle visible={show} onToggle={() => setShow((s) => !s)} />}
       </div>
+      {error && (
+        <p id={`${id}-error`} role="alert" className="pl-1 font-inter text-[13px] leading-5 text-red-500">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
