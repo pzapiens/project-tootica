@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
-import DashboardOverview from "./DashboardOverview";
-import LowerSection from "./LowerSection";
+import DashboardClient from "./DashboardClient";
 
 export const metadata: Metadata = {
   title: "Dashboard — Tootica",
@@ -9,15 +8,10 @@ export const metadata: Metadata = {
 
 /**
  * Main dashboard (Figma "Dashboard1"): greeting header, appointment stat cards,
- * and the lower section with today's appointments table + a mini calendar.
- * The table + calendar top-align so a short (or filtered) table starts at the
- * top rather than being pushed to the bottom.
+ * and the lower section with the appointments table + a mini calendar. The
+ * interactive filter state lives in DashboardClient (a client component) so the
+ * timeframe filter can drive both the cards and the table.
  */
 export default function DashboardPage() {
-  return (
-    <div className="flex flex-col gap-[28px]">
-      <DashboardOverview />
-      <LowerSection />
-    </div>
-  );
+  return <DashboardClient />;
 }

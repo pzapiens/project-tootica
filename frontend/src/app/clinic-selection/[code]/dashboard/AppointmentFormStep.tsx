@@ -3,9 +3,10 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
+import { apiFetch, type AvailabilityResponse } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
-import { DateInput } from "./DateInput";
+import { DateInput, parseDmy } from "./DateInput";
 import DoctorAvailabilityModal from "./DoctorAvailabilityModal";
 
 /**
@@ -42,9 +43,17 @@ export interface AppointmentInitial {
   status?: string;
 }
 
+/** A clinic doctor the form can pick + resolve to an id for availability/booking. */
+export interface DoctorOption {
+  id: string;
+  name: string;
+}
+
 /** The saved values produced when Confirm Appointment is clicked. */
 export interface AppointmentEditResult {
   doctor: string;
+  /** Resolved backend doctor id (empty if the picked name didn't match). */
+  doctorId: string;
   startTime: string;
   endTime: string;
   consultationType: string;
@@ -52,6 +61,10 @@ export interface AppointmentEditResult {
   message: string;
   scheduleMode: "datetime" | "doctor";
   date: string;
+  /** When true, the appointment bypasses business-hours + conflict checks. */
+  nonMandatory: boolean;
+  /** Chosen appointment status label (e.g. "Upcoming"). */
+  status: string;
 }
 
 const CONSULTATION_TYPES = [
@@ -86,20 +99,25 @@ const LEAD_SOURCES = [
   "ONLINE ADS",
   "OTHERS",
 ];
-const DOCTORS = ["Dr. Vance Jacob", "Dr. Aadhinath"];
-
-// Clinic working hours (for the time-range validation): 9:00 AM – 6:00 PM.
+// Editable appointment status; "Upcoming" is the default for a new booking.
+// (Each maps 1:1 to a backend status when the appointment is saved.)
+const STATUS_OPTIONS = ["Upcoming", "Confirmed", "Completed", "Cancelled", "No Show"];
+// Clinic working hours (for the fast client-side time-range check): 9 AM – 6 PM.
+// The backend is authoritative — it re-checks hours + real doctor conflicts.
 const OPEN_MIN = 9 * 60;
 const CLOSE_MIN = 18 * 60;
 
-// Sample doctor day (mirrors the Doctor Availability timeline): the doctor is
-// free 9:00–12:00 and 14:00–18:00; 12:00–13:00 is a break and 13:00–14:00 is
-// booked. A requested range is "available" only if it fits fully inside one of
-// these free windows.
-const AVAILABLE_WINDOWS: readonly [number, number][] = [
-  [9 * 60, 12 * 60],
-  [14 * 60, 18 * 60],
-];
+const pad2 = (n: number) => String(n).padStart(2, "0");
+/** "dd/mm/yyyy" → "yyyy-mm-dd" for the availability query (or "" if invalid). */
+function ymd(dmy: string): string {
+  const d = parseDmy(dmy);
+  return d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : "";
+}
+/** A 12-hour Time → 24-hour "HH:mm" for the availability query. */
+function hhmm24(t: Time): string {
+  const h = (Number(t.h) % 12) + (t.p === "PM" ? 12 : 0);
+  return `${pad2(h)}:${pad2(Number(t.m))}`;
+}
 
 const LABEL = "font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-[#1e1e24]";
 const REQ = <span className="text-red-500">*</span>;
@@ -112,12 +130,25 @@ function titleCase(s: string): string {
 export default function AppointmentFormStep({
   patient,
   initial,
+  doctors = [],
+  excludeAppointmentId,
+  submitting = false,
+  error,
   onCancel,
   onConfirm,
 }: {
   patient: AppointmentPatient;
   /** When present, the form opens pre-filled to edit an existing appointment. */
   initial?: AppointmentInitial;
+  /** This clinic's doctors (from `GET /api/doctors`) for the pickers + checks. */
+  doctors?: DoctorOption[];
+  /** The appointment being edited — excluded from availability so its own
+   *  booking doesn't count as a conflict against the new slot. */
+  excludeAppointmentId?: string;
+  /** True while the parent is saving the appointment to the backend. */
+  submitting?: boolean;
+  /** A save error from the backend, shown above the footer. */
+  error?: string;
   onCancel: () => void;
   onConfirm: (result: AppointmentEditResult) => void;
 }) {
@@ -125,9 +156,19 @@ export default function AppointmentFormStep({
   const editDatetime = initial?.mode === "datetime" ? initial : undefined;
   const editDoctor = initial?.mode === "doctor" ? initial : undefined;
 
+  const doctorNames = doctors.map((d) => d.name);
+  const resolveDoctorId = (name: string) => doctors.find((d) => d.name === name)?.id ?? "";
+
+  // Availability query suffix that excludes the appointment being edited, so its
+  // own booking never registers as a conflict against the (possibly moved) slot.
+  const excludeParam = excludeAppointmentId
+    ? `&excludeAppointmentId=${encodeURIComponent(excludeAppointmentId)}`
+    : "";
+
   const [consultation, setConsultation] = useState<string[]>(initial?.consultation ?? []);
   const [leadSource, setLeadSource] = useState(initial?.leadSource ?? "");
   const [message, setMessage] = useState(initial?.message ?? "");
+  const [status, setStatus] = useState(initial?.status ?? "Upcoming");
 
   const [mode, setMode] = useState<"datetime" | "doctor">(initial?.mode ?? "datetime");
 
@@ -140,7 +181,10 @@ export default function AppointmentFormStep({
   const [dtNonMandatory, setDtNonMandatory] = useState(false);
   // Editing a date-&-time appointment starts already verified (doctor assigned).
   const [availabilityChecked, setAvailabilityChecked] = useState(Boolean(editDatetime));
-  const [availableDoctors, setAvailableDoctors] = useState<string[]>(editDatetime ? DOCTORS : []);
+  const [availableDoctors, setAvailableDoctors] = useState<string[]>(
+    editDatetime ? doctorNames : [],
+  );
+  const [checkingAvail, setCheckingAvail] = useState(false);
   const [availError, setAvailError] = useState("");
   // Whether the availability result message should show — only after the user
   // clicks the button (never on an edit prefill).
@@ -157,15 +201,21 @@ export default function AppointmentFormStep({
   const [docAvailable, setDocAvailable] = useState(Boolean(editDoctor));
   const [docAvailError, setDocAvailError] = useState("");
   const [docAvailShown, setDocAvailShown] = useState(false);
+  const [checkingDoc, setCheckingDoc] = useState(false);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
 
   const dtTimeFilled = Boolean(dtFrom.h && dtFrom.m && dtTo.h && dtTo.m);
-  const canCheckAvailability = Boolean(dtDate && dtTimeFilled);
-  const doctorAvailable = availabilityChecked && availableDoctors.length > 0;
+  // Doctor options for the date-&-time flow. After a real availability check we
+  // use the free doctors; when editing (opens already verified) we fall back to
+  // the full loaded list so the pre-filled doctor shows even before the async
+  // `/doctors` fetch had resolved at mount.
+  const dtDoctorOptions =
+    availableDoctors.length > 0 ? availableDoctors : editDatetime ? doctorNames : [];
+  const doctorAvailable = availabilityChecked && dtDoctorOptions.length > 0;
 
-  // Shared mandatory fields above the tabs (Consultation Type + Lead Source) must
-  // be filled in BOTH flows before Confirm can activate.
-  const coreOk = Boolean(consultation.length > 0 && leadSource);
+  // Consultation Type is the only shared mandatory field above the tabs; the
+  // Source of Enquiry is optional.
+  const coreOk = consultation.length > 0;
 
   // Select-by-Date-&-Time: core + Date + a Time Range verified via "Available
   // Doctors" (no doctor pick needed). Non-mandatory drops the time range →
@@ -175,17 +225,16 @@ export default function AppointmentFormStep({
     (dtNonMandatory ? Boolean(dtDate) : Boolean(dtDate && dtTimeFilled && doctorAvailable));
 
   // Select-by-Doctor: core + doctor + date. When a time range is required (not
-  // non-mandatory), it must be verified free via "Check Availability" first.
+  // non-mandatory), it must have been verified free — which now happens
+  // automatically once the time range is filled (see the effect below).
   const docTimeFilled = Boolean(docFrom.h && docFrom.m && docTo.h && docTo.m);
   const doctorTimeOk = docNonMandatory
     ? true
     : docTimeFilled && docAvailChecked && docAvailable;
   const doctorModeOk = coreOk && Boolean(docDate && docDoctor) && doctorTimeOk;
 
-  // View Availability activates once a doctor + date are chosen; Check
-  // Availability additionally needs the time range filled.
+  // View Availability activates once a doctor + date are chosen.
   const canViewAvailability = Boolean(docDoctor && docDate);
-  const canCheckDoctorAvailability = canViewAvailability && docTimeFilled;
 
   // Any change to the doctor-flow doctor/date/time invalidates a prior result.
   function resetDocAvailability() {
@@ -195,7 +244,8 @@ export default function AppointmentFormStep({
     setDocAvailShown(false);
   }
 
-  function checkDoctorAvailability() {
+  // Check the chosen doctor against the backend (real bookings + business hours).
+  async function checkDoctorAvailability() {
     setDocAvailShown(true);
     const f = toMinutes(docFrom);
     const t = toMinutes(docTo);
@@ -205,26 +255,73 @@ export default function AppointmentFormStep({
       setDocAvailable(false);
       return;
     }
-    const free = AVAILABLE_WINDOWS.some(([s, e]) => f >= s && t <= e);
-    setDocAvailError(free ? "" : "Doctor is not available in the selected time range.");
-    setDocAvailable(free);
-    setDocAvailChecked(true);
+    const doctorId = resolveDoctorId(docDoctor);
+    if (!doctorId) {
+      setDocAvailError("Please select a doctor first.");
+      return;
+    }
+    setCheckingDoc(true);
+    setDocAvailError("");
+    try {
+      const res = await apiFetch<AvailabilityResponse>(
+        `/appointments/availability?date=${ymd(docDate)}&from=${hhmm24(docFrom)}&to=${hhmm24(docTo)}&doctorId=${doctorId}${excludeParam}`,
+      );
+      const d = res.doctors[0];
+      const ok = Boolean(d?.available);
+      setDocAvailable(ok);
+      setDocAvailError(
+        ok
+          ? ""
+          : d?.reason === "conflict"
+            ? "Doctor is already booked in this time range."
+            : d?.reason === "break"
+              ? "This time falls within the clinic lunch break (12:00 PM – 2:00 PM)."
+              : "Doctor is not available in the selected time range.",
+      );
+    } catch {
+      setDocAvailable(false);
+      setDocAvailError("Couldn't check availability. Please try again.");
+    } finally {
+      setDocAvailChecked(true);
+      setCheckingDoc(false);
+    }
   }
+
+  // Keep the latest checker for the debounced auto-check effect below.
+  const checkDoctorRef = useRef(checkDoctorAvailability);
+  useEffect(() => {
+    checkDoctorRef.current = checkDoctorAvailability;
+  });
+
+  // Auto-validate the doctor's availability shortly after the time range is
+  // complete — no manual "Check Availability" click needed. Debounced so it
+  // waits for the user to finish typing the From/To times.
+  useEffect(() => {
+    if (mode !== "doctor" || docNonMandatory) return;
+    if (!docDoctor || !docDate || !docTimeFilled || docAvailChecked) return;
+    const id = window.setTimeout(() => checkDoctorRef.current(), 500);
+    return () => window.clearTimeout(id);
+  }, [mode, docDoctor, docDate, docTimeFilled, docNonMandatory, docAvailChecked, docFrom, docTo]);
 
   const canConfirm = mode === "datetime" ? datetimeOk : doctorModeOk;
 
   function handleConfirm() {
     if (!canConfirm) return;
     const isDoctor = mode === "doctor";
+    const doctorName = isDoctor ? docDoctor : dtDoctor;
     onConfirm({
-      doctor: isDoctor ? docDoctor : dtDoctor,
+      doctor: doctorName,
+      doctorId: resolveDoctorId(doctorName),
       startTime: formatTime(isDoctor ? docFrom : dtFrom),
       endTime: formatTime(isDoctor ? docTo : dtTo),
-      consultationType: consultation[0] ?? "",
+      // Persist the full selection (the field is one string); split back on edit.
+      consultationType: consultation.join(", "),
       leadSource,
       message,
       scheduleMode: mode,
       date: isDoctor ? docDate : dtDate,
+      nonMandatory: isDoctor ? docNonMandatory : dtNonMandatory,
+      status,
     });
   }
 
@@ -237,7 +334,8 @@ export default function AppointmentFormStep({
     setAvailShown(false);
   }
 
-  function findAvailableDoctors() {
+  // Ask the backend which doctors are free for the chosen date + time.
+  async function findAvailableDoctors() {
     setAvailShown(true);
     const f = toMinutes(dtFrom);
     const t = toMinutes(dtTo);
@@ -247,10 +345,56 @@ export default function AppointmentFormStep({
       setAvailableDoctors([]);
       return;
     }
+    setCheckingAvail(true);
     setAvailError("");
-    setAvailableDoctors(DOCTORS); // dummy: both doctors are free in-hours
-    setAvailabilityChecked(true);
+    try {
+      const res = await apiFetch<AvailabilityResponse>(
+        `/appointments/availability?date=${ymd(dtDate)}&from=${hhmm24(dtFrom)}&to=${hhmm24(dtTo)}${excludeParam}`,
+      );
+      const free = res.doctors
+        .filter((d) => d.available && d.name)
+        .map((d) => d.name as string);
+      if (free.length === 0) {
+        // If every doctor is blocked by the break, say so specifically.
+        const allBreak =
+          res.doctors.length > 0 && res.doctors.every((d) => d.reason === "break");
+        setAvailError(
+          allBreak
+            ? "This time falls within the clinic lunch break (12:00 PM – 2:00 PM). Pick another slot."
+            : "No doctors are free in the selected time. Try another slot.",
+        );
+        setAvailableDoctors([]);
+        setAvailabilityChecked(false);
+      } else {
+        setAvailableDoctors(free);
+        setAvailabilityChecked(true);
+        // Auto-assign a free doctor (keep the current pick if it's still free),
+        // so no manual selection is needed.
+        setDtDoctor((cur) => (free.includes(cur) ? cur : free[0]));
+      }
+    } catch {
+      setAvailError("Couldn't check availability. Please try again.");
+      setAvailableDoctors([]);
+      setAvailabilityChecked(false);
+    } finally {
+      setCheckingAvail(false);
+    }
   }
+
+  // Keep the latest finder for the debounced auto-check effect below.
+  const findAvailRef = useRef(findAvailableDoctors);
+  useEffect(() => {
+    findAvailRef.current = findAvailableDoctors;
+  });
+
+  // Auto-find available doctors shortly after the date + time range are set — no
+  // manual "Available Doctors" click needed (debounced for typing).
+  useEffect(() => {
+    if (mode !== "datetime" || dtNonMandatory) return;
+    if (!dtDate || !dtTimeFilled || availabilityChecked) return;
+    const id = window.setTimeout(() => findAvailRef.current(), 500);
+    return () => window.clearTimeout(id);
+  }, [mode, dtDate, dtTimeFilled, dtNonMandatory, availabilityChecked, dtFrom, dtTo]);
 
   return (
     <>
@@ -269,13 +413,21 @@ export default function AppointmentFormStep({
             onChange={setConsultation}
           />
           <BoxedDropdown
-            label="Lead Source"
+            label="Source of Enquiry"
+            required={false}
             value={leadSource}
             options={LEAD_SOURCES}
             onChange={setLeadSource}
           />
-          <ReadonlyField label="Status" value={initial?.status ?? "Upcoming"} icon="block" />
-          <ReadonlyField label="Source" value="Web" icon="block" />
+          <BoxedDropdown
+            label="Status"
+            required={false}
+            value={status}
+            options={STATUS_OPTIONS}
+            onChange={setStatus}
+            format={(s) => s}
+          />
+          <ReadonlyField label="Booking Channel" value="Web" icon="block" />
           <div className="flex flex-col gap-2">
             <span className={LABEL}>Message</span>
             <input
@@ -324,30 +476,27 @@ export default function AppointmentFormStep({
                 setDtTo(t);
                 resetAvailability();
               }}
+              action={
+                !dtNonMandatory && checkingAvail ? (
+                  <span className="whitespace-nowrap font-inter text-[13px] text-[#1e1e24]/60">
+                    Finding available doctor…
+                  </span>
+                ) : undefined
+              }
             >
-              <button
-                type="button"
-                disabled={!canCheckAvailability}
-                onClick={findAvailableDoctors}
-                className={`inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-full px-4 font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-white ${
-                  canCheckAvailability ? "bg-[#0077c0]" : "cursor-not-allowed bg-[#0077c0]/40"
-                }`}
-              >
-                Available Doctors
-              </button>
               <NonMandatory checked={dtNonMandatory} onChange={setDtNonMandatory} />
             </TimeRange>
             {availShown && availError && <ErrorLine text={availError} />}
-            {availShown && !availError && availabilityChecked && availableDoctors.length > 0 && (
+            {availShown && !availError && doctorAvailable && (
               <SuccessLine text="Doctor available in the preferred time." />
             )}
             <div className="grid grid-cols-2 gap-x-[32px]">
-              {availabilityChecked && availableDoctors.length > 0 ? (
+              {doctorAvailable ? (
                 <BoxedDropdown
                   label="Doctor"
                   required={false}
                   value={dtDoctor}
-                  options={availableDoctors}
+                  options={dtDoctorOptions}
                   onChange={setDtDoctor}
                   format={(s) => s}
                 />
@@ -368,7 +517,7 @@ export default function AppointmentFormStep({
               <BoxedDropdown
                 label="Doctor"
                 value={docDoctor}
-                options={DOCTORS}
+                options={doctorNames}
                 onChange={(v) => {
                   setDocDoctor(v);
                   resetDocAvailability();
@@ -399,8 +548,7 @@ export default function AppointmentFormStep({
                 setDocTo(t);
                 resetDocAvailability();
               }}
-            >
-              <div className="flex flex-col gap-2">
+              action={
                 <button
                   type="button"
                   disabled={!canViewAvailability}
@@ -411,17 +559,8 @@ export default function AppointmentFormStep({
                 >
                   View Availability
                 </button>
-                <button
-                  type="button"
-                  disabled={!canCheckDoctorAvailability}
-                  onClick={checkDoctorAvailability}
-                  className={`inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-full px-4 font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-white ${
-                    canCheckDoctorAvailability ? "bg-[#0077c0]" : "cursor-not-allowed bg-[#0077c0]/40"
-                  }`}
-                >
-                  Check Availability
-                </button>
-              </div>
+              }
+            >
               <NonMandatory
                 checked={docNonMandatory}
                 onChange={(v) => {
@@ -430,38 +569,55 @@ export default function AppointmentFormStep({
                 }}
               />
             </TimeRange>
-            {!docNonMandatory && docAvailShown && docAvailError && <ErrorLine text={docAvailError} />}
-            {!docNonMandatory && docAvailShown && !docAvailError && docAvailChecked && docAvailable && (
-              <SuccessLine text="Doctor available in the preferred time." />
+            {!docNonMandatory && checkingDoc && (
+              <p className="font-inter text-[13px] text-[#1e1e24]/60">Checking availability…</p>
             )}
+            {!docNonMandatory && !checkingDoc && docAvailShown && docAvailError && (
+              <ErrorLine text={docAvailError} />
+            )}
+            {!docNonMandatory &&
+              !checkingDoc &&
+              docAvailShown &&
+              !docAvailError &&
+              docAvailChecked &&
+              docAvailable && <SuccessLine text="Doctor available in the preferred time." />}
           </div>
         )}
       </div>
 
       {/* Footer (fixed) */}
-      <div className="flex shrink-0 items-center justify-end gap-6 border-t border-[#c2c6d4]/40 px-[32px] py-[20px]">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-black"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          disabled={!canConfirm}
-          onClick={handleConfirm}
-          className={`rounded-full px-[25px] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
-            canConfirm ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
-          }`}
-        >
-          {initial ? "Update Appointment" : "Confirm Appointment"}
-        </button>
+      <div className="flex shrink-0 flex-col gap-3 border-t border-[#c2c6d4]/40 px-[32px] py-[20px]">
+        {error && <ErrorLine text={error} />}
+        <div className="flex items-center justify-end gap-6">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-black disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canConfirm || submitting}
+            onClick={handleConfirm}
+            className={`rounded-full px-[25px] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
+              canConfirm && !submitting ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
+            }`}
+          >
+            {submitting
+              ? "Saving…"
+              : initial
+                ? "Update Appointment"
+                : "Confirm Appointment"}
+          </button>
+        </div>
       </div>
 
       {availabilityOpen && (
         <DoctorAvailabilityModal
           doctor={docDoctor}
+          doctorId={resolveDoctorId(docDoctor)}
           date={docDate}
           onClose={() => setAvailabilityOpen(false)}
         />
@@ -686,6 +842,7 @@ function TimeRange({
   onFrom,
   onTo,
   required = true,
+  action,
   children,
 }: {
   from: Time;
@@ -693,6 +850,8 @@ function TimeRange({
   onFrom: (t: Time) => void;
   onTo: (t: Time) => void;
   required?: boolean;
+  /** Optional control shown near the top of the right column (e.g. a button). */
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -705,14 +864,23 @@ function TimeRange({
           <TimeGroup label="To" value={to} onChange={onTo} />
         </div>
       </div>
-      {/* Right column (aligned with the Message field above). The invisible
-          Time-Range-label spacer drops the button to the From/To label row;
-          the checkbox stacks below it. */}
-      <div className="flex flex-col gap-2">
+      {/* Right column. The `action` (e.g. "View Availability") is pinned near the
+          top; the two invisible spacers drop the `children` (the checkbox) onto
+          the time-input row so it lines up with the From/To boxes on the left. */}
+      <div className="relative flex flex-col gap-2">
         <span className={`${LABEL} opacity-0`} aria-hidden>
           x
         </span>
-        <div className="flex flex-col items-start gap-2">{children}</div>
+        <div className="flex flex-col gap-1.5">
+          <span
+            className="font-inter text-[10px] uppercase tracking-[0.5px] opacity-0"
+            aria-hidden
+          >
+            x
+          </span>
+          <div className="flex min-h-[38px] items-center">{children}</div>
+        </div>
+        {action && <div className="absolute left-0 top-0">{action}</div>}
       </div>
     </div>
   );
@@ -781,7 +949,7 @@ function NonMandatory({ checked, onChange }: { checked: boolean; onChange: (v: b
           <path d="M5 12l5 5L20 7" />
         </svg>
       </span>
-      <span className="font-inter text-[13px] text-[#1e1e24]">Non-mandatory</span>
+      <span className="font-inter text-[13px] text-[#1e1e24]">Skip time &amp; availability check</span>
     </label>
   );
 }

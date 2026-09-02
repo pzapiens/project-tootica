@@ -1,17 +1,20 @@
 /**
- * Mock data for the full-calendar view (Figma "Calendar" frames). Appointments
- * are keyed by day-of-month and generated per viewed month so any month shows a
- * representative sample. Swap for a real per-doctor appointments fetch later.
+ * Types + mappers for the full-calendar view. Real appointments (from
+ * `GET /api/appointments`) are mapped into the compact shape the month grid +
+ * slide-over use, and grouped by day-of-month. The calendar status mirrors the
+ * appointment's stored status (it is NOT derived from the current time).
  */
+import type { AppointmentListItem } from "@/lib/api";
 
-export type CalStatus = "Completed" | "Ongoing" | "Upcoming";
+export type CalStatus = "Completed" | "Ongoing" | "Upcoming" | "Cancelled";
 
 export interface CalAppointment {
   id: string;
   apptId: string;
   patientId: string;
+  /** Patient's first name only — the calendar never shows the full name. */
   patientName: string;
-  /** Short name shown on the compact month-grid chip (e.g. "M. Chang"). */
+  /** Short name shown on the compact month-grid chip (also first name only). */
   shortName: string;
   consultationType: string;
   doctor: string;
@@ -23,72 +26,68 @@ export interface CalAppointment {
   message: string;
 }
 
-/** The doctor whose calendar is shown (matches the header subtitle). */
-export const CAL_DOCTOR = "Dr. Vance Jacob - Endodontics";
+/** A Date → "hh:mm AM". */
+function fmt12(d: Date): string {
+  const period = d.getHours() >= 12 ? "PM" : "AM";
+  const h = d.getHours() % 12 || 12;
+  return `${String(h).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} ${period}`;
+}
 
-// A fixed sample keyed by a nominal day-of-month; clamped to the real month
-// length when generated so late days never fall off short months.
-const SAMPLE: Record<number, CalAppointment[]> = {
-  2: [
-    {
-      id: "a-2-1", apptId: "TGD-AT000008", patientId: "TGD-PT000002",
-      patientName: "John Kenny", shortName: "J. Kenny", consultationType: "Teeth Whitening",
-      doctor: "Dr. Vance", phone: "+91 1234567890", email: "johnkenny@gmail.com",
-      start: "09:00 AM", end: "09:30 AM", status: "Completed",
-      message: "Routine whitening follow-up.",
-    },
-  ],
-  9: [
-    {
-      id: "a-9-1", apptId: "TGD-AT000009", patientId: "TGD-PT000001",
-      patientName: "Jacob Sam", shortName: "Jacob Sam", consultationType: "Dental Checkup",
-      doctor: "Dr. Vance", phone: "+91 9876543210", email: "jacobsam@gmail.com",
-      start: "09:00 AM", end: "09:30 AM", status: "Completed",
-      message: "General checkup and cleaning.",
-    },
-  ],
-  17: [
-    {
-      id: "a-17-1", apptId: "TGD-AT000010", patientId: "TGD-PT000003",
-      patientName: "John Kenny", shortName: "J. Kenny", consultationType: "Teeth Whitening",
-      doctor: "Dr. Vance", phone: "+91 1234567890", email: "johnkenny@gmail.com",
-      start: "09:00 AM", end: "09:30 AM", status: "Completed",
-      message: "Whitening session completed without issues.",
-    },
-    {
-      id: "a-17-2", apptId: "TGD-AT000011", patientId: "TGD-PT000004",
-      patientName: "Michael Chang", shortName: "M. Chang", consultationType: "Root Canal",
-      doctor: "Dr. Vance", phone: "+91 1234567890", email: "michaelchang@gmail.com",
-      start: "09:30 AM", end: "10:30 AM", status: "Ongoing",
-      message:
-        "\"Patient experiencing mild sensitivity to cold in lower right quadrant. Requesting evaluation prior to procedure.\"",
-    },
-    {
-      id: "a-17-3", apptId: "TGD-AT000012", patientId: "TGD-PT000005",
-      patientName: "Gia Moran", shortName: "G. Moran", consultationType: "Root Canal",
-      doctor: "Dr. Vance", phone: "+91 2223334444", email: "giamoran@gmail.com",
-      start: "10:30 AM", end: "11:30 AM", status: "Upcoming",
-      message: "First root-canal sitting.",
-    },
-  ],
-  18: [
-    {
-      id: "a-18-1", apptId: "TGD-AT000013", patientId: "TGD-PT000006",
-      patientName: "Bruce Wayne", shortName: "B. Wayne", consultationType: "Scaling & Polishing",
-      doctor: "Dr. Vance", phone: "+91 5556667777", email: "bwayne@gmail.com",
-      start: "08:00 AM", end: "08:30 AM", status: "Upcoming",
-      message: "Requested early-morning slot.",
-    },
-  ],
-};
+/** Map the backend appointment status straight onto a calendar status — no
+ *  time-of-day logic, so an entry shows exactly the status it was given.
+ *  CONFIRMED reads as in-progress → "Ongoing"; SCHEDULED stays "Upcoming". */
+export function computeCalStatus(item: AppointmentListItem): CalStatus {
+  switch (item.status) {
+    case "CANCELLED":
+    case "NO_SHOW":
+      return "Cancelled";
+    case "COMPLETED":
+      return "Completed";
+    case "CONFIRMED":
+      return "Ongoing";
+    default:
+      return "Upcoming";
+  }
+}
 
-/** Appointments for a given month, keyed by day-of-month (1-based). */
-export function getMonthAppointments(year: number, month: number): Record<number, CalAppointment[]> {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+/** Map a backend appointment into the calendar's compact shape. */
+export function toCalAppointment(item: AppointmentListItem): CalAppointment {
+  const start = new Date(item.startTime);
+  const end = new Date(item.endTime);
+  // Zero-duration (start == end) means no time was picked → show "--".
+  const noTime = item.startTime === item.endTime;
+  const name = item.patient.name;
+  // Calendar shows first name only — the first whitespace-separated token, or
+  // the whole (trimmed) name when there's no space.
+  const firstName = name.trim().split(/\s+/)[0] || name;
+  return {
+    id: item.id,
+    apptId: item.code ?? item.id,
+    patientId: item.patient.code ?? item.patient.id,
+    patientName: firstName,
+    shortName: firstName,
+    consultationType: item.consultationType?.trim() || item.notes?.trim() || "Consultation",
+    doctor: item.doctor.name ? `Dr. ${item.doctor.name}` : "Unassigned",
+    phone: item.patient.phone ?? "—",
+    email: item.patient.email ?? "—",
+    start: noTime ? "--" : fmt12(start),
+    end: noTime ? "--" : fmt12(end),
+    status: computeCalStatus(item),
+    message: item.notes ?? "",
+  };
+}
+
+/** Group appointments by day-of-month (1-based), each day chronological. */
+export function groupByDay(
+  items: AppointmentListItem[],
+): Record<number, CalAppointment[]> {
   const out: Record<number, CalAppointment[]> = {};
-  for (const [dayStr, appts] of Object.entries(SAMPLE)) {
-    const day = Math.min(Number(dayStr), daysInMonth);
-    out[day] = appts;
+  const sorted = [...items].sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+  );
+  for (const item of sorted) {
+    const day = new Date(item.startTime).getDate();
+    (out[day] ??= []).push(toCalAppointment(item));
   }
   return out;
 }

@@ -49,15 +49,10 @@ export default function LoginCard() {
         method: "POST",
         body: JSON.stringify({ email: trimmedEmail, password }),
       });
-      // Flag this navigation as a fresh login so the landing page can show the
-      // "Reset Your Password" popup once (non-super-admin roles only).
-      try {
-        sessionStorage.setItem("tootica:justLoggedIn", "1");
-      } catch {
-        // Ignore storage failures (private mode) — the popup just won't show.
-      }
       // Everyone lands on the same URL; the page renders the right view by role
-      // (so the super-admin area isn't exposed by a distinct path).
+      // (so the super-admin area isn't exposed by a distinct path). The forced
+      // first-login "Reset Password" card is triggered there from the persisted
+      // mustResetPassword flag on the account, not from this navigation.
       router.push("/clinic-selection");
     } catch (err) {
       setSubmitting(false);

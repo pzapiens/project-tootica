@@ -18,3 +18,8 @@ authRoutes.post('/set-password', asyncHandler(authController.setPassword));
 // Authenticated endpoints.
 authRoutes.get('/me', authenticate, asyncHandler(authController.me));
 authRoutes.post('/change-password', authenticate, asyncHandler(authController.changePassword));
+authRoutes.post(
+  '/complete-onboarding',
+  authenticate,
+  asyncHandler(authController.completeOnboarding),
+);

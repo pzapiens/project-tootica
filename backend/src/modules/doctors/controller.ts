@@ -1,13 +1,13 @@
 import type { Request, Response } from 'express';
 
-import { requireClinicId } from '../../common/middleware/tenant.middleware';
+import { getBranchId, requireClinicId } from '../../common/middleware/tenant.middleware';
 import { createDoctorSchema, updateDoctorSchema } from './schema';
 import { doctorService } from './service';
 
 export const doctorController = {
   list: async (req: Request, res: Response) => {
     const clinicId = requireClinicId(req);
-    res.json(await doctorService.list(clinicId));
+    res.json(await doctorService.list(clinicId, getBranchId(req)));
   },
 
   get: async (req: Request, res: Response) => {

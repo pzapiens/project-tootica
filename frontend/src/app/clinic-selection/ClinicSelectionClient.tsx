@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { apiFetch, ApiError, type BranchSummary, type MeResponse } from "@/lib/api";
 
 import ClinicAdminView from "./ClinicAdminView";
-import { type StatsByBranch } from "./DashboardTop";
 import ResetPasswordPopup from "./ResetPasswordPopup";
 import SuperAdminView from "./SuperAdminView";
 
@@ -16,13 +15,7 @@ import SuperAdminView from "./SuperAdminView";
  * cross-tenant view here too, so the admin area isn't exposed by a separate
  * `/super-admin` path. Redirects to /login when there's no valid session.
  */
-export default function ClinicSelectionClient({
-  statsByBranch,
-  todayStatsByBranch,
-}: {
-  statsByBranch: StatsByBranch;
-  todayStatsByBranch: StatsByBranch;
-}) {
+export default function ClinicSelectionClient() {
   const router = useRouter();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,8 +29,8 @@ export default function ClinicSelectionClient({
         const role = data.user.role;
 
         // Doctors & receptionists don't get the clinic-selection screen — send
-        // them straight to their clinic's dashboard. The "just logged in" flag
-        // is left in place so the dashboard can show the reset popup there.
+        // them straight to their clinic's dashboard, where the forced-reset
+        // popup (driven by the same mustResetPassword flag) is shown instead.
         if (role === "DOCTOR" || role === "GUEST_DOCTOR" || role === "RECEPTIONIST") {
           let code = data.clinic?.id ?? "";
           try {
@@ -52,18 +45,12 @@ export default function ClinicSelectionClient({
 
         setMe(data);
         setLoading(false);
-        // Show the "Reset Password" popup once, right after a fresh login, for
-        // the client admin here (super admin excluded; doctor/receptionist see
-        // it on the dashboard instead).
-        if (role !== "SUPER_ADMIN") {
-          try {
-            if (sessionStorage.getItem("tootica:justLoggedIn") === "1") {
-              sessionStorage.removeItem("tootica:justLoggedIn");
-              setShowReset(true);
-            }
-          } catch {
-            // Ignore storage failures (private mode).
-          }
+        // Force the "Reset Password" + Terms card for a client admin whose
+        // account is still on its temporary password (super admin excluded;
+        // doctor/receptionist see it on the dashboard instead). The flag is
+        // persisted server-side and cleared once onboarding completes.
+        if (role !== "SUPER_ADMIN" && data.user.mustResetPassword) {
+          setShowReset(true);
         }
       })
       .catch((err: unknown) => {
@@ -92,11 +79,7 @@ export default function ClinicSelectionClient({
 
   return (
     <>
-      <ClinicAdminView
-        me={me}
-        statsByBranch={statsByBranch}
-        todayStatsByBranch={todayStatsByBranch}
-      />
+      <ClinicAdminView me={me} />
       {showReset && <ResetPasswordPopup onClose={() => setShowReset(false)} />}
     </>
   );

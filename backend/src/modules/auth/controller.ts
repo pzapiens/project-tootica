@@ -4,6 +4,7 @@ import { HttpError } from '../../common/utils/httpError';
 import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from './cookies';
 import {
   changePasswordSchema,
+  completeOnboardingSchema,
   forgotPasswordSchema,
   loginSchema,
   resetPasswordSchema,
@@ -71,5 +72,14 @@ export const authController = {
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
     await authService.changePassword(req.user.id, currentPassword, newPassword);
     res.json({ message: 'Password has been changed.' });
+  },
+
+  completeOnboarding: async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new HttpError(401, 'Authentication required');
+    }
+    const { password } = completeOnboardingSchema.parse(req.body);
+    await authService.completeOnboarding(req.user.id, password);
+    res.json({ message: 'Your password has been set and Terms accepted.' });
   },
 };

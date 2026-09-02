@@ -2,12 +2,16 @@
 
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { type AppointmentListItem } from "@/lib/api";
 
 /**
- * Functional mini month calendar (Figma "Mini Calendar"). Renders the real
- * current month with today highlighted, working previous/next navigation and
- * click-to-select. Appointment data is still mock, but the dates are live.
+ * Display-only mini month calendar (Figma "Mini Calendar"). Renders the real
+ * current month with today highlighted and working previous/next navigation.
+ * Days that have appointments show a dot (from the live backend list). It does
+ * NOT filter the appointments table beside it — the days are not interactive.
+ * The full month/day view lives behind the "View Full Calendar" button.
  */
 
 const WEEKDAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
@@ -17,6 +21,7 @@ const MONTHS = [
 ];
 
 type Cell = { date: Date; inMonth: boolean };
+type MonthView = { year: number; month: number };
 
 /** Strip the time part so two dates compare by calendar day. */
 function sameDay(a: Date, b: Date): boolean {
@@ -41,7 +46,18 @@ function buildCells(year: number, month: number): Cell[] {
   });
 }
 
-export default function MiniCalendar() {
+/** Local `yyyy-mm-dd` key for grouping appointments by calendar day. */
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+export default function MiniCalendar({
+  appointments,
+  initialMonth,
+}: {
+  appointments: AppointmentListItem[];
+  initialMonth: MonthView;
+}) {
   const router = useRouter();
   const params = useParams<{ code: string }>();
 
@@ -50,12 +66,30 @@ export default function MiniCalendar() {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }, []);
 
-  const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() });
-  const [selected, setSelected] = useState<Date>(today);
+  const [view, setView] = useState<MonthView>(initialMonth);
+  // Follow the computed initial month (from the latest appointment) until the
+  // user navigates months themselves.
+  const navigatedRef = useRef(false);
+  useEffect(() => {
+    if (!navigatedRef.current) setView(initialMonth);
+  }, [initialMonth]);
 
   const cells = useMemo(() => buildCells(view.year, view.month), [view]);
 
+  // Days (this month) that have at least one appointment → dot indicator.
+  const apptDays = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of appointments) {
+      const d = new Date(a.startTime);
+      if (d.getFullYear() === view.year && d.getMonth() === view.month) {
+        set.add(dayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate())));
+      }
+    }
+    return set;
+  }, [appointments, view]);
+
   function shiftMonth(delta: number) {
+    navigatedRef.current = true;
     const d = new Date(view.year, view.month + delta, 1);
     setView({ year: d.getFullYear(), month: d.getMonth() });
   }
@@ -90,34 +124,35 @@ export default function MiniCalendar() {
           ))}
           {cells.map((cell, i) => {
             const isToday = sameDay(cell.date, today);
-            const isSelected = sameDay(cell.date, selected);
-            const isPast = cell.date < today;
+            const hasAppts = cell.inMonth && apptDays.has(dayKey(cell.date));
 
-            let textClass = "text-[#1e1e24] font-normal";
-            if (!cell.inMonth) textClass = "text-[#cbd5e1] font-normal";
-            else if (isSelected && !isToday) textClass = "text-[#0077c0] font-bold";
-            else if (isPast) textClass = "text-[#c2c6d4] font-normal";
+            // In-month days stay dark; only days spilling in from the adjacent
+            // months are muted. Past days are NOT greyed — the data is
+            // historical, so greying them made the whole grid look disabled.
+            const textClass = cell.inMonth
+              ? "text-[#1e1e24] font-normal"
+              : "text-[#cbd5e1] font-normal";
+
+            // Today is highlighted; otherwise the default/greyed style. The
+            // calendar is display-only, so days are not interactive.
+            const cellClass = isToday
+              ? "flex size-[37.333px] items-center justify-center rounded-full bg-[#f1f5f9] font-inter text-[16.333px] font-bold leading-[23.333px] text-[#1e1e24]"
+              : `flex size-[37.333px] items-center justify-center rounded-full font-inter text-[16.333px] leading-[23.333px] ${textClass}`;
 
             return (
-              <div key={i} className="flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelected(cell.date);
-                    if (!cell.inMonth) {
-                      setView({ year: cell.date.getFullYear(), month: cell.date.getMonth() });
-                    }
-                  }}
+              <div key={i} className="flex flex-col items-center justify-center gap-[3px]">
+                <span
                   aria-label={cell.date.toDateString()}
                   aria-current={isToday ? "date" : undefined}
-                  className={
-                    isToday
-                      ? "flex size-[37.333px] items-center justify-center rounded-full bg-[#f1f5f9] font-inter text-[16.333px] font-bold leading-[23.333px] text-[#1e1e24]"
-                      : `flex size-[37.333px] items-center justify-center rounded-full font-inter text-[16.333px] leading-[23.333px] hover:bg-[#f1f5f9] ${textClass}`
-                  }
+                  className={cellClass}
                 >
                   {cell.date.getDate()}
-                </button>
+                </span>
+                {/* Appointment indicator (dot under days that have appointments) */}
+                <span
+                  aria-hidden
+                  className={`size-[5px] rounded-full ${hasAppts ? "bg-[#0077c0]" : "bg-transparent"}`}
+                />
               </div>
             );
           })}

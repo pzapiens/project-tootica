@@ -26,7 +26,12 @@ function toPublicUser(user: UserRecord) {
     phone: user.phone,
     role: user.role,
     clinicId: user.clinicId,
+    // Branch a doctor/receptionist is pinned to (null for clinic-wide admins).
+    branchId: user.branchId,
     status: user.status,
+    // Drives the forced first-login "Reset Password" prompt on the client.
+    mustResetPassword: user.mustResetPassword,
+    termsAcceptedAt: user.termsAcceptedAt,
     accessStartDate: user.accessStartDate,
     accessEndDate: user.accessEndDate,
     createdAt: user.createdAt,
@@ -66,6 +71,7 @@ function issueTokens(user: UserRecord): { accessToken: string; refreshToken: str
     email: user.email,
     role: user.role,
     clinicId: user.clinicId,
+    branchId: user.branchId,
   });
   const refreshToken = signRefreshToken(user.id);
   return { accessToken, refreshToken };
@@ -227,6 +233,20 @@ export const authService = {
       throw new HttpError(400, 'Invalid or expired token');
     }
     await authRepository.setInitialPassword(sub, await hashPassword(password));
+  },
+
+  /**
+   * Forced first-login flow. The caller is already authenticated (they just
+   * logged in with their temporary password), so no current password is
+   * required — they set a new one and accept the Terms & Conditions in one
+   * step. Records the T&C acceptance and clears the reset requirement.
+   */
+  completeOnboarding: async (userId: string, password: string): Promise<void> => {
+    const user = await authRepository.findById(userId);
+    if (!user) {
+      throw new HttpError(401, 'Authentication required');
+    }
+    await authRepository.completeOnboarding(userId, await hashPassword(password));
   },
 
   changePassword: async (

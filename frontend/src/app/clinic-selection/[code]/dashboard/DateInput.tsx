@@ -84,7 +84,15 @@ export function DateInput({
         pos &&
         typeof document !== "undefined" &&
         createPortal(
-          <div ref={popRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 200 }}>
+          // `data-date-popover` marks this portaled calendar so ancestors that
+          // close on outside-click (e.g. the timeframe filter dropdown) can tell
+          // clicks here are "inside" — without it, selecting a day closes the
+          // parent before the selection registers.
+          <div
+            ref={popRef}
+            data-date-popover
+            style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 200 }}
+          >
             <DateCalendar
               value={selected}
               disablePast={disablePast}

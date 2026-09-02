@@ -10,6 +10,10 @@ export type Branch = {
   contact: string;
   /** Optional short code (e.g. c001) shown as a badge on the super-admin list. */
   code?: string;
+  /** Owning clinic — needed by the super-admin "Manage Accounts" action. */
+  clinicId?: string;
+  /** Owning clinic's display name (for the Manage Accounts popup heading). */
+  clinicName?: string;
 };
 
 /**
@@ -25,11 +29,14 @@ export type Branch = {
  */
 export default function BranchList({
   branches,
+  onManage,
   onEdit,
   onDelete,
   onSelect,
 }: {
   branches: Branch[];
+  /** When provided, render a "manage accounts" action (super-admin only). */
+  onManage?: (branch: Branch) => void;
   /** When provided, render an edit action on each row (super-admin list). */
   onEdit?: (branch: Branch) => void;
   /** When provided, render a delete action on each row (super-admin list). */
@@ -38,7 +45,7 @@ export default function BranchList({
   onSelect?: (branch: Branch) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const hasActions = Boolean(onEdit || onDelete);
+  const hasActions = Boolean(onManage || onEdit || onDelete);
 
   function handleSelect(branch: Branch) {
     setSelectedId(branch.id);
@@ -102,6 +109,24 @@ export default function BranchList({
             <span className="col-start-2 row-start-1 row-span-3 flex items-center justify-end gap-3 self-center lg:col-start-4 lg:row-span-1 lg:pr-7">
               {hasActions && (
                 <span className="flex items-center gap-1.5">
+                  {onManage && (
+                    <button
+                      type="button"
+                      aria-label={`Manage accounts for ${b.branch}`}
+                      title="Manage accounts"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onManage(b);
+                      }}
+                      className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
+                        selected
+                          ? "border-white/40 text-white hover:bg-white/10"
+                          : "border-field-border text-ink/70 hover:border-brand hover:text-brand"
+                      }`}
+                    >
+                      <ManageIcon />
+                    </button>
+                  )}
                   {onEdit && (
                     <button
                       type="button"
@@ -150,6 +175,18 @@ export default function BranchList({
         );
       })}
     </div>
+  );
+}
+
+function ManageIcon() {
+  // "Manage accounts" — a people / users glyph.
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-[18px]" aria-hidden>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
   );
 }
 

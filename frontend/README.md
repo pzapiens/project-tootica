@@ -85,38 +85,47 @@ Loads the signed-in user and renders one of two views:
 **Clinic staff (CLIENT_ADMIN / DOCTOR / RECEPTIONIST)** — `ClinicAdminView`:
 - Greeting **"Hi, {name}"** (doctors are greeted **"Hi, Dr {name}"**; other
   titles are omitted).
-- Four appointment **stat cards** (seed data — see note below) with **branch**
-  and **time-frame** filters.
+- Four appointment **stat cards** from `GET /api/analytics/summary` (real
+  per-clinic counts by status) that update with a **time-frame** filter.
 - **Select Branch** table (their clinic's branches from `GET /api/branches`),
   searchable, single-select rows. **LOGOUT**.
 
-**Super admin** — `SuperAdminView` (same URL, no separate path):
-- Greeting **"Hi, Tootica"**.
-- **Select Clinic** table listing **every branch across all clinics**
-  (`GET /api/super-admin/branches`), each with a unique **code badge** (`c001`,
-  `c002`, …), person-in-charge and contact. Searchable (incl. by code).
-- **+ Add Clinic & Account** button (to the left of LOGOUT) opens a modal:
-  - **Clinic selector** — searchable; pick an existing clinic, or **Add New
-    Clinic** (a nested modal with a single **Clinic Name** + PIC + Contact) which
-    creates it, adds it to the selector and auto-selects it.
-  - **Account Details** (enabled once a clinic is selected) — First Name, Last
-    Name, **Title** (Mr/Mrs/Ms/Dr), **Account Type** (Admin/Doctor/Receptionist),
-    Email, Contact → `POST /api/super-admin/accounts`.
-  - Required-field validation, plus **phone validation** (`+91` + 10 digits).
-- Each row has **Edit** and **Delete** actions before the chevron:
-  - **Edit** → modal → `PATCH /api/super-admin/branches/:id`.
-  - **Delete** → a design-system **confirmation dialog** (danger button
-    `#BA1A1A`) → `DELETE /api/super-admin/branches/:id`.
+**Super admin** — `SuperAdminView` (same URL, no separate path). A **two-level
+browse**:
 
-> **Stat cards are still seed data.** The backend has no per-status / per-branch
-> analytics endpoint yet, so `clinic-selection/page.tsx` seeds those numbers.
-> The greeting, branch list, PIC and contact are all live from the backend.
+- **Clinics** list (`GET /api/super-admin/clinics`) — each row shows the clinic
+  (with its `CL-…` code badge), the clinic admin as PIC, and contact. Clicking a
+  clinic drills into its **branches**; the row actions **manage** the clinic's
+  admins, **edit** the clinic, or **delete** it (removing the clinic and all its
+  data — behind the deletion-code gate).
+- **Branches** of the drilled-in clinic (with a back button) — each branch row
+  (`BR-…` code) can **manage its staff** (that branch's doctors + receptionist),
+  **edit** (`PATCH /api/super-admin/branches/:id`), **delete**, or **open the
+  dashboard** for that clinic. Entering a dashboard remembers the selected clinic
+  (sent as the **`X-Clinic-Id`** header) so a super admin — who has no clinic of
+  their own — can view that clinic's tenant-scoped data. A **+ Add Branch** button
+  adds one (`POST /api/super-admin/branches`).
+- **+ Add Clinic & Account** (top bar) opens a modal to pick/create a clinic and
+  onboard an account:
+  - **Add New Clinic** — a **Clinic Name** plus **one or more branches** (each
+    with its own name / PIC / contact) → `POST /api/super-admin/clinics`.
+  - **Account Details** — First/Last Name, **Title**, **Account Type**
+    (Admin/Doctor/Receptionist), Email, Contact → `POST /api/super-admin/accounts`
+    (doctors/receptionists pinned to the chosen branch). The result screen shows
+    the one-time **temporary password** (also emailed to the user).
+- **Manage Accounts** modal — list, edit, **suspend/re-activate**, or **delete**
+  accounts.
+- **Deletion gate** — deleting a **clinic**, branch or account opens a confirm
+  dialog that requires the **super-admin deletion code** before the request is sent.
+
+All of the above is live from the backend (greeting, clinics, branches, PIC,
+contact, codes and stat cards).
 
 ### `/clinic-selection/[code]/…` — per-clinic dashboard
 
 Picking a branch on the selection screen enters the dashboard area, where
-`[code]` is the branch code (e.g. `c001`). A shared **app shell** (`layout.tsx`
-→ `DashboardShell`) wraps every nested route:
+`[code]` is the branch code (e.g. `BR-0001`). A shared **app shell**
+(`layout.tsx` → `DashboardShell`) wraps every nested route:
 
 - **Dark sidebar** with the logo, **role-gated navigation** (Dashboard,
   Appointments, Patients, Doctors — visible to everyone; Analytics and Revenue —
@@ -127,36 +136,45 @@ Picking a branch on the selection screen enters the dashboard area, where
   1440-wide Figma layout is rendered at `zoom: 0.9` so it fits.
 - The session (`GET /api/auth/me`) is loaded **once** here and shared with nested
   pages via a `useMe()` context; a `401` bounces to `/login`.
-- Doctors / receptionists skip clinic selection, so their post-login **Reset
-  Password** popup (`ResetPasswordPopup`) is shown here instead.
+- The forced first-login **Reset Password + Terms** card (`ResetPasswordPopup`)
+  is shown for any non-super-admin whose account still has `mustResetPassword`
+  set — for doctors/receptionists (who skip clinic selection) it appears here;
+  it posts to `POST /api/auth/complete-onboarding`.
 
-**`/dashboard`** — the main screen (built frame-by-frame):
+**`/dashboard`** — the main screen (state owned by `DashboardClient`):
 - **Header** with the "Hi, {name}" greeting, a **timeframe filter** (All-Time /
   Today / custom FROM–TO range) and the primary **New Appointment** action.
-- Four **stat cards** whose counts react to the selected timeframe.
-- **Today's Appointments** table (searchable, status-filtered, sorted by start
-  time) beside a functional **mini calendar** (real current month, today
-  highlighted, click-to-select). Their bottoms line up; the table body scrolls
-  if longer.
-- **New Appointment** modal — a multi-step flow: find a first-time/returning
-  patient → new-patient profile form → "Profile Created" → the **appointment
-  form** (consultation types, lead source, and either *Select by Date & Time* or
-  *Select by Doctor* scheduling, with a **Doctor Availability** timeline modal).
-  Editing a table row reuses the same form pre-filled — its submit button reads
-  **Update Appointment** instead of **Confirm Appointment**.
+- Four **stat cards** from `GET /api/analytics/summary` (Total / Completed /
+  Pending / Cancelled). The timeframe filter drives **only** these cards.
+- **Today's Appointments** table from `GET /api/appointments` — the current day's
+  appointments, filtered by a **status** dropdown (mapped to real statuses) and a
+  client-side **search**, **paginated 20 per page**. It is independent of the
+  timeframe filter and the calendar.
+- A **mini calendar** beside the table is **display-only**: it dots the days that
+  have an appointment and navigates months. **View Full Calendar** opens `/calendar`.
+- **New Appointment** modal — search or **create a patient** (`POST /api/patients`,
+  shows the `PAT-…` code) → the **appointment form**. Schedule *by Date & Time*
+  (find **available doctors** for a slot) or *by Doctor* (availability is
+  **auto-checked** as you type the time — business hours + double-booking, from
+  `GET /api/appointments/availability`). A **Non-mandatory** option bypasses the
+  checks (no time → shows `--`). **Status** is editable (default *Upcoming*).
+  Confirm → `POST /api/appointments`, and the dashboard refreshes. **Editing**
+  reuses the same form and excludes that appointment from the availability check,
+  so its own slot never reads as a conflict.
 
-**`/calendar`** — full month calendar of a doctor's appointments, colour-coded by
-status; clicking a day opens that day's list, and an appointment shows its detail.
+**`/calendar`** — full month calendar of the clinic's real appointments
+(`GET /api/appointments`), each in its date cell and colour-coded by status; an
+**in-progress (Ongoing)** appointment is filled blue. Patients are shown by
+**first name only**. Clicking a day opens that day's list, and an appointment
+shows its detail.
 
 **`/appointments`, `/patients`, `/doctors`, `/analytics`, `/revenue`** — routed
 and role-gated, currently rendering a **"Coming soon"** placeholder until each is
 built frame-by-frame.
 
-> **Dashboard data is still mock.** The stat counts, today's-appointments table,
-> calendar events and doctor-availability timeline come from local `mock.ts` /
-> `calendar-mock.ts` files. Swap them for backend fetches once the per-clinic
-> analytics + appointments endpoints exist. The session, greeting and role-gating
-> are live.
+The one screen still showing sample data is the **Doctor Availability** timeline
+modal (an illustrative day); the "available doctors" / "check availability"
+validations it sits behind are real.
 
 ## Scripts
 
@@ -186,32 +204,37 @@ src/
 │   ├── forgot-password/
 │   │   ├── page.tsx · ForgotPasswordFlow.tsx   # 4-step flow + password checklist
 │   └── clinic-selection/
-│       ├── page.tsx                # seed stats; renders ClinicSelectionClient
+│       ├── page.tsx                # renders ClinicSelectionClient
 │       ├── ClinicSelectionClient.tsx  # loads /me, dispatches by role
-│       ├── ClinicAdminView.tsx     # per-clinic view (stats + branch list)
-│       ├── SuperAdminView.tsx      # cross-tenant view + add/edit/delete
+│       ├── ClinicAdminView.tsx     # per-clinic view (real stats + branch list)
+│       ├── SuperAdminView.tsx      # clinics → branches drill-down + management
 │       ├── DashboardTop.tsx · BranchFilter.tsx · TimeFilter.tsx
 │       ├── SelectBranchSection.tsx · BranchList.tsx  # shared, parametrised table
-│       ├── AddClinicAccountModal.tsx   # clinic selector + account form
-│       ├── EditBranchModal.tsx
+│       ├── AddClinicAccountModal.tsx   # clinic + branches selector + account form
+│       ├── AddBranchModal.tsx      # add a branch to an existing clinic
+│       ├── ManageAccountsModal.tsx # per-branch / per-clinic account management
+│       ├── EditBranchModal.tsx · EditClinicModal.tsx
 │       ├── modal-ui.tsx            # shared Overlay / inputs / buttons / ConfirmDialog
-│       ├── ResetPasswordPopup.tsx  # post-login "set new password" card
+│       ├── ResetPasswordPopup.tsx  # forced first-login reset + Terms card
 │       └── [code]/                 # per-clinic dashboard area (code = branch code)
 │           ├── layout.tsx · DashboardShell.tsx   # sidebar + white panel + useMe()
 │           ├── _ComingSoon.tsx     # placeholder for unbuilt nav destinations
 │           ├── dashboard/          # main screen: header, stat cards, table, calendar
-│           │   ├── page.tsx · DashboardOverview.tsx · LowerSection.tsx
+│           │   ├── page.tsx · DashboardClient.tsx  # owns timeframe (cards) + status filter (table)
+│           │   ├── DashboardOverview.tsx · LowerSection.tsx
 │           │   ├── DashboardHeader.tsx · StatCards.tsx · TimeframeFilter.tsx
 │           │   ├── AppointmentsTable.tsx · MiniCalendar.tsx
 │           │   ├── NewAppointmentModal.tsx · AppointmentFormStep.tsx
 │           │   ├── DoctorAvailabilityModal.tsx · DateInput.tsx
-│           │   └── mock.ts         # mock stats + today's appointments
-│           ├── calendar/           # full month calendar + calendar-mock.ts
+│           │   └── mock.ts         # shared appointment types + timeframe helpers
+│           ├── calendar/           # full month calendar (real appts) + calendar-mock.ts (mappers)
 │           └── appointments|patients|doctors|analytics|revenue/  # Coming soon
 ├── components/
 │   └── PasswordToggle.tsx          # show/hide eye button
 └── lib/
     ├── api.ts          # apiFetch(), ApiError, types, displayName/greetingLabel
+    ├── analytics.ts    # timeframe → /analytics query helpers
+    ├── appointmentsBus.ts  # tiny event bus to refresh dashboard after a booking
     ├── password.ts     # password-policy rules + live checklist helpers
     ├── validation.ts   # phoneError()/emailError() (+91 + 10 digits)
     └── useExclusiveDropdown.ts   # single-open-dropdown-at-a-time hook

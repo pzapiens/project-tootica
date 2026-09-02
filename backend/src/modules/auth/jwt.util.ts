@@ -11,6 +11,8 @@ export interface AccessTokenPayload {
   email: string;
   role: Role;
   clinicId: string | null;
+  // Branch a DOCTOR / RECEPTIONIST is pinned to (null for clinic-wide admins).
+  branchId: string | null;
 }
 
 export type ActionTokenType = 'reset' | 'invite';

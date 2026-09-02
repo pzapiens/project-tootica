@@ -41,9 +41,22 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
+/**
+ * Forced first-login reset: a new password plus explicit Terms & Conditions
+ * acceptance. `acceptTerms` must be literally `true` — an unchecked box is
+ * rejected server-side, not just disabled in the UI.
+ */
+export const completeOnboardingSchema = z.object({
+  password: passwordSchema,
+  acceptTerms: z.boolean().refine((v) => v === true, {
+    message: 'You must accept the Terms & Conditions to continue',
+  }),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>;

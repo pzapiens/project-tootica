@@ -2,18 +2,13 @@
 
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { apiFetch, type AppointmentListItem } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
-import {
-  CAL_DOCTOR,
-  chipTime,
-  getMonthAppointments,
-  type CalAppointment,
-  type CalStatus,
-} from "./calendar-mock";
+import { chipTime, groupByDay, type CalAppointment, type CalStatus } from "./calendar-mock";
 
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MONTHS = [
@@ -58,12 +53,33 @@ export default function FullCalendarView() {
   const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedAppt, setSelectedAppt] = useState<CalAppointment | null>(null);
+  const [monthAppts, setMonthAppts] = useState<Record<number, CalAppointment[]>>({});
 
   const cells = useMemo(() => buildCells(view.year, view.month), [view]);
-  const monthAppts = useMemo(
-    () => getMonthAppointments(view.year, view.month),
-    [view],
-  );
+
+  // Load the clinic's appointments for the viewed month and group them by day.
+  useEffect(() => {
+    let active = true;
+    const from = new Date(view.year, view.month, 1);
+    const to = new Date(view.year, view.month + 1, 0, 23, 59, 59, 999);
+    const params = new URLSearchParams({
+      from: from.toISOString(),
+      to: to.toISOString(),
+      limit: "500",
+    });
+    apiFetch<AppointmentListItem[]>(`/appointments?${params.toString()}`)
+      .then((list) => {
+        if (active) setMonthAppts(groupByDay(list));
+      })
+      .catch(() => {
+        if (active) setMonthAppts({});
+      });
+    return () => {
+      active = false;
+    };
+  }, [view]);
+
+  const monthCount = Object.values(monthAppts).reduce((n, list) => n + list.length, 0);
 
   function shiftMonth(delta: number) {
     const d = new Date(view.year, view.month + delta, 1);
@@ -115,7 +131,9 @@ export default function FullCalendarView() {
                 </button>
               </div>
             </div>
-            <p className="font-inter text-[15.6px] leading-[22px] text-[#1e1e24]">{CAL_DOCTOR}</p>
+            <p className="font-inter text-[15.6px] leading-[22px] text-[#1e1e24]">
+              {monthCount} {monthCount === 1 ? "appointment" : "appointments"} this month
+            </p>
           </div>
         </div>
         <Legend />
@@ -164,7 +182,9 @@ export default function FullCalendarView() {
                   {cell.date.getDate()}
                 </span>
                 <div className="flex flex-col gap-[4px]">
-                  {appts.map((a) => (
+                  {/* Cap each cell at three entries; the rest roll up into a
+                      "+N more" line that opens the day's slide-over. */}
+                  {appts.slice(0, 3).map((a) => (
                     <ApptChip
                       key={a.id}
                       appt={a}
@@ -175,6 +195,11 @@ export default function FullCalendarView() {
                       }}
                     />
                   ))}
+                  {appts.length > 3 && (
+                    <span className="pl-[3px] font-inter text-[11px] font-medium leading-[16px] text-[#727783]">
+                      +{appts.length - 3} more
+                    </span>
+                  )}
                 </div>
               </button>
             );
@@ -219,6 +244,11 @@ const CHIP_STYLE: Record<CalStatus, { box: string; dot: string; text: string }> 
     dot: "bg-[#16a34a]",
     text: "text-[#16a34a] font-normal",
   },
+  Cancelled: {
+    box: "bg-[#f9f1f1] border border-[#ab2222] opacity-80",
+    dot: "bg-[#ab2222]",
+    text: "text-[#ab2222] font-normal line-through",
+  },
 };
 
 function ApptChip({ appt, onOpen }: { appt: CalAppointment; onOpen: (e: React.MouseEvent) => void }) {
@@ -249,6 +279,7 @@ function Legend() {
       <LegendDot color="#1e1e24" text="#1e1e24" label="Completed" />
       <LegendDot color="#0077c0" text="#0077c0" label="Ongoing" />
       <LegendDot color="#16a34a" text="#16a34a" label="Upcoming" />
+      <LegendDot color="#ab2222" text="#ab2222" label="Cancelled" />
     </div>
   );
 }
@@ -414,12 +445,18 @@ const CARD_STYLE: Record<CalStatus, { box: string; time: string; name: string; s
     time: "text-[#1e1e24]", name: "text-[#1e1e24]", sub: "text-[#1e1e24]",
     badge: "border border-[#16a34a]", badgeText: "text-[#16a34a]",
   },
+  Cancelled: {
+    box: "bg-[#f9f1f1] border border-[#ab2222]",
+    time: "text-[#1e1e24]", name: "text-[#1e1e24]", sub: "text-[#1e1e24]",
+    badge: "border border-[#ab2222]", badgeText: "text-[#ab2222]",
+  },
 };
 
 const BADGE_LABEL: Record<CalStatus, string> = {
   Completed: "COMPLETED",
   Ongoing: "ON GOING",
   Upcoming: "UPCOMING",
+  Cancelled: "CANCELLED",
 };
 
 function ApptListCard({ appt, onClick }: { appt: CalAppointment; onClick: () => void }) {
@@ -432,7 +469,7 @@ function ApptListCard({ appt, onClick }: { appt: CalAppointment; onClick: () => 
     >
       <div className="flex flex-col gap-[3px]">
         <span className={`font-manrope text-[13px] font-medium leading-[19px] ${s.time}`}>
-          {appt.start} - {appt.end}
+          {appt.start === "--" ? "--" : `${appt.start} - ${appt.end}`}
         </span>
         <span className={`font-manrope text-[19px] font-semibold leading-[27px] ${s.name}`}>
           {appt.patientName}
@@ -480,7 +517,7 @@ function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; 
             <DetailRow icon="/dashboard/calendar_today.svg">
               <span className="font-inter text-[15px] font-semibold leading-[23px] text-[#1e1e24]">{dateLabel}</span>
               <span className="font-manrope text-[13px] font-medium leading-[19px] text-[#1e1e24]">
-                {appt.start} - {appt.end}
+                {appt.start === "--" ? "--" : `${appt.start} - ${appt.end}`}
               </span>
             </DetailRow>
             <div className="h-px w-full bg-[#c2c6d4]/30" />
@@ -561,7 +598,14 @@ function DetailRow({
 }
 
 function StatusPill({ status }: { status: CalStatus }) {
-  const bg = status === "Completed" ? "#1e1e24" : status === "Ongoing" ? "#0077c0" : "#16a34a";
+  const bg =
+    status === "Completed"
+      ? "#1e1e24"
+      : status === "Ongoing"
+        ? "#0077c0"
+        : status === "Cancelled"
+          ? "#ab2222"
+          : "#16a34a";
   return (
     <span
       className="flex items-center gap-[4px] rounded-[11.5px] px-[11px] py-[3.5px] font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px] text-white"

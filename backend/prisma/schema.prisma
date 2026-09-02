@@ -59,9 +59,21 @@ enum AppointmentStatus {
 // Models
 // ---------------------------------------------------------------------------
 
+/// Named monotonic counters that back the human-friendly display codes
+/// (CL-…, BR-…, PAT-…, DOC-…, APT-…). Each `name` (e.g. "clinic", "patient",
+/// or "appointment:20260830") holds the last-issued sequence number.
+model Counter {
+  name  String @id
+  value Int    @default(0)
+
+  @@map("counters")
+}
+
 /// A tenant. Each clinic owns its own users, doctors, patients and appointments.
 model Clinic {
   id        String       @id @default(cuid())
+  // Human-friendly display code, e.g. "CL-000123".
+  code      String?      @unique
   name      String
   status    ClinicStatus @default(ACTIVE)
   plan      ClinicPlan   @default(FREE)
@@ -92,8 +104,12 @@ model Branch {
   contact   String?
   createdAt DateTime @default(now()) @map("created_at")
 
-  clinic Clinic @relation(fields: [clinicId], references: [id])
-  pic    User?  @relation("BranchPIC", fields: [picUserId], references: [id])
+  clinic  Clinic   @relation(fields: [clinicId], references: [id])
+  pic     User?    @relation("BranchPIC", fields: [picUserId], references: [id])
+  // Staff (doctors + receptionists) assigned to this specific branch. A clinic
+  // admin is NOT branch-scoped (branchId null) — they access every branch.
+  staff   User[]   @relation("BranchStaff")
+  doctors Doctor[] @relation("BranchDoctors")
 
   @@index([clinicId, id])
   @@map("branches")
@@ -105,6 +121,9 @@ model Branch {
 model User {
   id              String     @id @default(cuid())
   clinicId        String?    @map("clinic_id")
+  // The branch a DOCTOR / RECEPTIONIST is assigned to. Null for CLIENT_ADMIN
+  // (clinic-wide access) and SUPER_ADMIN (no clinic).
+  branchId        String?    @map("branch_id")
   email           String     @unique
   // Optional honorific (e.g. "Mr", "Mrs", "Ms"). Doctors are addressed as "Dr"
   // from their role, so this is mainly for non-doctor staff.
@@ -119,17 +138,27 @@ model User {
   passwordHash    String?    @map("password_hash")
   role            Role
   status          UserStatus @default(ACTIVE)
+  // True until the user completes the forced first-login reset (set a new
+  // password + accept the Terms & Conditions). New accounts start with a
+  // temporary password and this flag set; the client shows the reset prompt
+  // while it's true.
+  mustResetPassword Boolean  @default(true) @map("must_reset_password")
+  // When the user accepted the Terms & Conditions / Privacy Policy (null until
+  // they do). Set during the first-login reset.
+  termsAcceptedAt DateTime?  @map("terms_accepted_at")
   accessStartDate DateTime?  @map("access_start_date")
   accessEndDate   DateTime?  @map("access_end_date")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
   clinic          Clinic?  @relation(fields: [clinicId], references: [id])
+  branch          Branch?  @relation("BranchStaff", fields: [branchId], references: [id])
   doctor          Doctor?
   branchesInCharge Branch[] @relation("BranchPIC")
 
   @@index([clinicId, id])
   @@index([clinicId, createdAt])
+  @@index([branchId])
   @@map("users")
 }
 
@@ -137,8 +166,12 @@ model User {
 /// `users` so profile fields don't bloat the auth table.
 model Doctor {
   id             String   @id @default(cuid())
+  // Human-friendly display code, e.g. "DOC-000001".
+  code           String?  @unique
   userId         String   @unique @map("user_id")
   clinicId       String   @map("clinic_id")
+  // Branch this doctor works at (mirrors the linked user's branchId).
+  branchId       String?  @map("branch_id")
   specialization String?
   licenseNumber  String?  @map("license_number")
   phone          String?
@@ -147,10 +180,12 @@ model Doctor {
 
   user         User          @relation(fields: [userId], references: [id])
   clinic       Clinic        @relation(fields: [clinicId], references: [id])
+  branch       Branch?       @relation("BranchDoctors", fields: [branchId], references: [id])
   shifts       DoctorShift[]
   appointments Appointment[]
 
   @@index([clinicId, id])
+  @@index([branchId])
   @@map("doctors")
 }
 
@@ -176,9 +211,13 @@ model DoctorShift {
 model Patient {
   id           String    @id @default(cuid())
   clinicId     String    @map("clinic_id")
+  // Human-friendly display code, e.g. "PAT-000001".
+  code         String?   @unique
   name         String
   phone        String?
   email        String?
+  // Optional; captured on the "New Patient Profile" form (e.g. "M" / "F").
+  gender       String?
   dob          DateTime? @db.Date
   medicalNotes String?   @map("medical_notes")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -194,12 +233,19 @@ model Patient {
 /// A booked appointment linking a patient and a doctor within a clinic.
 model Appointment {
   id        String            @id @default(cuid())
+  // Human-friendly display code, e.g. "APT-20260830-0001" (date + daily seq).
+  code      String?           @unique
   clinicId  String            @map("clinic_id")
   patientId String            @map("patient_id")
   doctorId  String            @map("doctor_id")
   startTime DateTime          @map("start_time")
   endTime   DateTime          @map("end_time")
   status    AppointmentStatus @default(SCHEDULED)
+  // Structured consultation type (e.g. "Teeth Whitening"); free-text `notes`
+  // holds any additional message.
+  consultationType String?    @map("consultation_type")
+  // Where the enquiry came from (e.g. "Google Search", "Referral").
+  sourceOfEnquiry  String?    @map("source_of_enquiry")
   notes     String?
   createdAt DateTime          @default(now()) @map("created_at")
   updatedAt DateTime          @updatedAt @map("updated_at")

@@ -10,6 +10,8 @@ export interface AuthUser {
   email: string;
   role: Role;
   clinicId: string | null;
+  // Branch a DOCTOR / RECEPTIONIST is pinned to (null for clinic-wide admins).
+  branchId: string | null;
 }
 
 /** Verifies the access-token cookie and attaches `req.user`. */
@@ -25,6 +27,7 @@ export const authenticate: RequestHandler = (req, _res, next) => {
     email: payload.email,
     role: payload.role,
     clinicId: payload.clinicId,
+    branchId: payload.branchId ?? null,
   };
   next();
 };

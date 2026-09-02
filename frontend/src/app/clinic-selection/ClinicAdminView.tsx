@@ -12,7 +12,8 @@ import {
 } from "@/lib/api";
 
 import { type Branch } from "./BranchList";
-import DashboardTop, { type StatsByBranch } from "./DashboardTop";
+import DashboardTop from "./DashboardTop";
+import ManageAccountsModal from "./ManageAccountsModal";
 import SelectBranchSection from "./SelectBranchSection";
 
 /**
@@ -23,17 +24,11 @@ import SelectBranchSection from "./SelectBranchSection";
  * Appointment stat cards are still seed data — the backend has no per-status /
  * per-branch analytics endpoint yet.
  */
-export default function ClinicAdminView({
-  me,
-  statsByBranch,
-  todayStatsByBranch,
-}: {
-  me: MeResponse;
-  statsByBranch: StatsByBranch;
-  todayStatsByBranch: StatsByBranch;
-}) {
+export default function ClinicAdminView({ me }: { me: MeResponse }) {
   const router = useRouter();
   const [branchList, setBranchList] = useState<BranchSummary[]>([]);
+  // The branch whose doctors + receptionists the admin is managing (modal open).
+  const [managing, setManaging] = useState<Branch | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -59,7 +54,8 @@ export default function ClinicAdminView({
     branchList.length > 0
       ? branchList.map((b) => ({
           id: b.id,
-          branch: b.name,
+          // Branch names are location-only; show them as "Clinic Name - Branch".
+          branch: me.clinic ? `${me.clinic.name} - ${b.name}` : b.name,
           pic: b.picName ?? "—",
           contact: b.contact ?? "—",
           code: b.code,
@@ -78,19 +74,29 @@ export default function ClinicAdminView({
   return (
     <div className="flex min-h-dvh flex-col bg-white lg:h-dvh lg:overflow-hidden">
       <div className="mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-6 p-6 md:gap-7 md:p-7 lg:min-h-0">
-        <DashboardTop
-          greetingName={greetingName}
-          branches={branches}
-          statsByBranch={statsByBranch}
-          todayStatsByBranch={todayStatsByBranch}
-        />
+        <DashboardTop greetingName={greetingName} branches={branches} />
         <SelectBranchSection
           branches={branches}
+          onManage={me.clinic ? setManaging : undefined}
           onSelect={(branch) =>
             router.push(`/clinic-selection/${branch.code ?? branch.id}/dashboard`)
           }
         />
       </div>
+
+      {managing && me.clinic && (
+        <ManageAccountsModal
+          clinicId={me.clinic.id}
+          clinicName={me.clinic.name}
+          branchId={managing.id}
+          branchName={managing.branch}
+          listPath="/accounts"
+          accountPath={(id) => `/accounts/${id}`}
+          addStaffPath="/accounts"
+          deleteRequiresCode={false}
+          onClose={() => setManaging(null)}
+        />
+      )}
     </div>
   );
 }

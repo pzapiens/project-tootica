@@ -1,60 +1,104 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import {
+  apiFetch,
+  ApiError,
+  type AppointmentStatus,
+  type DoctorSummary,
+  type Patient,
+} from "@/lib/api";
+import { notifyAppointmentsChanged } from "@/lib/appointmentsBus";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
-import { emailError, phoneDigits } from "@/lib/validation";
+import { emailError, phoneDigits, phoneLocalPart, phoneWithCc } from "@/lib/validation";
 
 import AppointmentFormStep, {
   type AppointmentEditResult,
   type AppointmentInitial,
 } from "./AppointmentFormStep";
-import { DateInput } from "./DateInput";
+import { DateInput, parseDmy } from "./DateInput";
 
 /**
  * New Appointment flow (Figma "Dashboard3 - NewAppts*" / "Patient Profile
  * Create*"). Steps:
  *  1. search      — "First-Time or Returning Patient?" (find patient by ID/phone)
  *  2. newPatient  — "New Patient Profile" form (when no record exists)
- *  3. created     — "Profile Created" success with the generated Patient ID
- *  4. form        — appointment form (built next; placeholder for now)
+ *  3. created     — "Profile Created" success with the Patient ID
+ *  4. form        — appointment form
  *
- * Portaled to `document.body` so it isn't affected by the dashboard content's
- * `zoom: 0.9` and stays viewport-centered.
+ * Search and creation hit the real backend (`/api/patients`, `/api/doctors`,
+ * `/api/appointments`). Portaled to `document.body` so it isn't affected by the
+ * dashboard content's `zoom: 0.9` and stays viewport-centered.
  */
 
 interface FoundPatient {
   name: string;
+  /** Database id (used for the appointment payload). */
   id: string;
+  /** Human-friendly code shown to the user (e.g. "PAT-000001"). */
+  code: string;
   dob: string;
   gender: string;
   phone: string;
   email: string;
 }
 
-// Mock directory. `registered` collects patients created this session so a newly
-// created profile becomes searchable (its ID then enables "New Appointment").
-const KNOWN: FoundPatient[] = [
-  { name: "Connor Mass", id: "TDG-PT00140", dob: "23/12/1999", gender: "M", phone: "9548625874", email: "" },
-];
-const registered: FoundPatient[] = [];
-let nextIdSeq = 141;
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
-function nextPatientId(): string {
-  return `TDG-PT${String(nextIdSeq++).padStart(5, "0")}`;
+/** ISO date → "dd/mm/yyyy" (UTC, since dob is stored at UTC midnight). */
+function isoToDmy(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
 }
 
-function lookup(query: string): FoundPatient | null {
-  const s = query.trim().toLowerCase();
-  if (!s) return null;
-  const digits = s.replace(/\D/g, "");
-  return (
-    [...KNOWN, ...registered].find(
-      (p) => (digits && p.phone.includes(digits)) || p.id.toLowerCase().includes(s),
-    ) ?? null
-  );
+/** "dd/mm/yyyy" → "yyyy-mm-dd" for the backend (or undefined if blank/invalid). */
+function dmyToIso(dmy: string): string | undefined {
+  const d = parseDmy(dmy);
+  if (!d) return undefined;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** Backend patient → the modal's display shape. */
+function toFound(p: Patient): FoundPatient {
+  return {
+    id: p.id,
+    code: p.code ?? p.id,
+    name: p.name,
+    dob: isoToDmy(p.dob),
+    gender: p.gender ?? "",
+    phone: phoneLocalPart(p.phone),
+    email: p.email ?? "",
+  };
+}
+
+
+/** The form's status labels → backend appointment status enum. */
+const STATUS_TO_BACKEND: Record<string, AppointmentStatus> = {
+  Upcoming: "SCHEDULED",
+  Confirmed: "CONFIRMED",
+  Completed: "COMPLETED",
+  Cancelled: "CANCELLED",
+  "No Show": "NO_SHOW",
+};
+
+/** Combine a `dd/mm/yyyy` date + `hh:mm AM` clock into an ISO datetime. */
+function combineDateTime(dmy: string, clock: string, fallbackHour: number): string | null {
+  const d = parseDmy(dmy);
+  if (!d) return null;
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(clock.trim());
+  let hh = fallbackHour;
+  let mm = 0;
+  if (m) {
+    hh = Number(m[1]) % 12;
+    if (/pm/i.test(m[3])) hh += 12;
+    mm = Number(m[2]);
+  }
+  d.setHours(hh, mm, 0, 0);
+  return d.toISOString();
 }
 
 type Step = "search" | "newPatient" | "created" | "form";
@@ -68,6 +112,8 @@ const TITLES: Record<Step, string> = {
 
 /** Opens the modal straight to a pre-filled form to edit an existing appointment. */
 export interface EditAppointment {
+  /** Appointment id — the target of the update PATCH. */
+  id: string;
   patient: { name: string; dob: string; gender: string; phone: string; email: string };
   initial: AppointmentInitial;
 }
@@ -75,43 +121,185 @@ export interface EditAppointment {
 export default function NewAppointmentModal({
   onClose,
   edit,
-  onSave,
 }: {
   onClose: () => void;
   edit?: EditAppointment;
-  /** Called with the edited values when Confirm is clicked (edit mode). */
-  onSave?: (result: AppointmentEditResult) => void;
 }) {
   const [step, setStep] = useState<Step>(edit ? "form" : "search");
   const [query, setQuery] = useState("");
   const [checked, setChecked] = useState(false);
-  const [found, setFound] = useState<FoundPatient | null>(null);
+  const [results, setResults] = useState<FoundPatient[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<FoundPatient | null>(
-    edit ? { id: "", ...edit.patient } : null,
+    edit ? { id: "", code: "", ...edit.patient } : null,
   );
   const [created, setCreated] = useState<FoundPatient | null>(null);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  // Load the clinic's patients (for search) and doctors (for the form).
+  useEffect(() => {
+    let active = true;
+    apiFetch<Patient[]>("/patients")
+      .then((list) => active && setPatients(list))
+      .catch(() => {})
+      .finally(() => active && setLoadingPatients(false));
+    apiFetch<DoctorSummary[]>("/doctors")
+      .then((list) => active && setDoctors(list))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Doctors with a resolved name, as {id, name} options for the form's pickers
+  // and availability checks.
+  const doctorOptions = useMemo(
+    () =>
+      doctors
+        .filter((d): d is typeof d & { name: string } => Boolean(d.name))
+        .map((d) => ({ id: d.id, name: d.name })),
+    [doctors],
+  );
+  const doctorByName = useMemo(
+    () => new Map(doctorOptions.map((d) => [d.name, d.id])),
+    [doctorOptions],
+  );
+
+  // Auto-run the patient search as the user types (debounced) — no "Check" click
+  // needed. Lists every match; the user clicks a row to select it, which is what
+  // enables "New Appointment". The synchronous resets here derive result state
+  // from the (cleared) query — an intentional pattern for a debounced search.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const s = query.trim().toLowerCase();
+    if (!s) {
+      setChecked(false);
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    // Show the spinner while we debounce and/or the patient list is still loading.
+    setSearching(true);
+    const timer = setTimeout(() => {
+      // Hold the spinner until the list has actually loaded, so we don't flash a
+      // false "No records found." over an empty in-flight list.
+      if (loadingPatients) return;
+      const digits = s.replace(/\D/g, "");
+      const matches = patients.filter(
+        (p) =>
+          (digits.length > 0 && (p.phone ?? "").replace(/\D/g, "").includes(digits)) ||
+          p.id.toLowerCase().includes(s) ||
+          p.name.toLowerCase().includes(s),
+      );
+      setChecked(true);
+      setResults(matches.map(toFound));
+      setSearching(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [query, patients, loadingPatients]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (typeof document === "undefined") return null;
 
-  function runCheck() {
-    const result = lookup(query);
-    setChecked(true);
-    setFound(result);
-    // List the match but don't auto-select it — the user clicks the row to
-    // select, which is what enables "New Appointment".
-    setSelected(null);
+  // POST a new patient, make it searchable immediately, and show the success step.
+  async function handleCreatePatient(input: {
+    name: string;
+    dob: string;
+    phone: string;
+    gender: string;
+    email: string;
+  }): Promise<void> {
+    const patient = await apiFetch<Patient>("/patients", {
+      method: "POST",
+      body: JSON.stringify({
+        name: input.name,
+        phone: phoneWithCc(input.phone) || undefined,
+        email: input.email || undefined,
+        gender: input.gender || undefined,
+        dob: dmyToIso(input.dob),
+      }),
+    });
+    setPatients((prev) => [patient, ...prev]);
+    setCreated(toFound(patient));
+    setStep("created");
   }
 
-  function handleCreated(patient: FoundPatient) {
-    registered.push(patient);
-    setCreated(patient);
-    setStep("created");
+  // Resolve the doctor id + start/end datetimes shared by create and update.
+  function buildBooking(result: AppointmentEditResult): {
+    doctorId: string;
+    start: string;
+    end: string;
+  } {
+    const doctorId =
+      result.doctorId || (result.doctor && doctorByName.get(result.doctor)) || doctors[0]?.id;
+    if (!doctorId) throw new Error("No doctor available to assign.");
+    const hasTime = Boolean(result.startTime);
+    const start = combineDateTime(result.date, result.startTime, hasTime ? 9 : 0);
+    if (!start) throw new Error("Pick a valid appointment date.");
+    let end: string;
+    if (!hasTime) {
+      // No time picked (non-mandatory) → zero-duration; the UI shows this as "--".
+      end = start;
+    } else {
+      const chosen = result.endTime ? combineDateTime(result.date, result.endTime, 9) : null;
+      end =
+        !chosen || new Date(chosen) <= new Date(start)
+          ? new Date(new Date(start).getTime() + 30 * 60_000).toISOString()
+          : chosen;
+    }
+    return { doctorId, start, end };
+  }
+
+  // POST a new appointment for the selected patient.
+  async function createAppointment(result: AppointmentEditResult): Promise<void> {
+    if (!selected) throw new Error("Select a patient first.");
+    const { doctorId, start, end } = buildBooking(result);
+    await apiFetch("/appointments", {
+      method: "POST",
+      body: JSON.stringify({
+        patientId: selected.id,
+        doctorId,
+        startTime: start,
+        endTime: end,
+        status: STATUS_TO_BACKEND[result.status] ?? "SCHEDULED",
+        // Consultation type is now a structured field; `notes` holds the free
+        // message only.
+        consultationType: result.consultationType || undefined,
+        sourceOfEnquiry: result.leadSource || undefined,
+        notes: result.message || undefined,
+        // When ticked, the backend skips business-hours + conflict checks.
+        nonMandatory: result.nonMandatory,
+      }),
+    });
+  }
+
+  // PATCH an existing appointment (edit mode). Fields are sent as-is so clearing
+  // one persists; the backend update just writes what it's given.
+  async function updateAppointment(result: AppointmentEditResult): Promise<void> {
+    if (!edit) throw new Error("No appointment to update.");
+    const { doctorId, start, end } = buildBooking(result);
+    await apiFetch(`/appointments/${edit.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        doctorId,
+        startTime: start,
+        endTime: end,
+        status: STATUS_TO_BACKEND[result.status] ?? "SCHEDULED",
+        consultationType: result.consultationType,
+        sourceOfEnquiry: result.leadSource,
+        notes: result.message,
+      }),
+    });
   }
 
   function resetSearch() {
     setQuery("");
     setChecked(false);
-    setFound(null);
+    setResults([]);
     setSelected(null);
     setCreated(null);
   }
@@ -134,14 +322,14 @@ export default function NewAppointmentModal({
         query={query}
         setQuery={(v) => {
           setQuery(v);
-          setChecked(false);
-          setFound(null);
+          // A new query invalidates the prior selection; the debounced effect
+          // recomputes `results`/`checked`.
           setSelected(null);
         }}
         checked={checked}
-        found={found}
+        results={results}
+        searching={searching}
         selected={selected}
-        onCheck={runCheck}
         onSelect={setSelected}
         onCancel={onClose}
         onCreateProfile={() => setStep("newPatient")}
@@ -149,13 +337,7 @@ export default function NewAppointmentModal({
       />
     );
   } else if (step === "newPatient") {
-    body = (
-      <NewPatientStep
-        onCancel={() => setStep("search")}
-        onCreated={handleCreated}
-        makeId={nextPatientId}
-      />
-    );
+    body = <NewPatientStep onCancel={() => setStep("search")} onCreate={handleCreatePatient} />;
   } else if (step === "created" && created) {
     body = <CreatedStep patient={created} />;
   } else if (step === "form" && selected) {
@@ -163,10 +345,32 @@ export default function NewAppointmentModal({
       <AppointmentFormStep
         patient={selected}
         initial={edit?.initial}
+        doctors={doctorOptions}
+        excludeAppointmentId={edit?.id}
+        submitting={creating}
+        error={createError}
         onCancel={edit ? onClose : () => setStep("search")}
-        onConfirm={(result) => {
-          onSave?.(result);
-          onClose();
+        onConfirm={async (result) => {
+          setCreating(true);
+          setCreateError("");
+          try {
+            if (edit) {
+              await updateAppointment(result);
+            } else {
+              await createAppointment(result);
+            }
+            notifyAppointmentsChanged();
+            onClose();
+          } catch (err) {
+            setCreateError(
+              err instanceof ApiError
+                ? err.message
+                : err instanceof Error
+                  ? err.message
+                  : `Couldn't ${edit ? "update" : "create"} the appointment. Please try again.`,
+            );
+            setCreating(false);
+          }
         }}
       />
     );
@@ -183,15 +387,18 @@ export default function NewAppointmentModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
-      onMouseDown={onClose}
+      className="animate-fade-in fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+      // Close only on a backdrop click, so open dropdowns inside the form still
+      // close on outside-click (their listeners need the mousedown to bubble).
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="na-title"
-        onMouseDown={(e) => e.stopPropagation()}
-        className={`my-auto flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2)] [zoom:1] ${
+        className={`animate-modal-in my-auto flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2)] [zoom:1] ${
           step === "form" ? "max-w-[612px]" : "max-w-[540px]"
         }`}
       >
@@ -218,9 +425,9 @@ function SearchStep({
   query,
   setQuery,
   checked,
-  found,
+  results,
+  searching,
   selected,
-  onCheck,
   onSelect,
   onCancel,
   onCreateProfile,
@@ -229,15 +436,14 @@ function SearchStep({
   query: string;
   setQuery: (v: string) => void;
   checked: boolean;
-  found: FoundPatient | null;
+  results: FoundPatient[];
+  searching: boolean;
   selected: FoundPatient | null;
-  onCheck: () => void;
   onSelect: (p: FoundPatient) => void;
   onCancel: () => void;
   onCreateProfile: () => void;
   onNewAppointment: () => void;
 }) {
-  const canCheck = query.trim().length > 0;
   const canProceed = selected !== null;
 
   return (
@@ -252,7 +458,7 @@ function SearchStep({
           </p>
 
           <div className="mt-5 flex items-center gap-[13px]">
-            <div className="relative flex-1">
+            <div className="relative w-full">
               <Image
                 src="/dashboard/search.svg"
                 alt=""
@@ -279,44 +485,57 @@ function SearchStep({
                 </button>
               )}
             </div>
-            <button
-              type="button"
-              disabled={!canCheck}
-              onClick={onCheck}
-              className={`h-[38px] rounded-[8px] px-[26px] font-inter text-[15px] font-normal uppercase tracking-[0.5px] text-white drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] ${
-                canCheck ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
-              }`}
-            >
-              Check
-            </button>
           </div>
 
+          {(searching || checked) && (
           <div className="mt-5">
             <p className="font-inter text-[10px] font-normal uppercase tracking-[0.5px] text-[#424752]">
-              Search Result
+              Search Results
+              {!searching && checked && results.length > 0 && (
+                <span className="text-[#1e1e24]/40"> · {results.length}</span>
+              )}
             </p>
-            {checked && !found && (
+            {searching && (
+              <div className="mt-2 flex items-center gap-2 text-[#1e1e24]/50">
+                <Spinner className="size-4 text-[#0077c0]" />
+                <span className="font-inter text-[13px]">Searching…</span>
+              </div>
+            )}
+            {!searching && checked && results.length === 0 && (
               <p className="mt-2 font-inter text-[13px] text-[#1e1e24]/50">No records found.</p>
             )}
-            {found && (
-              <button
-                type="button"
-                onClick={() => onSelect(found)}
-                className={`mt-3 flex flex-col items-start gap-1 rounded-[8px] px-4 py-3 text-left transition-colors ${
-                  selected
-                    ? "border-2 border-[#0077c0] bg-[#f1f5f9]"
-                    : "border border-[#c2c6d4] bg-white hover:bg-[#f8fafc]"
-                }`}
-              >
-                <span className={`font-inter text-[14px] font-normal ${selected ? "text-[#0077c0]" : "text-[#1e1e24]"}`}>
-                  {found.name}
-                </span>
-                <span className={`font-inter text-[11px] font-normal tracking-[0.5px] ${selected ? "text-[#0077c0]" : "text-[#1e1e24]"}`}>
-                  ID: {found.id}
-                </span>
-              </button>
+            {!searching && results.length > 0 && (
+              <div className="mt-3 flex max-h-[220px] flex-col gap-2 overflow-y-auto">
+                {results.map((p) => {
+                  const isSelected = selected?.id === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => onSelect(p)}
+                      className={`flex flex-col items-start gap-1 rounded-[8px] px-4 py-3 text-left transition-colors ${
+                        isSelected
+                          ? "border-2 border-[#0077c0] bg-[#f1f5f9]"
+                          : "border border-[#c2c6d4] bg-white hover:bg-[#f8fafc]"
+                      }`}
+                    >
+                      <span
+                        className={`font-inter text-[14px] font-normal ${isSelected ? "text-[#0077c0]" : "text-[#1e1e24]"}`}
+                      >
+                        {p.name}
+                      </span>
+                      <span
+                        className={`font-inter text-[11px] font-normal tracking-[0.5px] ${isSelected ? "text-[#0077c0]" : "text-[#1e1e24]"}`}
+                      >
+                        ID: {p.code}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
+          )}
         </div>
 
         <div className="flex flex-col items-center gap-[15px] rounded-[13px] border border-[#c2c6d4]/50 bg-[#f1f5f9] p-[27px]">
@@ -368,32 +587,46 @@ const GENDER_OPTIONS = ["M", "F"];
 
 function NewPatientStep({
   onCancel,
-  onCreated,
-  makeId,
+  onCreate,
 }: {
   onCancel: () => void;
-  onCreated: (p: FoundPatient) => void;
-  makeId: () => string;
+  /** POSTs the new patient; resolves on success, rejects with a message. */
+  onCreate: (input: {
+    name: string;
+    dob: string;
+    phone: string;
+    gender: string;
+    email: string;
+  }) => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const emailErr = emailError(email);
-  const canCreate = name.trim() && dob.trim() && phone.length === 10 && gender && !emailErr;
+  const canCreate =
+    Boolean(name.trim() && dob.trim() && phone.length === 10 && gender && !emailErr) && !submitting;
 
-  function submit() {
+  async function submit() {
     if (!canCreate) return;
-    onCreated({
-      name: name.trim(),
-      id: makeId(),
-      dob: dob.trim(),
-      gender,
-      phone: phone.trim(),
-      email: email.trim(),
-    });
+    setSubmitting(true);
+    setError("");
+    try {
+      await onCreate({
+        name: name.trim(),
+        dob: dob.trim(),
+        gender,
+        phone: phone.trim(),
+        email: email.trim(),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't create the profile. Please try again.");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -407,7 +640,7 @@ function NewPatientStep({
             className={INPUT_CLASS}
           />
         </Field>
-        <Field label="Date" required>
+        <Field label="Date of Birth" required>
           <DateInput value={dob} onChange={setDob} />
         </Field>
         <Field label="Phone" required>
@@ -444,24 +677,32 @@ function NewPatientStep({
         </Field>
       </div>
 
-      <div className="flex shrink-0 items-center justify-end gap-6 border-t border-[#c2c6d4]/40 px-[32px] py-[20px]">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="font-inter text-[12px] font-normal uppercase tracking-[0.6px] text-[#424752]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          disabled={!canCreate}
-          onClick={submit}
-          className={`rounded-full px-[25px] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
-            canCreate ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
-          }`}
-        >
-          Create Profile
-        </button>
+      <div className="flex shrink-0 flex-col gap-3 border-t border-[#c2c6d4]/40 px-[32px] py-[20px]">
+        {error && (
+          <p role="alert" className="font-inter text-[13px] text-red-500">
+            {error}
+          </p>
+        )}
+        <div className="flex items-center justify-end gap-6">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="font-inter text-[12px] font-normal uppercase tracking-[0.6px] text-[#424752] disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canCreate}
+            onClick={submit}
+            className={`rounded-full px-[25px] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
+              canCreate ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
+            }`}
+          >
+            {submitting ? "Creating…" : "Create Profile"}
+          </button>
+        </div>
       </div>
     </>
   );
@@ -555,7 +796,7 @@ function CreatedStep({ patient }: { patient: FoundPatient }) {
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(patient.id);
+      await navigator.clipboard.writeText(patient.code);
       setCopied(true);
     } catch {
       setCopied(true);
@@ -578,7 +819,7 @@ function CreatedStep({ patient }: { patient: FoundPatient }) {
             Patient ID
           </span>
           <div className="flex items-center gap-2">
-            <span className="font-inter text-[18px] font-normal text-[#1e1e24]">{patient.id}</span>
+            <span className="font-inter text-[18px] font-normal text-[#1e1e24]">{patient.code}</span>
             <button type="button" onClick={copy} aria-label="Copy patient ID">
               <Image src="/dashboard/content_copy.svg" alt="" width={24} height={24} className="size-6" />
             </button>
@@ -640,6 +881,15 @@ function CloseIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className} aria-hidden>
       <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={`animate-spin ${className ?? ""}`} role="status" aria-label="Searching">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-20" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }

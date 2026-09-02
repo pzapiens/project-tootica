@@ -27,6 +27,54 @@
   }
 }
 
+/* Standard entrance animations. Reference as `animate-fade-in`,
+   `animate-modal-in`, `animate-page-in`. */
+@theme {
+  --animate-fade-in: fade-in 200ms ease-out;
+  --animate-modal-in: modal-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-page-in: page-in 320ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* Respect users who opt out of motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-modal-in,
+  .animate-page-in {
+    animation: none;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

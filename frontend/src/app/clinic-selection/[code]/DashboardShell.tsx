@@ -86,18 +86,15 @@ export default function DashboardShell({
         if (!active) return;
         setMe(data);
         setLoading(false);
-        // Doctors & receptionists skip clinic selection, so their post-login
-        // "Reset Password" popup shows here on the dashboard instead.
+        // Doctors & receptionists skip clinic selection, so their forced
+        // first-login "Reset Password" + Terms card shows here on the
+        // dashboard instead, driven by the persisted mustResetPassword flag.
         const role = data.user.role;
-        if (role === "DOCTOR" || role === "GUEST_DOCTOR" || role === "RECEPTIONIST") {
-          try {
-            if (sessionStorage.getItem("tootica:justLoggedIn") === "1") {
-              sessionStorage.removeItem("tootica:justLoggedIn");
-              setShowReset(true);
-            }
-          } catch {
-            // Ignore storage failures (private mode).
-          }
+        if (
+          data.user.mustResetPassword &&
+          (role === "DOCTOR" || role === "GUEST_DOCTOR" || role === "RECEPTIONIST")
+        ) {
+          setShowReset(true);
         }
       })
       .catch((err: unknown) => {
@@ -211,7 +208,7 @@ function Sidebar({
       <UserChip me={me} />
       <div className="pt-[16px]">
         <p className="font-inter text-[16px] font-medium leading-[24px] text-[#94a3b8]">
-          © 2026 Infodent.
+          © 2026 Tootica.
           <br />
           All Rights Reserved.
         </p>
@@ -250,10 +247,13 @@ function UserChip({ me }: { me: MeResponse }) {
     router.replace("/login");
   }
 
+  // Branch-locked staff (a doctor/receptionist has a branchId) can't switch
+  // branches — only clinic-wide admins see "Switch Branch".
+  const branchLocked = me.user.branchId !== null;
   const menuItems: { key: "profile" | "accounts" | "switch"; label: string }[] = [
     { key: "profile", label: "Profile" },
     { key: "accounts", label: "Accounts" },
-    { key: "switch", label: "Switch Branch" },
+    ...(branchLocked ? [] : [{ key: "switch" as const, label: "Switch Branch" }]),
   ];
 
   function onMenu(key: "profile" | "accounts" | "switch") {

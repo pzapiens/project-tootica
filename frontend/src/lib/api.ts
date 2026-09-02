@@ -13,11 +13,16 @@ export async function apiFetch<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`/api${path.startsWith("/") ? path : `/${path}`}`, {
-    ...init,
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  let res = await rawFetch(path, init);
+
+  // The access token is short-lived (15m); a longer-lived refresh cookie can
+  // silently renew it. On a 401, refresh once and retry so a mid-session expiry
+  // (e.g. the availability check fired after a while on a form) doesn't surface
+  // as an error. Skip for the auth endpoints that must not loop / re-auth.
+  if (res.status === 401 && !skipRefresh(path)) {
+    const renewed = await refreshSession();
+    if (renewed) res = await rawFetch(path, init);
+  }
 
   if (!res.ok) {
     throw await toApiError(res);
@@ -27,6 +32,84 @@ export async function apiFetch<T>(
   if (res.status === 204) return undefined as T;
 
   return res.json() as Promise<T>;
+}
+
+/** The underlying request: prefixes `/api`, sends cookies + the branch header. */
+function rawFetch(path: string, init?: RequestInit): Promise<Response> {
+  const branchCode = currentBranchCode();
+  const clinicId = activeClinicId();
+  return fetch(`/api${path.startsWith("/") ? path : `/${path}`}`, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      // Tells the backend which branch is being viewed, so doctors,
+      // appointments and analytics are partitioned per branch. Taken from the
+      // `[code]` segment of the current dashboard URL.
+      ...(branchCode ? { "X-Branch-Code": branchCode } : {}),
+      // Super admins have no clinic of their own; this names the clinic they're
+      // drilling into so tenant routes resolve to it. Ignored by the backend for
+      // every other role (they're scoped by their own token), so it's safe to
+      // always attach when present.
+      ...(clinicId ? { "X-Clinic-Id": clinicId } : {}),
+      ...init?.headers,
+    },
+  });
+}
+
+// Don't try to refresh for the refresh call itself (would loop) or login (a 401
+// there means bad credentials, not an expired session).
+function skipRefresh(path: string): boolean {
+  return path.startsWith("/auth/refresh") || path.startsWith("/auth/login");
+}
+
+// A single in-flight refresh shared by concurrent 401s, so a burst of expired
+// requests triggers exactly one `/auth/refresh`.
+let refreshInFlight: Promise<boolean> | null = null;
+function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch("/api/auth/refresh", { method: "POST", credentials: "include" })
+      .then((r) => r.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+/**
+ * The active branch code — the `[code]` segment of a
+ * `/clinic-selection/{code}/…` dashboard URL. Returns null outside that area
+ * (e.g. login, clinic selection), where requests stay clinic-wide.
+ */
+function currentBranchCode(): string | null {
+  if (typeof window === "undefined") return null;
+  const match = window.location.pathname.match(/\/clinic-selection\/([^/]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+// Super-admin only: the clinic being viewed. A super admin has no clinic of
+// their own, so tenant-scoped requests must name one explicitly (X-Clinic-Id).
+// Persisted in sessionStorage so it survives dashboard navigation / refresh
+// within the tab; scoped to the tab so two clinics can be open side by side.
+const ACTIVE_CLINIC_KEY = "tootica.activeClinicId";
+
+/** Remember the clinic a super admin is drilling into (see {@link activeClinicId}). */
+export function setActiveClinicId(clinicId: string): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(ACTIVE_CLINIC_KEY, clinicId);
+}
+
+/** Forget the drilled-into clinic (on logout or returning to the clinic list). */
+export function clearActiveClinicId(): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(ACTIVE_CLINIC_KEY);
+}
+
+function activeClinicId(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(ACTIVE_CLINIC_KEY);
 }
 
 /**
@@ -97,7 +180,13 @@ export interface PublicUser {
   phone: string | null;
   role: Role;
   clinicId: string | null;
+  /** Branch a doctor/receptionist is pinned to (null for clinic-wide admins). */
+  branchId: string | null;
   status: "ACTIVE" | "SUSPENDED";
+  /** True until the user completes the forced first-login password reset. */
+  mustResetPassword: boolean;
+  /** When the user accepted the Terms & Conditions (null until they have). */
+  termsAcceptedAt: string | null;
   accessStartDate: string | null;
   accessEndDate: string | null;
   createdAt: string;
@@ -137,6 +226,8 @@ export interface BranchSummary {
 /** A clinic in the super-admin cross-tenant list (`GET /api/super-admin/clinics`). */
 export interface SuperAdminClinic {
   id: string;
+  /** Human-friendly code, e.g. "CL-000123". */
+  code: string | null;
   name: string;
   status: "ACTIVE" | "SUSPENDED" | "INACTIVE";
   plan: "FREE" | "BASIC" | "PRO" | "ENTERPRISE";
@@ -144,6 +235,35 @@ export interface SuperAdminClinic {
   picName: string | null;
   contact: string | null;
 }
+
+/**
+ * A staff account under a clinic (`GET /api/super-admin/clinics/:id/accounts`).
+ * Used by the super-admin "Manage Accounts" popup.
+ */
+export interface ClinicAccount {
+  id: string;
+  email: string;
+  title: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  role: Role;
+  status: "ACTIVE" | "SUSPENDED";
+  /** Branch a doctor/receptionist is assigned to (null for clinic admins). */
+  branchId: string | null;
+  branchName: string | null;
+  branchCode: string | null;
+  createdAt: string;
+}
+
+/** Human-readable label for a role (e.g. shown as a badge in the accounts list). */
+export const ROLE_LABELS: Record<Role, string> = {
+  SUPER_ADMIN: "Super Admin",
+  CLIENT_ADMIN: "Admin",
+  DOCTOR: "Doctor",
+  RECEPTIONIST: "Receptionist",
+  GUEST_DOCTOR: "Guest Doctor",
+};
 
 /** Account types offered in the "Add Account" form → backend roles. */
 export const ACCOUNT_TYPES = [
@@ -182,6 +302,132 @@ export function greetingLabel(
   const first = user.firstName?.trim() || user.email.split("@")[0];
   const isDoctor = user.role === "DOCTOR" || user.role === "GUEST_DOCTOR";
   return isDoctor ? `Dr ${first}` : first;
+}
+
+/**
+ * `POST /api/super-admin/accounts` — the created account plus the one-time
+ * temporary password to hand to the new user (shown once, never retrievable).
+ */
+export interface CreatedAccount {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  title: string | null;
+  phone: string | null;
+  role: Role;
+  clinicId: string | null;
+  status: "ACTIVE" | "SUSPENDED";
+  temporaryPassword: string;
+  /** Whether the temporary password was emailed to the new user. */
+  emailSent: boolean;
+}
+
+/** `GET /api/analytics/summary` — clinic counts + appointment status breakdown. */
+export interface AnalyticsSummary {
+  patients: number;
+  doctors: number;
+  appointments: number;
+  upcomingAppointments: number;
+  byStatus: {
+    total: number;
+    completed: number;
+    pending: number;
+    cancelled: number;
+  };
+}
+
+/** Backend appointment status enum. */
+export type AppointmentStatus =
+  | "SCHEDULED"
+  | "CONFIRMED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW";
+
+/**
+ * A row from `GET /api/appointments` — the appointment with its patient and
+ * doctor joined (names resolved) for the dashboard table / calendar.
+ */
+export interface AppointmentListItem {
+  id: string;
+  /** Human-friendly code, e.g. "APT-20260830-0001". */
+  code: string | null;
+  startTime: string;
+  endTime: string;
+  status: AppointmentStatus;
+  /** Structured consultation type (e.g. "Teeth Whitening"); null if unset. */
+  consultationType: string | null;
+  /** Where the enquiry came from (e.g. "Google Search"); null if unset. */
+  sourceOfEnquiry: string | null;
+  notes: string | null;
+  patient: {
+    id: string;
+    code: string | null;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    dob: string | null;
+    gender: string | null;
+  };
+  doctor: {
+    id: string;
+    name: string | null;
+    specialization: string | null;
+  };
+}
+
+/** A patient record (`GET`/`POST /api/patients`). */
+export interface Patient {
+  id: string;
+  /** Human-friendly code, e.g. "PAT-000001". */
+  code: string | null;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  gender: string | null;
+  dob: string | null;
+  medicalNotes: string | null;
+  createdAt: string;
+}
+
+/** A doctor with a resolved display name (`GET /api/doctors`). */
+export interface DoctorSummary {
+  id: string;
+  /** Human-friendly code, e.g. "DOC-000001". */
+  code: string | null;
+  userId: string;
+  name: string | null;
+  specialization: string | null;
+  licenseNumber: string | null;
+  phone: string | null;
+  bio: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  branchCode: string | null;
+  createdAt: string;
+}
+
+/** One doctor's availability for a day (`GET /api/appointments/availability`). */
+export interface DoctorAvailability {
+  id: string;
+  name: string | null;
+  specialization: string | null;
+  bookings: { start: string; end: string; patientName: string }[];
+  /** Free for the requested slot; null when no from/to was given. */
+  available: boolean | null;
+  reason: "outside-hours" | "conflict" | "break" | null;
+}
+
+/** `GET /api/appointments/availability` response. */
+export interface AvailabilityResponse {
+  businessHours: { open: string; close: string };
+  /** Clinic breaks (e.g. lunch) to block out on the availability chart. */
+  breaks: { start: string; end: string; label: string }[];
+  date: string;
+  /** Whether the requested slot is within business hours; null when no slot. */
+  withinHours: boolean | null;
+  doctors: DoctorAvailability[];
 }
 
 /** `POST /auth/verify-otp`. */

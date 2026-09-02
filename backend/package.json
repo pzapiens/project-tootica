@@ -20,6 +20,9 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:all": "tsx prisma/seed-all.ts",
+    "db:provision": "tsx prisma/provision.ts",
+    "db:seed:appointments": "tsx prisma/seed-appointments.ts",
     "db:reset": "prisma migrate reset",
     "postinstall": "prisma generate"
   },

@@ -2,7 +2,9 @@ import type { Request, Response } from 'express';
 
 import {
   createAccountSchema,
-  createClinicWithBranchSchema,
+  createBranchSchema,
+  createClinicWithBranchesSchema,
+  updateAccountSchema,
   updateBranchSchema,
   updateClinicSchema,
 } from './schema';
@@ -32,13 +34,32 @@ export const superAdminController = {
   },
 
   createClinic: async (req: Request, res: Response) => {
-    const data = createClinicWithBranchSchema.parse(req.body);
+    const data = createClinicWithBranchesSchema.parse(req.body);
     res.status(201).json(await superAdminService.createClinic(data));
+  },
+
+  createBranch: async (req: Request, res: Response) => {
+    const data = createBranchSchema.parse(req.body);
+    res.status(201).json(await superAdminService.addBranch(data));
   },
 
   createAccount: async (req: Request, res: Response) => {
     const data = createAccountSchema.parse(req.body);
     res.status(201).json(await superAdminService.createAccount(data));
+  },
+
+  listAccounts: async (req: Request, res: Response) => {
+    res.json(await superAdminService.listAccounts(req.params.id));
+  },
+
+  updateAccount: async (req: Request, res: Response) => {
+    const data = updateAccountSchema.parse(req.body);
+    res.json(await superAdminService.updateAccount(req.params.id, data));
+  },
+
+  removeAccount: async (req: Request, res: Response) => {
+    await superAdminService.removeAccount(req.params.id);
+    res.status(204).send();
   },
 
   updateClinic: async (req: Request, res: Response) => {

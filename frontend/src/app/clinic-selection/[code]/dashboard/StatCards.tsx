@@ -5,7 +5,8 @@ import { STAT_CARDS, type StatCounts } from "./mock";
 /**
  * Row of 4 appointment stat cards (Figma "Dashboard - Stats Cards"). Solid-blue
  * cards, big count on top, an icon + "Review" link pinned to the bottom. The
- * counts change with the selected timeframe.
+ * counts change with the selected timeframe. The "Review" link's action is
+ * disabled for now (kept visually as part of the card design).
  */
 export default function StatCards({ counts }: { counts: StatCounts }) {
   return (

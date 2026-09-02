@@ -6,9 +6,10 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { env, isProduction } from './config/env';
-import { authenticate, requireSuperAdmin } from './common/middleware/auth.middleware';
+import { authenticate, requireRole, requireSuperAdmin } from './common/middleware/auth.middleware';
 import { errorHandler, notFoundHandler } from './common/middleware/errorHandler';
-import { requireTenant } from './common/middleware/tenant.middleware';
+import { requireTenant, resolveBranch } from './common/middleware/tenant.middleware';
+import { accountRoutes } from './modules/accounts/routes';
 import { analyticsRoutes } from './modules/analytics/routes';
 import { appointmentRoutes } from './modules/appointments/routes';
 import { authRoutes } from './modules/auth/routes';
@@ -44,11 +45,23 @@ export function createApp(): express.Express {
   app.use('/api/auth', authRoutes);
 
   // Tenant-scoped modules: authenticate, then resolve the clinic from the user.
+  // Doctors, appointments and analytics additionally resolve the active branch
+  // (X-Branch-Code) so their lists/counts are partitioned per branch. Patients
+  // stay clinic-wide (shared across a clinic's branches).
   app.use('/api/patients', authenticate, requireTenant, patientRoutes);
   app.use('/api/branches', authenticate, requireTenant, branchRoutes);
-  app.use('/api/doctors', authenticate, requireTenant, doctorRoutes);
-  app.use('/api/appointments', authenticate, requireTenant, appointmentRoutes);
-  app.use('/api/analytics', authenticate, requireTenant, analyticsRoutes);
+  app.use('/api/doctors', authenticate, requireTenant, resolveBranch, doctorRoutes);
+  app.use('/api/appointments', authenticate, requireTenant, resolveBranch, appointmentRoutes);
+  app.use('/api/analytics', authenticate, requireTenant, resolveBranch, analyticsRoutes);
+
+  // Clinic admins manage their own clinic's doctors + receptionists.
+  app.use(
+    '/api/accounts',
+    authenticate,
+    requireTenant,
+    requireRole('CLIENT_ADMIN'),
+    accountRoutes,
+  );
 
   // Super Admin: authenticated + role-gated, but NOT clinic-scoped.
   app.use('/api/super-admin', authenticate, requireSuperAdmin, superAdminRoutes);

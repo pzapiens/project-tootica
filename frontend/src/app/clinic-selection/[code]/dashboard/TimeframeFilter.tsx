@@ -29,7 +29,17 @@ export default function TimeframeFilter({
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as HTMLElement;
+      // The custom-range calendar is portaled to <body> (outside `ref`), so
+      // treat clicks inside it as inside — otherwise picking a day would close
+      // this panel before the selection registers.
+      if (
+        ref.current &&
+        !ref.current.contains(target) &&
+        !target.closest("[data-date-popover]")
+      ) {
+        setOpen(false);
+      }
     }
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);

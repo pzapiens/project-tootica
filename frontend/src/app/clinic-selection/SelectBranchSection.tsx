@@ -17,6 +17,7 @@ export default function SelectBranchSection({
   firstColumnLabel = "Branch",
   searchPlaceholder = "Search branch, PIC or contact number",
   itemNoun = "branches",
+  onManage,
   onEdit,
   onDelete,
   onSelect,
@@ -27,6 +28,8 @@ export default function SelectBranchSection({
   searchPlaceholder?: string;
   /** Plural noun used in the search label + empty state (e.g. "clinics"). */
   itemNoun?: string;
+  /** When provided, render a "manage accounts" action (super-admin only). */
+  onManage?: (branch: Branch) => void;
   onEdit?: (branch: Branch) => void;
   onDelete?: (branch: Branch) => void;
   /** Fired when a row is chosen — used to continue into the clinic dashboard. */
@@ -85,6 +88,7 @@ export default function SelectBranchSection({
         ) : (
           <BranchList
             branches={filtered}
+            onManage={onManage}
             onEdit={onEdit}
             onDelete={onDelete}
             onSelect={onSelect}

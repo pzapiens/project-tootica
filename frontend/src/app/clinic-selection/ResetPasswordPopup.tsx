@@ -5,15 +5,19 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import PasswordToggle from "@/components/PasswordToggle";
+import { apiFetch, ApiError, type MessageResponse } from "@/lib/api";
 import { checkPassword, passwordPolicyError } from "@/lib/password";
 
 /**
- * "Reset Password" card shown on login (Figma "RP Card on login"). Presented
- * instantly after login for every non-super-admin role, prompting the user to
- * set a new password and accept the Terms & Conditions / Privacy Policy before
- * continuing. The button enables once both passwords are filled and the checkbox
- * is ticked; the password policy (the same one used across the app) and the
- * confirm-match are validated when Reset Password is clicked.
+ * "Reset Password" card shown on the first login (Figma "RP Card on login").
+ * Mandatory for every non-super-admin role whose account still has
+ * `mustResetPassword` set — it prompts the user to replace their temporary
+ * password and accept the Terms & Conditions / Privacy Policy before
+ * continuing. On submit it calls `POST /api/auth/complete-onboarding`, which
+ * persists the new password, records the T&C acceptance, and clears the flag.
+ *
+ * `onClose` is called only after the reset succeeds (the card has no dismiss
+ * affordance — it must be completed).
  */
 const MISMATCH_MESSAGE = "Passwords do not match.";
 
@@ -25,6 +29,7 @@ export default function ResetPasswordPopup({ onClose }: { onClose: () => void })
   const [showConfirm, setShowConfirm] = useState(false);
   const [policy, setPolicy] = useState<null | "terms" | "privacy">(null);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
   if (typeof document === "undefined") return null;
@@ -32,9 +37,10 @@ export default function ResetPasswordPopup({ onClose }: { onClose: () => void })
   // Enabled once both fields are filled and the terms are accepted (Figma
   // Variant4). Correctness (policy + match) is checked on submit so the user
   // gets a clear message rather than a silently-disabled button.
-  const canSubmit = password.length > 0 && confirm.length > 0 && agree && !done;
+  const canSubmit =
+    password.length > 0 && confirm.length > 0 && agree && !done && !submitting;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     // Same policy as the super-admin create-account / forgot-password flows.
@@ -48,11 +54,23 @@ export default function ResetPasswordPopup({ onClose }: { onClose: () => void })
       return;
     }
     setError("");
-    // Front-end flow: show the success message briefly, then dismiss. (Persisting
-    // needs a "reset on first login" endpoint; change-password requires the
-    // current password, which this card doesn't collect.)
-    setDone(true);
-    setTimeout(onClose, 1800);
+    setSubmitting(true);
+    try {
+      await apiFetch<MessageResponse>("/auth/complete-onboarding", {
+        method: "POST",
+        body: JSON.stringify({ password, acceptTerms: agree }),
+      });
+      // Show the success tick briefly, then let the caller dismiss + refresh.
+      setDone(true);
+      setTimeout(onClose, 1800);
+    } catch (err) {
+      setSubmitting(false);
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
+    }
   }
 
   const passwordInvalid = Boolean(error) && error !== MISMATCH_MESSAGE;
@@ -173,7 +191,7 @@ export default function ResetPasswordPopup({ onClose }: { onClose: () => void })
               canSubmit ? "hover:bg-[#0069a8]" : "cursor-not-allowed opacity-50"
             }`}
           >
-            Reset Password
+            {submitting ? "Resetting…" : "Reset Password"}
             <Image src="/auth/chevron.svg" alt="" width={28} height={28} className="size-7 rotate-180" />
           </button>
         </div>

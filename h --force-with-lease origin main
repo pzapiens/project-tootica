@@ -1,0 +1,38 @@
+[33mcommit 7d94f47e2c887768f0829b78b30980c59a075bd8[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/feature/backend-auth-phase1[m[33m, [m[1;32mfeature/frontend-dashboard-phase2[m[33m, [m[1;32mfeature/backend-auth-phase1[m[33m)[m
+Author: pzapiens <promozapiensmedia@gmail.com>
+Date:   Mon Aug 24 01:39:59 2026 +0530
+
+    backend-auth,superadmin,add fuctionality
+
+[33mcommit 70328037f9d5ebbe9aa3833b2cc7652ec3cb649d[m[33m ([m[1;32mfeature/frontend-auth[m[33m)[m
+Author: pzapiens <promozapiensmedia@gmail.com>
+Date:   Fri Aug 21 00:01:02 2026 +0530
+
+    Read me change
+
+[33mcommit 34568b91476d13ad87dcd0edfd4a62be5be3de44[m
+Author: pzapiens <promozapiensmedia@gmail.com>
+Date:   Thu Aug 20 23:42:03 2026 +0530
+
+    Update README.md
+
+[33mcommit bcf8d3d881fe65f7fe5583c2d624628d86b3938a[m
+Merge: c9d7252 c1120cc
+Author: pzapiens <promozapiensmedia@gmail.com>
+Date:   Thu Aug 20 22:11:03 2026 +0400
+
+    Merge pull request #1 from pzapiens/feature/frontend-auth
+    
+    frontend auth
+
+[33mcommit c1120ccae47b761970f0f369c860ffbec1c35742[m[33m ([m[1;32mbackend[m[33m)[m
+Author: pzapiens <promozapiensmedia@gmail.com>
+Date:   Thu Aug 20 21:24:22 2026 +0400
+
+    frontend auth
+
+[33mcommit c9d7252f5e1039b8df4d34b6c7f6ba9e78e6a91d[m
+Author: pzapiens <promozapiensmedia@gmail.com>
+Date:   Wed Aug 19 22:28:24 2026 +0530
+
+    Intialization-Phase0

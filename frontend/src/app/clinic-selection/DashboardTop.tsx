@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, type AnalyticsSummary } from "@/lib/api";
+import { analyticsRangeQuery } from "@/lib/analytics";
 
 import BranchFilter, { type BranchOption } from "./BranchFilter";
 import { type Branch } from "./BranchList";
@@ -16,36 +17,8 @@ export type BranchStats = {
   pending: number;
   cancelled: number;
 };
-export type StatsByBranch = Record<string, BranchStats>;
 
-/**
- * Resolve the stat card values for the active branch + time frame. `all` and
- * `today` read seeded per-branch data; a custom range scales the all-time
- * baseline by its share of a year (mock behaviour until the backend serves
- * per-window counts).
- */
-function resolveStats(
-  allTime: StatsByBranch,
-  today: StatsByBranch,
-  branchId: string,
-  timeFrame: TimeFrame,
-): BranchStats {
-  const base = allTime[branchId] ?? allTime.all;
-  if (timeFrame.kind === "all") return base;
-  if (timeFrame.kind === "today") return today[branchId] ?? today.all;
-
-  const start = new Date(timeFrame.from);
-  const end = new Date(timeFrame.to);
-  const days = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
-  const factor = Math.min(1, Math.max(0, days / 365));
-  const scale = (n: number) => Math.max(0, Math.round(n * factor));
-  return {
-    total: scale(base.total),
-    completed: scale(base.completed),
-    pending: scale(base.pending),
-    cancelled: scale(base.cancelled),
-  };
-}
+const EMPTY_STATS: BranchStats = { total: 0, completed: 0, pending: 0, cancelled: 0 };
 
 const STAT_CARDS: { key: keyof BranchStats; label: string; icon: string }[] = [
   { key: "total", label: "Total Appointments", icon: "/clinic/productivity.svg" },
@@ -62,17 +35,31 @@ const STAT_CARDS: { key: keyof BranchStats; label: string; icon: string }[] = [
 export default function DashboardTop({
   greetingName,
   branches,
-  statsByBranch,
-  todayStatsByBranch,
 }: {
   greetingName: string;
   branches: Branch[];
-  statsByBranch: StatsByBranch;
-  todayStatsByBranch: StatsByBranch;
 }) {
   const router = useRouter();
   const [branchFilter, setBranchFilter] = useState("all");
   const [timeFrame, setTimeFrame] = useState<TimeFrame>({ kind: "all" });
+  const [stats, setStats] = useState<BranchStats>(EMPTY_STATS);
+
+  // Real per-clinic appointment stats for the selected time window. (The backend
+  // analytics are clinic-wide, so the branch dropdown filters the list below but
+  // not these totals.)
+  useEffect(() => {
+    let active = true;
+    apiFetch<AnalyticsSummary>(`/analytics/summary${analyticsRangeQuery(timeFrame)}`)
+      .then((data) => {
+        if (active) setStats(data.byStatus);
+      })
+      .catch(() => {
+        if (active) setStats(EMPTY_STATS);
+      });
+    return () => {
+      active = false;
+    };
+  }, [timeFrame]);
 
   async function handleLogout() {
     // Clear the session cookies server-side; navigate home regardless of outcome.
@@ -89,14 +76,12 @@ export default function DashboardTop({
     ...branches.map((b) => ({ id: b.id, label: b.branch })),
   ];
 
-  const stats = resolveStats(statsByBranch, todayStatsByBranch, branchFilter, timeFrame);
-
   return (
     <>
       {/* Header */}
       <header className="flex shrink-0 flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
         <h1 className="font-inter text-[26px] font-semibold leading-tight text-ink md:text-[35px] md:leading-[42px]">
-          Hi, {greetingName}
+          Welcome back, {greetingName}
         </h1>
         <div className="flex flex-wrap items-center gap-3 md:gap-[19px]">
           <BranchFilter options={options} selectedId={branchFilter} onSelect={setBranchFilter} />

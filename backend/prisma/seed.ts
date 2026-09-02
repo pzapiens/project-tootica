@@ -131,12 +131,19 @@ async function main(): Promise<void> {
   const staffHash = await hashPassword(STAFF_PASSWORD);
   const superHash = await hashPassword(SUPER_ADMIN_PASSWORD);
 
+  // Seeded users are treated as already onboarded: real password, no forced
+  // first-login reset, and Terms already accepted — so every known dev login
+  // works normally. Freshly created accounts (via the super-admin form) get a
+  // temporary password with mustResetPassword=true instead.
+  const onboarded = { mustResetPassword: false, termsAcceptedAt: new Date() };
+
   await prisma.user.create({
     data: {
       email: 'super@tootica.local',
       passwordHash: superHash,
       role: 'SUPER_ADMIN',
       status: 'ACTIVE',
+      ...onboarded,
     },
   });
 
@@ -155,6 +162,7 @@ async function main(): Promise<void> {
         clinicId: clinic.id,
         firstName: def.adminName[0],
         lastName: def.adminName[1],
+        ...onboarded,
       },
     });
 
@@ -168,6 +176,7 @@ async function main(): Promise<void> {
         clinicId: clinic.id,
         firstName: def.receptionName[0],
         lastName: def.receptionName[1],
+        ...onboarded,
       },
     });
 
@@ -191,6 +200,7 @@ async function main(): Promise<void> {
           clinicId: clinic.id,
           firstName: first,
           lastName: last,
+          ...onboarded,
           // Guest doctors get a time-boxed access window.
           accessStartDate: isGuest ? at(-7, 0) : null,
           accessEndDate: isGuest ? at(30, 0) : null,

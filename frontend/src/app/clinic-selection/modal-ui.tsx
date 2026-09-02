@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { phoneDigits } from "@/lib/validation";
 
@@ -37,13 +37,16 @@ export function Overlay({
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
-      onMouseDown={onClose}
+      // Close only when the backdrop itself is clicked. Not stopping propagation
+      // inside the dialog lets child dropdowns' outside-click handlers still fire.
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        onMouseDown={(e) => e.stopPropagation()}
         className={`my-auto flex w-full max-w-[520px] flex-col gap-6 rounded-3xl bg-white p-8 shadow-[0_10px_40px_rgba(0,0,0,0.12)] ${className}`}
       >
         {children}
@@ -193,7 +196,13 @@ export function DangerButton({
   );
 }
 
-/** Confirmation dialog (design-system styled) — a drop-in for window.confirm. */
+/**
+ * Confirmation dialog (design-system styled) — a drop-in for window.confirm.
+ *
+ * When `requireCode` is set, it also prompts for the Super Admin deletion code
+ * and passes it to `onConfirm`; the confirm button stays disabled until a code
+ * is entered. Callers that don't require a code can ignore the argument.
+ */
 export function ConfirmDialog({
   title,
   message,
@@ -201,6 +210,8 @@ export function ConfirmDialog({
   danger = false,
   busy = false,
   error,
+  requireCode = false,
+  codeLabel = "Super Admin deletion code",
   onConfirm,
   onCancel,
 }: {
@@ -210,10 +221,15 @@ export function ConfirmDialog({
   danger?: boolean;
   busy?: boolean;
   error?: string;
-  onConfirm: () => void;
+  requireCode?: boolean;
+  codeLabel?: string;
+  onConfirm: (code: string) => void;
   onCancel: () => void;
 }) {
+  const [code, setCode] = useState("");
   const ConfirmBtn = danger ? DangerButton : PrimaryButton;
+  const canConfirm = !busy && (!requireCode || code.trim().length > 0);
+
   return (
     <Overlay onClose={onCancel} labelledBy="confirm-dialog-title">
       <h2
@@ -223,6 +239,29 @@ export function ConfirmDialog({
         {title}
       </h2>
       <p className="font-inter text-[15px] leading-[24px] text-ink">{message}</p>
+
+      {requireCode && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="delete-code" className={LABEL_CLASS}>
+            {codeLabel}
+          </label>
+          <div className="flex items-center rounded-lg border border-field-border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus-within:border-brand">
+            <input
+              id="delete-code"
+              type="password"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Enter code to confirm"
+              autoComplete="off"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canConfirm) onConfirm(code.trim());
+              }}
+              className="min-w-0 flex-1 bg-transparent font-inter text-[14px] tracking-[2px] text-ink outline-none placeholder:tracking-normal placeholder:text-field-placeholder"
+            />
+          </div>
+        </div>
+      )}
+
       {error && (
         <p role="alert" className={ERROR_CLASS}>
           {error}
@@ -232,7 +271,7 @@ export function ConfirmDialog({
         <SecondaryButton type="button" onClick={onCancel} disabled={busy}>
           Cancel
         </SecondaryButton>
-        <ConfirmBtn type="button" onClick={onConfirm} disabled={busy}>
+        <ConfirmBtn type="button" onClick={() => onConfirm(code.trim())} disabled={!canConfirm}>
           {busy ? "Deleting…" : confirmLabel}
         </ConfirmBtn>
       </div>
