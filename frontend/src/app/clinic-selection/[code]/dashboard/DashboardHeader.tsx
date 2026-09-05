@@ -8,6 +8,7 @@ import { greetingLabel } from "@/lib/api";
 import { useMe } from "../DashboardShell";
 import { type Timeframe } from "./mock";
 import NewAppointmentModal from "./NewAppointmentModal";
+import NotificationBell from "./NotificationBell";
 import TimeframeFilter from "./TimeframeFilter";
 
 /**
@@ -33,6 +34,7 @@ export default function DashboardHeader({
       </h1>
       <div className="flex items-center gap-[18.667px]">
         <TimeframeFilter timeframe={timeframe} onChange={onTimeframeChange} />
+        <NotificationBell />
         <button
           type="button"
           onClick={() => setNaOpen(true)}

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { apiFetch, type AvailabilityResponse } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
+import { isSlotOnShift, isSlotBlocked } from "@/lib/shifts";
 
 import { DateInput, parseDmy } from "./DateInput";
 import DoctorAvailabilityModal from "./DoctorAvailabilityModal";
@@ -211,7 +212,11 @@ export default function AppointmentFormStep({
   // `/doctors` fetch had resolved at mount.
   const dtDoctorOptions =
     availableDoctors.length > 0 ? availableDoctors : editDatetime ? doctorNames : [];
+  // Doctors were found free for the slot — drives the dropdown + the success line.
   const doctorAvailable = availabilityChecked && dtDoctorOptions.length > 0;
+  // ...but the user must still pick one from the dropdown (even when only one is
+  // free); Confirm stays disabled until a doctor is actually selected.
+  const doctorSelected = doctorAvailable && dtDoctorOptions.includes(dtDoctor);
 
   // Consultation Type is the only shared mandatory field above the tabs; the
   // Source of Enquiry is optional.
@@ -222,7 +227,7 @@ export default function AppointmentFormStep({
   // Confirm with core + just the Date.
   const datetimeOk =
     coreOk &&
-    (dtNonMandatory ? Boolean(dtDate) : Boolean(dtDate && dtTimeFilled && doctorAvailable));
+    (dtNonMandatory ? Boolean(dtDate) : Boolean(dtDate && dtTimeFilled && doctorSelected));
 
   // Select-by-Doctor: core + doctor + date. When a time range is required (not
   // non-mandatory), it must have been verified free — which now happens
@@ -266,17 +271,26 @@ export default function AppointmentFormStep({
       const res = await apiFetch<AvailabilityResponse>(
         `/appointments/availability?date=${ymd(docDate)}&from=${hhmm24(docFrom)}&to=${hhmm24(docTo)}&doctorId=${doctorId}${excludeParam}`,
       );
+      // A doctor is only available inside a shift they've marked for the date,
+      // and not during a slot they've blocked in the availability popup.
+      const day = parseDmy(docDate);
+      const onShift = day !== null && isSlotOnShift(doctorId, day, f, t);
+      const blocked = day !== null && isSlotBlocked(doctorId, day, f, t);
       const d = res.doctors[0];
-      const ok = Boolean(d?.available);
+      const ok = Boolean(d?.available) && onShift && !blocked;
       setDocAvailable(ok);
       setDocAvailError(
         ok
           ? ""
-          : d?.reason === "conflict"
-            ? "Doctor is already booked in this time range."
-            : d?.reason === "break"
-              ? "This time falls within the clinic lunch break (12:00 PM – 2:00 PM)."
-              : "Doctor is not available in the selected time range.",
+          : !onShift
+            ? "Doctor has no shift covering the selected time."
+            : blocked
+              ? "This time is blocked for the doctor."
+              : d?.reason === "conflict"
+                ? "Doctor is already booked in this time range."
+                : d?.reason === "break"
+                  ? "This time falls within the clinic lunch break (1:00 PM – 2:00 PM)."
+                  : "Doctor is not available in the selected time range.",
       );
     } catch {
       setDocAvailable(false);
@@ -351,8 +365,17 @@ export default function AppointmentFormStep({
       const res = await apiFetch<AvailabilityResponse>(
         `/appointments/availability?date=${ymd(dtDate)}&from=${hhmm24(dtFrom)}&to=${hhmm24(dtTo)}${excludeParam}`,
       );
+      // Keep only doctors who are free AND on a shift they've marked for the date.
+      const day = parseDmy(dtDate);
       const free = res.doctors
-        .filter((d) => d.available && d.name)
+        .filter(
+          (d) =>
+            d.available &&
+            d.name &&
+            day !== null &&
+            isSlotOnShift(d.id, day, f, t) &&
+            !isSlotBlocked(d.id, day, f, t),
+        )
         .map((d) => d.name as string);
       if (free.length === 0) {
         // If every doctor is blocked by the break, say so specifically.
@@ -360,17 +383,17 @@ export default function AppointmentFormStep({
           res.doctors.length > 0 && res.doctors.every((d) => d.reason === "break");
         setAvailError(
           allBreak
-            ? "This time falls within the clinic lunch break (12:00 PM – 2:00 PM). Pick another slot."
-            : "No doctors are free in the selected time. Try another slot.",
+            ? "This time falls within the clinic lunch break (1:00 PM – 2:00 PM). Pick another slot."
+            : "No doctors are on shift and free in the selected time. Try another slot.",
         );
         setAvailableDoctors([]);
         setAvailabilityChecked(false);
       } else {
         setAvailableDoctors(free);
         setAvailabilityChecked(true);
-        // Auto-assign a free doctor (keep the current pick if it's still free),
-        // so no manual selection is needed.
-        setDtDoctor((cur) => (free.includes(cur) ? cur : free[0]));
+        // Do NOT auto-assign a doctor — the user must pick one from the dropdown
+        // (even when only one is free). Keep an existing pick only if still free.
+        setDtDoctor((cur) => (free.includes(cur) ? cur : ""));
       }
     } catch {
       setAvailError("Couldn't check availability. Please try again.");
@@ -494,7 +517,6 @@ export default function AppointmentFormStep({
               {doctorAvailable ? (
                 <BoxedDropdown
                   label="Doctor"
-                  required={false}
                   value={dtDoctor}
                   options={dtDoctorOptions}
                   onChange={setDtDoctor}
@@ -620,6 +642,7 @@ export default function AppointmentFormStep({
           doctorId={resolveDoctorId(docDoctor)}
           date={docDate}
           onClose={() => setAvailabilityOpen(false)}
+          viewOnly
         />
       )}
     </>

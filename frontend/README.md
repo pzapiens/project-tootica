@@ -143,19 +143,27 @@ Picking a branch on the selection screen enters the dashboard area, where
 
 **`/dashboard`** — the main screen (state owned by `DashboardClient`):
 - **Header** with the "Hi, {name}" greeting, a **timeframe filter** (All-Time /
-  Today / custom FROM–TO range) and the primary **New Appointment** action.
+  Today / custom FROM–TO range), a circular **notification bell** and the primary
+  **New Appointment** action. The bell (same outlined-circle style as the Patients
+  filter/export buttons) shows a **red dot** while notifications remain and opens a
+  popup listing each notification with a **Review** action plus a **Clear all**
+  button (`NotificationBell.tsx`, dummy feed for now).
 - Four **stat cards** from `GET /api/analytics/summary` (Total / Completed /
   Pending / Cancelled). The timeframe filter drives **only** these cards.
 - **Today's Appointments** table from `GET /api/appointments` — the current day's
   appointments, filtered by a **status** dropdown (mapped to real statuses) and a
   client-side **search**, **paginated 20 per page**. It is independent of the
   timeframe filter and the calendar.
-- A **mini calendar** beside the table is **display-only**: it dots the days that
-  have an appointment and navigates months. **View Full Calendar** opens `/calendar`.
+- A **mini calendar** beside the table dots the days that have an appointment and
+  navigates months. **Clicking any day** opens the full calendar on that day
+  (`/calendar?date=YYYY-MM-DD`) with its appointments in the right panel.
+  **View Full Calendar** opens `/calendar`.
 - **New Appointment** modal — search or **create a patient** (`POST /api/patients`,
   shows the `PAT-…` code) → the **appointment form**. Schedule *by Date & Time*
-  (find **available doctors** for a slot) or *by Doctor* (availability is
-  **auto-checked** as you type the time — business hours + double-booking, from
+  (the free doctors for a slot are found automatically, then the user **manually
+  picks** one from the Doctor dropdown — no auto-select, even when only one is
+  free) or *by Doctor* (availability is **auto-checked** as you type the time —
+  business hours + double-booking, from
   `GET /api/appointments/availability`). A **Non-mandatory** option bypasses the
   checks (no time → shows `--`). **Status** is editable (default *Upcoming*).
   Confirm → `POST /api/appointments`, and the dashboard refreshes. **Editing**
@@ -166,15 +174,107 @@ Picking a branch on the selection screen enters the dashboard area, where
 (`GET /api/appointments`), each in its date cell and colour-coded by status; an
 **in-progress (Ongoing)** appointment is filled blue. Patients are shown by
 **first name only**. Clicking a day opens that day's list, and an appointment
-shows its detail.
+shows its detail. Accepts a **`?date=YYYY-MM-DD`** deep link (used by the
+dashboard mini calendar) that opens straight onto that month with the day's
+slide-over already showing.
 
-**`/appointments`, `/patients`, `/doctors`, `/analytics`, `/revenue`** — routed
+**`/patients`** — the clinic's patient directory (Figma "Patients"). A
+searchable (by name, ID, phone digits, or email local-part — the email domain
+and `+91` are ignored so common letters still filter), sortable, paginated
+table (ID, Patient Name, Phone, Email,
+Age / Gender, Last Clinic Visit, Actions) from `GET /api/patients`; the **age**
+is derived from DOB and the **last clinic visit** is computed client-side from
+each patient's most recent *past* appointment (`GET /api/appointments`). Header
+actions: **Filter** opens an **Apply Filter** panel (ID / Alphabetic / Age, each
+ascending or descending) where selections are **staged** and committed with
+**Apply Filters** (or cleared with **Reset All**) — multiple cards combine into a
+multi-key sort, and the number of active filters shows as a **badge on the filter
+icon**. **Export** downloads the current list as **CSV**. Each row has **Edit** (Edit Patient
+Profile modal → `PATCH /api/patients/:id`), a **Book appointment** icon (not
+wired yet), and **Delete** (confirm dialog → `DELETE /api/patients/:id`, which
+also removes the patient's appointments). The header + search stay fixed and the
+**pagination bar is pinned to the bottom** of the panel (record range, a
+**per-page** selector, and numbered pagination) while only the **table body
+scrolls** between them — matching the Figma frame.
+
+**`/doctors`** — the clinic's doctor directory (Figma "Doctors"). A searchable
+(by name, ID, phone digits, or specialization), sortable, paginated table (ID,
+Doctor Name, Phone, Specialization, Actions) from `GET /api/doctors`; names are
+shown with the **"Dr."** honorific. The list holds **two kinds of doctor**:
+**employed doctors** (role `DOCTOR`, created via the account flow, with logins)
+and **guest doctors** (role `GUEST_DOCTOR`, visiting doctors added here) — the
+row's `role` tells them apart. Header actions: **Create Doctor** opens the **New
+Doctor Profile** modal (name / phone / specialization required; **email
+optional**) which creates a
+**guest doctor** with `POST /api/doctors` (the backend provisions a
+`GUEST_DOCTOR` user + profile inside the current clinic — no branch picker, since
+creation is already clinic-scoped). **Filter** opens an **Apply Filter** panel
+(ID ascending/descending + multi-select specialization chips, staged and
+committed with **Apply Filters** / **Reset All**, active count shown as a
+**badge**). **Export** downloads the current list as **CSV**. Row actions (Figma
+`calendar_clock` glyph for the availability action): **Edit** — for **all**
+doctors — opens the per-doctor shift editor at `/doctors/:id/shift`; the
+**Availability** icon opens the **Doctor Availability** modal (date navigator +
+timeline with a **Not Available / Available / Booked / Break** legend,
+`GET /api/appointments/availability`); **Delete**
+(confirm dialog → `DELETE /api/doctors/:id`) is shown **only for guest doctors**.
+Same fixed header/search + pinned pagination + scrolling body layout as Patients.
+
+**`/doctors/:id/shift`** (Edit Doctor Shift, Figma "Doctors2 - Edit") — the
+per-doctor shift editor. The detail fields (name / consultation type / phone /
+email) are **frozen for employed doctors** (identity managed via the account
+flow) and **editable + saveable for guest doctors** (`PATCH /api/doctors/:id`,
+via an "Update Details" button). Below is an **Add Shifts** builder (pick
+calendar dates + recurrence + time range → shifts table). The calendar has
+app-styled **month + year dropdowns** (year = present year and up), marks
+**today with a blue stroke**, fills picked dates, and previews the dates the
+chosen **recurrence** implies as matching fills — **Day** (just the pick),
+**Weekly**, **Biweekly**, **Monthly**, **Yearly**, and **Every day** (every date
+from the pick onward); a picked "today" keeps an inset ring so it stays
+identifiable. Days that land in the current month's first/last week are shown
+**faded but selectable** (the tail of the previous month and the head of the next)
+so they can still be marked here. Recurrence is gated until a date is picked. Once a shift is added
+it stays marked on the calendar in **green** (expanded by its recurrence) while
+the working selection shows **blue** — a small legend labels the two. The shifts
+table lists rows in **date order** (then by start time), regardless of add/edit
+order. Each shift
+row has **Edit** (loads its date/recurrence/time back into the builder — the
+button becomes **Update Shift**, with a Cancel) and **Delete** (opens a **confirm
+dialog** in the app's shared delete-prompt style before removing the row). Shifts are
+persisted per doctor in **`localStorage`** (`src/lib/shifts.ts`, frontend-first)
+so they survive leaving and re-opening the editor, and they drive the Doctor
+Availability popup + New Appointment checks below — until the doctor-shifts
+backend endpoints are wired.
+
+**`/appointments`, `/analytics`, `/revenue`** — routed
 and role-gated, currently rendering a **"Coming soon"** placeholder until each is
 built frame-by-frame.
 
-The one screen still showing sample data is the **Doctor Availability** timeline
-modal (an illustrative day); the "available doctors" / "check availability"
-validations it sits behind are real.
+The **Doctor Availability** timeline modal (Figma 501:51877) paints the day over
+a **Not Available** (dark) base: green **Available** windows from the doctor's
+saved **shifts**, real **bookings** (blue), user **Blocked** slots (red), and a
+**BREAK** divider for the clinic lunch. The timeline **domain auto-fits** — it
+spans the union of business hours and everything drawn on it, so a shift/booking
+that starts before opening or runs past closing (e.g. 09:00 AM–09:00 PM against
+an 18:00 close) stretches the bar and its time labels to fit instead of
+overflowing outside it. Hour **ticks** sit only at the edges of the segments
+actually drawn (green/dark/blocks/bookings/breaks), so a shift running past
+closing marks its real end time and the close (e.g. 06:00 PM) isn't labelled
+mid-green — it only shows when it's a genuine edge. Adding a **block** that
+overlaps an already-blocked slot is rejected with a reason naming the clash. The
+modal always opens on the given day — the **present day** from the Doctors table,
+or the chosen date in the New Appointment flow — with day/month/year navigation
+from there. A **Block Time Slot** form (FROM/TO +
+**Block Slot**) adds a red block for the viewed date; blocks are listed in a
+**Blocked Time Slot** table with **Edit** (loads its times back into the form —
+the button becomes **Update Slot**, with a Cancel) and **Delete** actions, and
+persisted per doctor in `localStorage` (`src/lib/shifts.ts`). In the **New Appointment** flow the modal
+opens **view-only** (`viewOnly`) — just the timeline, with the Block Time Slot
+form and the blocked-slots grid hidden. Shift windows **and** blocked slots gate the
+**New Appointment** flow — Select-by-Doctor marks a doctor available only inside a
+covering shift and not during a blocked slot, and Select-by-Date&Time lists only
+on-shift, unblocked, free doctors. The "check availability" business-hours/conflict
+validations underneath are real backend checks.
 
 ## Scripts
 
@@ -222,13 +322,23 @@ src/
 │           ├── dashboard/          # main screen: header, stat cards, table, calendar
 │           │   ├── page.tsx · DashboardClient.tsx  # owns timeframe (cards) + status filter (table)
 │           │   ├── DashboardOverview.tsx · LowerSection.tsx
-│           │   ├── DashboardHeader.tsx · StatCards.tsx · TimeframeFilter.tsx
+│           │   ├── DashboardHeader.tsx · StatCards.tsx · TimeframeFilter.tsx · NotificationBell.tsx
 │           │   ├── AppointmentsTable.tsx · MiniCalendar.tsx
 │           │   ├── NewAppointmentModal.tsx · AppointmentFormStep.tsx
 │           │   ├── DoctorAvailabilityModal.tsx · DateInput.tsx
 │           │   └── mock.ts         # shared appointment types + timeframe helpers
 │           ├── calendar/           # full month calendar (real appts) + calendar-mock.ts (mappers)
-│           └── appointments|patients|doctors|analytics|revenue/  # Coming soon
+│           ├── patients/           # patient directory: list + filter + edit/delete + CSV export
+│           │   ├── page.tsx · PatientsClient.tsx   # table, search, sort, pagination, export
+│           │   ├── FilterPanel.tsx                 # Apply Filter (ID / Alphabetic / Age)
+│           │   ├── EditPatientModal.tsx · DeletePatientDialog.tsx
+│           ├── doctors/            # doctor directory: list + filter + create/edit/delete + CSV
+│           │   ├── page.tsx · DoctorsClient.tsx     # table, search, sort, pagination, export
+│           │   ├── constants.ts                     # dental specializations
+│           │   ├── DoctorFilterPanel.tsx            # Apply Filter (ID sort + specialization chips)
+│           │   ├── NewDoctorModal.tsx · DeleteDoctorDialog.tsx  # guest create / delete
+│           │   └── [id]/shift/       # page.tsx · ShiftClient.tsx (Edit Doctor Shift + add shifts)
+│           └── appointments|analytics|revenue/  # Coming soon
 ├── components/
 │   └── PasswordToggle.tsx          # show/hide eye button
 └── lib/

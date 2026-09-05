@@ -9,6 +9,7 @@ import {
   apiFetch,
   ApiError,
   displayName,
+  honorific,
   type MeResponse,
   type Role,
 } from "@/lib/api";
@@ -231,12 +232,12 @@ function UserChip({ me }: { me: MeResponse }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, [setOpen]);
 
-  // Show the signed-in account's name — the first/last name given at account
-  // creation. Doctors are prefixed with "Dr."; falls back to the email local
-  // part only if a profile has no name yet.
-  const name = displayName(me.user);
-  const isDoctor = me.user.role === "DOCTOR" || me.user.role === "GUEST_DOCTOR";
-  const label = isDoctor ? `Dr. ${name}` : name;
+  // Show the signed-in account's salutation + FIRST name only (e.g. "Dr. John",
+  // "Mr. John"). The salutation is "Dr" for doctors, otherwise the stored title;
+  // falls back to the display name / email local part when no first name is set.
+  const first = me.user.firstName?.trim() || displayName(me.user).split(" ")[0];
+  const salutation = honorific(me.user);
+  const label = salutation ? `${salutation}. ${first}` : first;
 
   async function logout() {
     try {

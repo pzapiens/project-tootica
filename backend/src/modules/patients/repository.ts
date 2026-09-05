@@ -17,6 +17,12 @@ export const patientRepository = {
   update: (clinicId: string, id: string, data: UpdatePatientInput) =>
     prisma.patient.updateMany({ where: { id, clinicId }, data }),
 
+  // Deleting a patient also removes their appointments (the Appointment→Patient
+  // relation has no DB-level cascade), so do both atomically. The patient
+  // delete's `count` still drives the 404 check in the service.
   remove: (clinicId: string, id: string) =>
-    prisma.patient.deleteMany({ where: { id, clinicId } }),
+    prisma.$transaction(async (tx) => {
+      await tx.appointment.deleteMany({ where: { patientId: id, clinicId } });
+      return tx.patient.deleteMany({ where: { id, clinicId } });
+    }),
 };

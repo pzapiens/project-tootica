@@ -136,8 +136,8 @@ export function DateCalendar({
     // New Appointment: current year and forward only.
     for (let y = thisYear; y <= thisYear + 10; y++) years.push(y);
   } else {
-    // e.g. DOB: allow past years back to 1920.
-    for (let y = thisYear + 5; y >= 1920; y--) years.push(y);
+    // e.g. DOB: present year back to 1920 — never a future year.
+    for (let y = thisYear; y >= 1920; y--) years.push(y);
   }
 
   const first = new Date(view.year, view.month, 1);

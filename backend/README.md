@@ -213,9 +213,19 @@ Full request/response JSON shapes for every endpoint (built and planned) are in
 ### Feature modules
 
 - `GET/POST/PATCH/DELETE /api/patients` — tenant-scoped CRUD (patients carry
-  `gender` + a `PAT-…` code)
+  `gender` + a `PAT-…` code). `DELETE` **cascades**: it removes the patient's
+  appointments in the same transaction (the FK has no DB-level cascade), so
+  deleting a patient with history succeeds instead of failing on the constraint
 - `GET/POST/PATCH/DELETE /api/doctors` — tenant-scoped CRUD; the list resolves the
-  doctor's display name + branch and a `DOC-…` code
+  doctor's display name + email + `role` + branch and a `DOC-…` code. `POST`
+  creates a **guest doctor** (provisions a `GUEST_DOCTOR` user + profile inside
+  the clinic from name/phone/specialization — **email is optional**; when omitted
+  a unique placeholder `@guest.tootica.local` address is minted to satisfy the
+  unique/non-null `User.email` constraint and is reported back as `null`. No
+  branch field; the guest is pinned to the branch being viewed so it shows in
+  that branch's list). `PATCH`
+  and `DELETE` operate on guest doctors only and **reject employed doctors** (role
+  `DOCTOR`, managed via the account flow) with 403
 - `GET/POST/PATCH/DELETE /api/appointments` — tenant-scoped CRUD. The list joins
   patient + doctor and accepts `from`/`to`/`status`/`limit` filters. `POST` takes
   a `nonMandatory` flag: when **false** it enforces **business hours (9 AM–6 PM)**

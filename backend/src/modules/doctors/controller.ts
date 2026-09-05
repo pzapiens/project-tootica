@@ -18,7 +18,9 @@ export const doctorController = {
   create: async (req: Request, res: Response) => {
     const clinicId = requireClinicId(req);
     const data = createDoctorSchema.parse(req.body);
-    res.status(201).json(await doctorService.create(clinicId, data));
+    // Pin the guest to the branch currently being viewed so it shows up in that
+    // branch's list (the list is branch-scoped); clinic-wide views pass none.
+    res.status(201).json(await doctorService.create(clinicId, data, getBranchId(req)));
   },
 
   update: async (req: Request, res: Response) => {

@@ -7,11 +7,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type AppointmentListItem } from "@/lib/api";
 
 /**
- * Display-only mini month calendar (Figma "Mini Calendar"). Renders the real
- * current month with today highlighted and working previous/next navigation.
- * Days that have appointments show a dot (from the live backend list). It does
- * NOT filter the appointments table beside it — the days are not interactive.
- * The full month/day view lives behind the "View Full Calendar" button.
+ * Mini month calendar (Figma "Mini Calendar"). Renders the real current month
+ * with today highlighted and working previous/next navigation. Days that have
+ * appointments show a dot (from the live backend list). Clicking any day opens
+ * the full calendar on that day's month with its slide-over showing that day's
+ * appointments. The full month/day view lives behind the "View Full Calendar"
+ * button.
  */
 
 const WEEKDAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
@@ -49,6 +50,13 @@ function buildCells(year: number, month: number): Cell[] {
 /** Local `yyyy-mm-dd` key for grouping appointments by calendar day. */
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+/** Zero-padded local `YYYY-MM-DD` for the calendar page's `?date=` param. */
+function dateParam(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
 export default function MiniCalendar({
@@ -133,27 +141,32 @@ export default function MiniCalendar({
               ? "text-[#1e1e24] font-normal"
               : "text-[#cbd5e1] font-normal";
 
-            // Today is highlighted; otherwise the default/greyed style. The
-            // calendar is display-only, so days are not interactive.
+            // Today is highlighted; otherwise the default/greyed style. Every
+            // day is clickable and opens the full calendar on that date.
             const cellClass = isToday
-              ? "flex size-[37.333px] items-center justify-center rounded-full bg-[#f1f5f9] font-inter text-[16.333px] font-bold leading-[23.333px] text-[#1e1e24]"
-              : `flex size-[37.333px] items-center justify-center rounded-full font-inter text-[16.333px] leading-[23.333px] ${textClass}`;
+              ? "flex size-[37.333px] items-center justify-center rounded-full bg-[#f1f5f9] font-inter text-[16.333px] font-bold leading-[23.333px] text-[#1e1e24] transition-colors group-hover:bg-[#e2e8f0]"
+              : `flex size-[37.333px] items-center justify-center rounded-full font-inter text-[16.333px] leading-[23.333px] transition-colors group-hover:bg-[#f1f5f9] ${textClass}`;
 
             return (
-              <div key={i} className="flex flex-col items-center justify-center gap-[3px]">
-                <span
-                  aria-label={cell.date.toDateString()}
-                  aria-current={isToday ? "date" : undefined}
-                  className={cellClass}
-                >
-                  {cell.date.getDate()}
-                </span>
+              <button
+                key={i}
+                type="button"
+                aria-label={cell.date.toDateString()}
+                aria-current={isToday ? "date" : undefined}
+                onClick={() =>
+                  router.push(
+                    `/clinic-selection/${params.code}/calendar?date=${dateParam(cell.date)}`,
+                  )
+                }
+                className="group flex flex-col items-center justify-center gap-[3px]"
+              >
+                <span className={cellClass}>{cell.date.getDate()}</span>
                 {/* Appointment indicator (dot under days that have appointments) */}
                 <span
                   aria-hidden
                   className={`size-[5px] rounded-full ${hasAppts ? "bg-[#0077c0]" : "bg-transparent"}`}
                 />
-              </div>
+              </button>
             );
           })}
         </div>

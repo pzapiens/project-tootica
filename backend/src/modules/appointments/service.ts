@@ -11,9 +11,9 @@ import type {
 const OPEN_MIN = 9 * 60;
 const CLOSE_MIN = 18 * 60;
 
-// Clinic breaks shown on the availability chart. Fixed lunch (12:00–14:00) for
+// Clinic breaks shown on the availability chart. Fixed lunch (13:00–14:00) for
 // now; could become per-clinic/-doctor later.
-const BREAKS = [{ start: '12:00', end: '14:00', label: 'Lunch' }];
+const BREAKS = [{ start: '13:00', end: '14:00', label: 'Lunch' }];
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 /** Local minutes-from-midnight of a Date (server tz == clinic tz assumption). */

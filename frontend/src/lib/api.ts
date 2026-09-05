@@ -398,6 +398,12 @@ export interface DoctorSummary {
   code: string | null;
   userId: string;
   name: string | null;
+  email: string | null;
+  /**
+   * `DOCTOR` = an employed doctor with a login (managed via the account flow);
+   * `GUEST_DOCTOR` = a visiting doctor added on the Doctors page (editable here).
+   */
+  role: Role;
   specialization: string | null;
   licenseNumber: string | null;
   phone: string | null;

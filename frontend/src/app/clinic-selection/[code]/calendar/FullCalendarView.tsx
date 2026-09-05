@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -50,8 +50,24 @@ export default function FullCalendarView() {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }, []);
 
-  const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() });
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  // Deep-link support: the mini calendar links here as `?date=YYYY-MM-DD`. When
+  // present, the calendar opens on that month with that day's slide-over shown
+  // in the right panel; otherwise it opens on the current month.
+  const searchParams = useSearchParams();
+  const linkedDay = useMemo(() => {
+    const raw = searchParams.get("date");
+    if (!raw) return null;
+    const [y, m, d] = raw.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  }, [searchParams]);
+
+  const [view, setView] = useState(() =>
+    linkedDay
+      ? { year: linkedDay.getFullYear(), month: linkedDay.getMonth() }
+      : { year: today.getFullYear(), month: today.getMonth() },
+  );
+  const [selectedDay, setSelectedDay] = useState<Date | null>(linkedDay);
   const [selectedAppt, setSelectedAppt] = useState<CalAppointment | null>(null);
   const [monthAppts, setMonthAppts] = useState<Record<number, CalAppointment[]>>({});
 
