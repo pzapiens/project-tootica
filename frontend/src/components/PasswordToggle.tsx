@@ -16,7 +16,7 @@ export default function PasswordToggle({
       onClick={onToggle}
       aria-label={visible ? "Hide password" : "Show password"}
       aria-pressed={visible}
-      className="shrink-0 text-ink/50 transition-colors hover:text-ink focus-visible:text-ink focus-visible:outline-none"
+      className="shrink-0 cursor-pointer text-ink/50 transition-colors hover:text-ink focus-visible:text-ink focus-visible:outline-none"
     >
       {visible ? (
         <svg

@@ -1,6 +1,7 @@
 import { sendTemporaryPasswordEmail } from '../../common/email/accountEmails';
 import { HttpError } from '../../common/utils/httpError';
 import { generateTempPassword, hashPassword } from '../../common/utils/password.util';
+import { rethrowUserUniqueViolation } from '../../common/utils/prismaErrors';
 import type { Role } from '../../generated/prisma/enums';
 import { superAdminRepository } from './repository';
 import type {
@@ -104,8 +105,15 @@ export const superAdminService = {
   getClinic: (id: string) => ensureClinicExists(id),
 
   createClinic: async ({ branches, ...clinic }: CreateClinicWithBranchesInput) => {
-    const { clinic: created, branches: createdBranches } =
-      await superAdminRepository.createClinicWithBranches(clinic, branches);
+    const { clinic: created, branches: createdBranches } = await superAdminRepository
+      .createClinicWithBranches(clinic, branches)
+      .catch((err: unknown) => {
+        // A duplicate clinic code (unique) surfaces as a friendly 409.
+        if ((err as { code?: string })?.code === 'P2002') {
+          throw new HttpError(409, 'Clinic code already in use');
+        }
+        throw err;
+      });
     return {
       ...created,
       branches: createdBranches.map((b) => ({
@@ -144,18 +152,20 @@ export const superAdminService = {
     // admin can pass it to the new user. It's never stored in plaintext or
     // retrievable again; the user must replace it on first login.
     const temporaryPassword = generateTempPassword();
-    const user = await superAdminRepository.createAccount({
-      clinicId: input.clinicId,
-      branchId,
-      email: input.email,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      title: input.title,
-      phone: input.phone,
-      role,
-      passwordHash: await hashPassword(temporaryPassword),
-      withDoctorProfile: role === 'DOCTOR',
-    });
+    const user = await superAdminRepository
+      .createAccount({
+        clinicId: input.clinicId,
+        branchId,
+        email: input.email,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        title: input.title,
+        phone: input.phone,
+        role,
+        passwordHash: await hashPassword(temporaryPassword),
+        withDoctorProfile: role === 'DOCTOR',
+      })
+      .catch(rethrowUserUniqueViolation);
 
     // Email the temporary password to the new user. The account already exists,
     // so a mail failure must NOT fail the request — the password is still
@@ -213,7 +223,9 @@ export const superAdminService = {
     if (input.title !== undefined) data.title = input.title;
     if (input.phone !== undefined) data.phone = input.phone?.trim() || null;
     if (input.status !== undefined) data.status = input.status;
-    const updated = await superAdminRepository.updateAccount(id, data);
+    const updated = await superAdminRepository
+      .updateAccount(id, data)
+      .catch(rethrowUserUniqueViolation);
     return toAccountSummary(updated);
   },
 

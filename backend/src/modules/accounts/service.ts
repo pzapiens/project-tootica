@@ -1,6 +1,7 @@
 import { sendTemporaryPasswordEmail } from '../../common/email/accountEmails';
 import { HttpError } from '../../common/utils/httpError';
 import { generateTempPassword, hashPassword } from '../../common/utils/password.util';
+import { rethrowUserUniqueViolation } from '../../common/utils/prismaErrors';
 // The account create/update/delete DB work is shared with the super-admin flow;
 // scope is enforced here first via the clinic-scoped lookups below.
 import { superAdminRepository } from '../super-admin/repository';
@@ -49,18 +50,20 @@ export const accountService = {
     // Temporary password returned ONCE so the admin can pass it to the new user;
     // it's never stored in plaintext and the user must replace it on first login.
     const temporaryPassword = generateTempPassword();
-    const user = await superAdminRepository.createAccount({
-      clinicId,
-      branchId: input.branchId,
-      email: input.email,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      title: input.title,
-      phone: input.phone,
-      role,
-      passwordHash: await hashPassword(temporaryPassword),
-      withDoctorProfile: role === 'DOCTOR',
-    });
+    const user = await superAdminRepository
+      .createAccount({
+        clinicId,
+        branchId: input.branchId,
+        email: input.email,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        title: input.title,
+        phone: input.phone,
+        role,
+        passwordHash: await hashPassword(temporaryPassword),
+        withDoctorProfile: role === 'DOCTOR',
+      })
+      .catch(rethrowUserUniqueViolation);
 
     // Email the temp password; a mail failure must NOT fail the request — it's
     // still returned so the admin can share it manually.

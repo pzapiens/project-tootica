@@ -12,9 +12,25 @@ export const passwordSchema = z
   .regex(/[0-9]/, 'Password must contain a number')
   .regex(/[^A-Za-z0-9]/, 'Password must contain a special character');
 
+/**
+ * Login accepts a single `identifier` that is either an email address or a
+ * phone number — the client shows one field and the server routes the lookup
+ * (see phone.util `looksLikeEmail`). Password is only length-checked here.
+ */
 export const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().trim().min(1, 'Enter your email or phone number'),
   password: z.string().min(1),
+});
+
+/** Request an OTP for the passwordless login path (code delivered by SMS). */
+export const loginRequestOtpSchema = z.object({
+  identifier: z.string().trim().min(1, 'Enter your email or phone number'),
+});
+
+/** Verify the login OTP and establish a session. */
+export const loginVerifyOtpSchema = z.object({
+  identifier: z.string().trim().min(1, 'Enter your email or phone number'),
+  code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -54,6 +70,8 @@ export const completeOnboardingSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+export type LoginRequestOtpInput = z.infer<typeof loginRequestOtpSchema>;
+export type LoginVerifyOtpInput = z.infer<typeof loginVerifyOtpSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

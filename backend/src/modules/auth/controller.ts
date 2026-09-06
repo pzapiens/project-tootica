@@ -6,7 +6,9 @@ import {
   changePasswordSchema,
   completeOnboardingSchema,
   forgotPasswordSchema,
+  loginRequestOtpSchema,
   loginSchema,
+  loginVerifyOtpSchema,
   resetPasswordSchema,
   setPasswordSchema,
   verifyOtpSchema,
@@ -17,6 +19,20 @@ export const authController = {
   login: async (req: Request, res: Response) => {
     const credentials = loginSchema.parse(req.body);
     const { user, accessToken, refreshToken } = await authService.login(credentials);
+    setAuthCookies(res, accessToken, refreshToken);
+    res.json({ user });
+  },
+
+  loginRequestOtp: async (req: Request, res: Response) => {
+    const { identifier } = loginRequestOtpSchema.parse(req.body);
+    await authService.requestLoginOtp(identifier);
+    // Generic response regardless of whether the account exists / has a phone.
+    res.json({ message: 'If an account matches, a login code has been sent by SMS.' });
+  },
+
+  loginVerifyOtp: async (req: Request, res: Response) => {
+    const { identifier, code } = loginVerifyOtpSchema.parse(req.body);
+    const { user, accessToken, refreshToken } = await authService.loginWithOtp(identifier, code);
     setAuthCookies(res, accessToken, refreshToken);
     res.json({ user });
   },

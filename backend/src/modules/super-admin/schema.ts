@@ -16,8 +16,24 @@ const optionalPhone = z
     message: 'Enter a valid phone number: +91 followed by 10 digits.',
   });
 
+/**
+ * Clinic code the super admin assigns on creation (e.g. "TDG001"). It prefixes
+ * every child code (branches/doctors/patients/appointments), so it's fixed once
+ * set. Upper-cased; must be letters then digits, no separators.
+ */
+export const clinicCodeSchema = z
+  .string()
+  .trim()
+  .transform((s) => s.toUpperCase())
+  .pipe(
+    z
+      .string()
+      .regex(/^[A-Z]{2,6}[0-9]{2,6}$/, 'Clinic code must be letters then digits, e.g. TDG001'),
+  );
+
 export const createClinicSchema = z.object({
   name: z.string().min(1),
+  code: clinicCodeSchema,
   plan: z.enum(clinicPlans).optional(),
   status: z.enum(clinicStatuses).optional(),
 });
@@ -51,7 +67,9 @@ export const updateBranchSchema = z.object({
   contact: optionalPhone,
 });
 
-export const updateClinicSchema = createClinicSchema.partial();
+// The clinic code is fixed once set (it prefixes all child codes), so it can't
+// be changed via an update.
+export const updateClinicSchema = createClinicSchema.omit({ code: true }).partial();
 
 export const createAccountSchema = z.object({
   clinicId: z.string().min(1, 'A clinic must be selected'),

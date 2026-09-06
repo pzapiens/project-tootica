@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, ApiError, type DoctorSummary } from "@/lib/api";
 import { phoneDigits, phoneWithCc } from "@/lib/validation";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
-import { loadShifts, saveShifts } from "@/lib/shifts";
+import { fetchShifts, saveShifts } from "@/lib/shifts";
 
 import { SPECIALIZATIONS } from "../../constants";
 
@@ -193,19 +193,30 @@ export default function ShiftClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   // Monotonic counter for group ids (avoids impure Date.now() in render).
   const shiftSeq = useRef(0);
-  // Shifts are persisted per doctor in localStorage (frontend-first), so they
-  // survive leaving and re-opening the editor. Load after mount to avoid a
-  // hydration mismatch, and gate saving until that load has happened so the
-  // initial empty state never overwrites what's stored.
+  // Shifts are persisted per doctor on the backend. Load on mount, and gate
+  // saving until a SUCCESSFUL load has happened — so a fetch failure never
+  // leaves saving enabled with an empty list that would clobber real data.
   const [shiftsLoaded, setShiftsLoaded] = useState(false);
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setShifts(loadShifts(doctorId));
-    setShiftsLoaded(true);
+    let active = true;
+    fetchShifts(doctorId)
+      .then((list) => {
+        if (!active) return;
+        setShifts(list);
+        setShiftsLoaded(true);
+      })
+      .catch(() => {
+        // Leave saving disabled on load failure.
+      });
+    return () => {
+      active = false;
+    };
   }, [doctorId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (shiftsLoaded) saveShifts(doctorId, shifts);
+    // Replace-all save on every change once loaded (mirrors the editor's
+    // save-the-whole-table model). The first run re-saves the just-loaded set,
+    // which is a harmless idempotent PUT.
+    if (shiftsLoaded) void saveShifts(doctorId, shifts).catch(() => {});
   }, [shiftsLoaded, doctorId, shifts]);
 
   // Only guest doctors can have their details edited here; employed doctors

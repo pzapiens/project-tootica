@@ -25,7 +25,6 @@
  */
 import {
   nextBranchCode,
-  nextClinicCode,
   nextDoctorCode,
 } from '../src/common/utils/codes';
 import { hashPassword } from '../src/common/utils/password.util';
@@ -55,6 +54,8 @@ interface BranchDef {
 
 interface ClinicDef {
   name: string;
+  /** Super-admin-assigned clinic code that prefixes all child codes. */
+  code: string;
   plan: ClinicPlan;
   admin: PersonDef;
   branches: [BranchDef, BranchDef];
@@ -70,6 +71,7 @@ const SUPER_ADMIN = {
 const CLINICS: ClinicDef[] = [
   {
     name: 'Bright Smile Dental',
+    code: 'BSD001',
     plan: 'PRO',
     admin: {
       firstName: 'Sanjay',
@@ -114,6 +116,7 @@ const CLINICS: ClinicDef[] = [
   },
   {
     name: 'Gentle Care Dentistry',
+    code: 'GCD001',
     plan: 'BASIC',
     admin: {
       firstName: 'Maya',
@@ -205,7 +208,7 @@ async function main(): Promise<void> {
 
   for (const clinicDef of CLINICS) {
     const clinic = await prisma.clinic.create({
-      data: { name: clinicDef.name, plan: clinicDef.plan, status: 'ACTIVE', code: await nextClinicCode() },
+      data: { name: clinicDef.name, code: clinicDef.code, plan: clinicDef.plan, status: 'ACTIVE' },
     });
 
     // Client Admin for the clinic.
@@ -227,7 +230,7 @@ async function main(): Promise<void> {
       // 1. Create the branch first (its PIC is filled in once the receptionist
       //    exists). Staff are then pinned to this branch via branchId.
       const branch = await prisma.branch.create({
-        data: { clinicId: clinic.id, code: await nextBranchCode(), name: branchDef.name },
+        data: { clinicId: clinic.id, code: await nextBranchCode(clinic.id), name: branchDef.name },
       });
 
       // 2. Doctor assigned to this branch (auth user + doctor profile).
@@ -250,7 +253,7 @@ async function main(): Promise<void> {
           userId: doctorUser.id,
           clinicId: clinic.id,
           branchId: branch.id,
-          code: await nextDoctorCode(),
+          code: await nextDoctorCode(clinic.id),
           specialization: branchDef.doctor.specialization ?? null,
           phone: branchDef.doctor.phone,
           bio: `Dr. ${branchDef.doctor.firstName} ${branchDef.doctor.lastName} — ${branchDef.name}.`,

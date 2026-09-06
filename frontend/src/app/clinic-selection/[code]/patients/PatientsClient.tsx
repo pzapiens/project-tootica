@@ -8,6 +8,7 @@ import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
 import DeletePatientDialog from "./DeletePatientDialog";
 import EditPatientModal from "./EditPatientModal";
+import NewPatientModal from "./NewPatientModal";
 import FilterPanel, { type SortKey } from "./FilterPanel";
 
 /** A patient row enriched with the derived age + most-recent visit. */
@@ -111,6 +112,7 @@ export default function PatientsClient() {
   const [perPage, setPerPage] = useState(20);
 
   const [filterOpen, setFilterOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<PatientRow | null>(null);
   const [deleting, setDeleting] = useState<PatientRow | null>(null);
 
@@ -244,6 +246,14 @@ export default function PatientsClient() {
         <h1 className="flex-1 font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
           Patients
         </h1>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="flex h-[54px] cursor-pointer items-center gap-[10px] rounded-[50px] bg-[#0077c0] px-[26px] font-inter text-[15px] font-semibold uppercase tracking-[0.5px] text-white transition-colors hover:bg-[#0069a8]"
+        >
+          <Image src="/dashboard/add.svg" alt="" width={22} height={22} className="size-[22px] [filter:brightness(0)_invert(1)]" />
+          Create Patient
+        </button>
         <IconButton
           label="Filter patients"
           onClick={() => setFilterOpen(true)}
@@ -342,6 +352,15 @@ export default function PatientsClient() {
         </div>
       )}
 
+      {creating && (
+        <NewPatientModal
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            setRev((r) => r + 1);
+          }}
+        />
+      )}
       {editing && (
         <EditPatientModal
           patient={editing}

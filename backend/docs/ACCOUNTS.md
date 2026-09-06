@@ -59,20 +59,20 @@ immediately. (To exercise the forced reset + Terms flow instead, set
 | Name           | Email                                  | Role           | Branch (code)              | Password       |
 | -------------- | -------------------------------------- | -------------- | -------------------------- | -------------- |
 | Sanjay Kapoor  | `admin@brightsmile.com`                | `CLIENT_ADMIN` | — (clinic-wide)            | `Password@123` |
-| Olivia Bennett | `olivia.bennett@brightsmile.com`       | `DOCTOR`       | Bright Smile — Downtown (BR-0001) | `Password@123` |
-| Riya Sharma    | `reception.downtown@brightsmile.com`   | `RECEPTIONIST` | Bright Smile — Downtown (BR-0001) — **PIC** | `Password@123` |
-| Marcus Reed    | `marcus.reed@brightsmile.com`          | `DOCTOR`       | Bright Smile — Uptown (BR-0002)   | `Password@123` |
-| Neha Verma     | `reception.uptown@brightsmile.com`     | `RECEPTIONIST` | Bright Smile — Uptown (BR-0002) — **PIC**   | `Password@123` |
+| Olivia Bennett | `olivia.bennett@brightsmile.com`       | `DOCTOR`       | Bright Smile — Downtown (BSD001-B001) | `Password@123` |
+| Riya Sharma    | `reception.downtown@brightsmile.com`   | `RECEPTIONIST` | Bright Smile — Downtown (BSD001-B001) — **PIC** | `Password@123` |
+| Marcus Reed    | `marcus.reed@brightsmile.com`          | `DOCTOR`       | Bright Smile — Uptown (BSD001-B002)   | `Password@123` |
+| Neha Verma     | `reception.uptown@brightsmile.com`     | `RECEPTIONIST` | Bright Smile — Uptown (BSD001-B002) — **PIC**   | `Password@123` |
 
 ### Clinic 2 — Gentle Care Dentistry (plan: BASIC)
 
 | Name           | Email                                 | Role           | Branch (code)               | Password       |
 | -------------- | ------------------------------------- | -------------- | --------------------------- | -------------- |
 | Maya Iyer      | `admin@gentlecare.com`                | `CLIENT_ADMIN` | — (clinic-wide)             | `Password@123` |
-| Sophia Nguyen  | `sophia.nguyen@gentlecare.com`        | `DOCTOR`       | Gentle Care — Central (BR-0003)    | `Password@123` |
-| Pooja Menon    | `reception.central@gentlecare.com`    | `RECEPTIONIST` | Gentle Care — Central (BR-0003) — **PIC** | `Password@123` |
-| Ethan Okafor   | `ethan.okafor@gentlecare.com`         | `DOCTOR`       | Gentle Care — Riverside (BR-0004)  | `Password@123` |
-| Arjun Rao      | `reception.riverside@gentlecare.com`  | `RECEPTIONIST` | Gentle Care — Riverside (BR-0004) — **PIC** | `Password@123` |
+| Sophia Nguyen  | `sophia.nguyen@gentlecare.com`        | `DOCTOR`       | Gentle Care — Central (GCD001-B001)    | `Password@123` |
+| Pooja Menon    | `reception.central@gentlecare.com`    | `RECEPTIONIST` | Gentle Care — Central (GCD001-B001) — **PIC** | `Password@123` |
+| Ethan Okafor   | `ethan.okafor@gentlecare.com`         | `DOCTOR`       | Gentle Care — Riverside (GCD001-B002)  | `Password@123` |
+| Arjun Rao      | `reception.riverside@gentlecare.com`  | `RECEPTIONIST` | Gentle Care — Riverside (GCD001-B002) — **PIC** | `Password@123` |
 
 ## Totals
 

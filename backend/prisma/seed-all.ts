@@ -25,7 +25,6 @@
 import {
   nextAppointmentCode,
   nextBranchCode,
-  nextClinicCode,
   nextDoctorCode,
   nextPatientCode,
 } from '../src/common/utils/codes';
@@ -79,6 +78,8 @@ interface BranchDef {
 }
 interface ClinicDef {
   name: string;
+  /** Super-admin-assigned clinic code that prefixes all child codes. */
+  code: string;
   plan: ClinicPlan;
   admin: PersonDef;
   branches: BranchDef[];
@@ -94,6 +95,7 @@ const SUPER_ADMIN = {
 const CLINICS: ClinicDef[] = [
   {
     name: 'Bright Smile Dental',
+    code: 'BSD001',
     plan: 'PRO',
     admin: {
       firstName: 'Sanjay',
@@ -138,6 +140,7 @@ const CLINICS: ClinicDef[] = [
   },
   {
     name: 'Gentle Care Dentistry',
+    code: 'GCD001',
     plan: 'BASIC',
     admin: {
       firstName: 'Maya',
@@ -271,7 +274,7 @@ async function createPatients(clinicId: string, count: number): Promise<Array<{ 
     const patient = await prisma.patient.create({
       data: {
         clinicId,
-        code: await nextPatientCode(),
+        code: await nextPatientCode(clinicId),
         name: `${first} ${last}`,
         email: `${first}.${last}${patientCursor}@example.com`.replace(/\s+/g, '').toLowerCase(),
         phone: `+9198${String(10000000 + patientCursor * 7).slice(-8)}`,
@@ -286,21 +289,37 @@ async function createPatients(clinicId: string, count: number): Promise<Array<{ 
   return created;
 }
 
-/** Weekly availability: Mon–Fri 09:00–18:00, Sat 09:00–13:00. */
+/** Weekly availability: Mon–Fri 09:00–18:00, Sat 09:00–13:00. Modelled as the
+ *  date + recurrence shape — one "Weekly" shift per weekday, anchored on the
+ *  next matching date and repeating forward. */
 async function createShifts(doctorId: string, clinicId: string): Promise<void> {
   const weekday = { startTime: '09:00', endTime: '18:00' };
   const saturday = { startTime: '09:00', endTime: '13:00' };
   const days = [
-    { dayOfWeek: 1, ...weekday },
-    { dayOfWeek: 2, ...weekday },
-    { dayOfWeek: 3, ...weekday },
-    { dayOfWeek: 4, ...weekday },
-    { dayOfWeek: 5, ...weekday },
-    { dayOfWeek: 6, ...saturday },
+    { dow: 1, ...weekday },
+    { dow: 2, ...weekday },
+    { dow: 3, ...weekday },
+    { dow: 4, ...weekday },
+    { dow: 5, ...weekday },
+    { dow: 6, ...saturday },
   ];
   await prisma.doctorShift.createMany({
-    data: days.map((d) => ({ doctorId, clinicId, ...d })),
+    data: days.map(({ dow, ...times }) => ({
+      doctorId,
+      clinicId,
+      frequency: 'Weekly',
+      date: nextWeekday(dow),
+      ...times,
+    })),
   });
+}
+
+/** Next date (today or later) on the given weekday (0=Sun..6=Sat), at midnight. */
+function nextWeekday(dow: number): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
+  return d;
 }
 
 interface CreatedAppt {
@@ -320,7 +339,7 @@ async function createAppointment(
   await prisma.appointment.create({
     data: {
       clinicId,
-      code: await nextAppointmentCode(start),
+      code: await nextAppointmentCode(clinicId),
       patientId: pick(patientIds),
       doctorId: pick(doctorIds),
       startTime: start,
@@ -372,7 +391,7 @@ async function main(): Promise<void> {
   let apptTotal = 0;
   for (const clinicDef of CLINICS) {
     const clinic = await prisma.clinic.create({
-      data: { name: clinicDef.name, plan: clinicDef.plan, status: 'ACTIVE', code: await nextClinicCode() },
+      data: { name: clinicDef.name, code: clinicDef.code, plan: clinicDef.plan, status: 'ACTIVE' },
     });
 
     // Client Admin (clinic-wide).
@@ -393,7 +412,7 @@ async function main(): Promise<void> {
     const doctorIds: string[] = [];
     for (const branchDef of clinicDef.branches) {
       const branch = await prisma.branch.create({
-        data: { clinicId: clinic.id, code: await nextBranchCode(), name: branchDef.name },
+        data: { clinicId: clinic.id, code: await nextBranchCode(clinic.id), name: branchDef.name },
       });
 
       // Doctor (auth user + profile + weekly shifts), pinned to the branch.
@@ -416,7 +435,7 @@ async function main(): Promise<void> {
           userId: doctorUser.id,
           clinicId: clinic.id,
           branchId: branch.id,
-          code: await nextDoctorCode(),
+          code: await nextDoctorCode(clinic.id),
           specialization: branchDef.doctor.specialization ?? null,
           phone: branchDef.doctor.phone,
           bio: `Dr. ${branchDef.doctor.firstName} ${branchDef.doctor.lastName} — ${branchDef.name}.`,

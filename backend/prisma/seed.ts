@@ -20,6 +20,11 @@
  *   plus every seeded doctor/guest/receptionist below
  */
 import { hashPassword } from '../src/common/utils/password.util';
+import {
+  nextAppointmentCode,
+  nextDoctorCode,
+  nextPatientCode,
+} from '../src/common/utils/codes';
 import { prisma } from '../src/common/db/prisma';
 import type { AppointmentStatus, ClinicPlan } from '../src/generated/prisma/enums';
 
@@ -75,6 +80,8 @@ const MEDICAL_NOTES = [
 interface ClinicDef {
   slug: string;
   name: string;
+  /** Super-admin-assigned clinic code that prefixes all child codes. */
+  code: string;
   plan: ClinicPlan;
   adminEmail: string;
   /** Client-admin account name (shown in the sidebar). */
@@ -84,9 +91,9 @@ interface ClinicDef {
 }
 
 const CLINICS: ClinicDef[] = [
-  { slug: 'brightsmile', name: 'Bright Smile Dental', plan: 'PRO', adminEmail: 'admin@tootica.local', adminName: ['Sanjay', 'Kapoor'], receptionName: ['Riya', 'Sharma'] },
-  { slug: 'gentlecare', name: 'Gentle Care Dentistry', plan: 'BASIC', adminEmail: 'admin@gentlecare.test', adminName: ['Maya', 'Iyer'], receptionName: ['Neha', 'Verma'] },
-  { slug: 'sunrise', name: 'Sunrise Family Dental', plan: 'FREE', adminEmail: 'admin@sunrise.test', adminName: ['Arjun', 'Rao'], receptionName: ['Pooja', 'Menon'] },
+  { slug: 'brightsmile', name: 'Bright Smile Dental', code: 'BSD001', plan: 'PRO', adminEmail: 'admin@tootica.local', adminName: ['Sanjay', 'Kapoor'], receptionName: ['Riya', 'Sharma'] },
+  { slug: 'gentlecare', name: 'Gentle Care Dentistry', code: 'GCD001', plan: 'BASIC', adminEmail: 'admin@gentlecare.test', adminName: ['Maya', 'Iyer'], receptionName: ['Neha', 'Verma'] },
+  { slug: 'sunrise', name: 'Sunrise Family Dental', code: 'SFD001', plan: 'FREE', adminEmail: 'admin@sunrise.test', adminName: ['Arjun', 'Rao'], receptionName: ['Pooja', 'Menon'] },
 ];
 
 // --- helpers ----------------------------------------------------------------
@@ -105,6 +112,15 @@ function at(dayOffset: number, hour: number, minute = 0): Date {
 
 function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
+}
+
+/** The next date (today or later) falling on the given weekday (0=Sun..6=Sat),
+ *  at local midnight — the anchor for a seeded weekly shift. */
+function nextWeekday(dow: number): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
+  return d;
 }
 
 function dob(year: number, month: number, day: number): Date {
@@ -149,7 +165,7 @@ async function main(): Promise<void> {
 
   for (const def of CLINICS) {
     const clinic = await prisma.clinic.create({
-      data: { name: def.name, plan: def.plan, status: 'ACTIVE' },
+      data: { name: def.name, code: def.code, plan: def.plan, status: 'ACTIVE' },
     });
 
     // Client Admin
@@ -211,6 +227,7 @@ async function main(): Promise<void> {
         data: {
           userId: user.id,
           clinicId: clinic.id,
+          code: await nextDoctorCode(clinic.id),
           specialization,
           licenseNumber: `LIC-${licenseCursor++}`,
           phone: `+1555${String(1000000 + doctorCursor).slice(-7)}`,
@@ -219,13 +236,16 @@ async function main(): Promise<void> {
       });
       doctorProfiles.push(doctor);
 
-      // Weekly shifts: regulars Mon/Wed/Fri, guest Tue/Thu.
+      // Weekly shifts: regulars Mon/Wed/Fri, guest Tue/Thu. Modelled as the new
+      // date + recurrence shape — a "Weekly" shift anchored on the next matching
+      // weekday, repeating forward from there.
       const days = isGuest ? [2, 4] : [1, 3, 5];
       await prisma.doctorShift.createMany({
-        data: days.map((dayOfWeek) => ({
+        data: days.map((dow) => ({
           doctorId: doctor.id,
           clinicId: clinic.id,
-          dayOfWeek,
+          frequency: 'Weekly',
+          date: nextWeekday(dow),
           startTime: '09:00',
           endTime: '17:00',
         })),
@@ -240,6 +260,7 @@ async function main(): Promise<void> {
       const patient = await prisma.patient.create({
         data: {
           clinicId: clinic.id,
+          code: await nextPatientCode(clinic.id),
           name: `${first} ${last}`,
           email: `${first}.${last}${patientCursor}@example.com`.toLowerCase(),
           phone: `+1555${String(2000000 + patientCursor).slice(-7)}`,
@@ -265,6 +286,7 @@ async function main(): Promise<void> {
       await prisma.appointment.create({
         data: {
           clinicId: clinic.id,
+          code: await nextAppointmentCode(clinic.id),
           patientId: patients[a.p].id,
           doctorId: doctorProfiles[a.d].id,
           startTime: start,

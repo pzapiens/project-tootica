@@ -8,6 +8,9 @@ export const authRoutes = Router();
 
 // Public endpoints.
 authRoutes.post('/login', asyncHandler(authController.login));
+// Passwordless login (email/phone identifier → SMS code → session).
+authRoutes.post('/login/request-otp', asyncHandler(authController.loginRequestOtp));
+authRoutes.post('/login/verify-otp', asyncHandler(authController.loginVerifyOtp));
 authRoutes.post('/refresh', asyncHandler(authController.refresh));
 authRoutes.post('/logout', asyncHandler(authController.logout));
 authRoutes.post('/forgot-password', asyncHandler(authController.forgotPassword));

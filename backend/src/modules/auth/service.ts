@@ -1,5 +1,7 @@
 import { emailProvider } from '../../common/email/emailProvider';
+import { smsProvider } from '../../common/sms/smsProvider';
 import { hashPassword, verifyPassword } from '../../common/utils/password.util';
+import { looksLikeEmail, normalizePhone } from '../../common/utils/phone.util';
 import { HttpError } from '../../common/utils/httpError';
 import { env } from '../../config/env';
 import { authRepository } from './repository';
@@ -65,6 +67,29 @@ function assertActive(user: UserRecord): void {
   }
 }
 
+/**
+ * Resolve a login identifier (email or phone) to an account. Emails are matched
+ * verbatim; phones are normalized first so formatting differences don't matter.
+ * Returns null when nothing matches — callers decide whether to reveal that.
+ */
+async function resolveLoginUser(identifier: string): Promise<UserRecord | null> {
+  const trimmed = identifier.trim();
+  if (looksLikeEmail(trimmed)) {
+    // Matched verbatim, as before — the email unique index is case-sensitive.
+    return authRepository.findByEmail(trimmed);
+  }
+  const phone = normalizePhone(trimmed);
+  if (!phone) return null;
+  return authRepository.findByPhone(phone);
+}
+
+/** OTP store key for a login code, namespaced so it never collides with the
+ * password-reset OTP (which is keyed by email). Keyed by user id so it's stable
+ * whether the user typed their email or their phone as the identifier. */
+function loginOtpKey(userId: string): string {
+  return `login:${userId}`;
+}
+
 function issueTokens(user: UserRecord): { accessToken: string; refreshToken: string } {
   const accessToken = signAccessToken({
     sub: user.id,
@@ -79,11 +104,11 @@ function issueTokens(user: UserRecord): { accessToken: string; refreshToken: str
 
 export const authService = {
   login: async (input: LoginInput) => {
-    const user = await authRepository.findByEmail(input.email);
-    // NOTE: distinguishing "no such email" from "wrong password" is friendlier
+    const user = await resolveLoginUser(input.identifier);
+    // NOTE: distinguishing "no such account" from "wrong password" is friendlier
     // but enables account enumeration. Acceptable here per product decision.
     if (!user) {
-      throw new HttpError(401, 'No account found with this email address');
+      throw new HttpError(401, 'No account found with those details');
     }
     if (!user.passwordHash) {
       throw new HttpError(
@@ -95,6 +120,78 @@ export const authService = {
     if (!ok) {
       throw new HttpError(401, 'Incorrect password');
     }
+    assertActive(user);
+    return { user: toPublicUser(user), ...issueTokens(user) };
+  },
+
+  /**
+   * Passwordless login step 1: send a one-time code by SMS to the account's
+   * phone. Mirrors forgotPassword's anti-enumeration stance — the controller
+   * always returns a generic success, so we silently no-op when the account
+   * doesn't exist, isn't active, or has no phone on file. Reuses the OTP
+   * throttling policy (resend cooldown + send cap).
+   */
+  requestLoginOtp: async (identifier: string): Promise<void> => {
+    const user = await resolveLoginUser(identifier);
+    if (!user || user.status !== 'ACTIVE' || !user.phone) {
+      return;
+    }
+
+    const key = loginOtpKey(user.id);
+    const now = Date.now();
+    const existing = await otpStore.get(key);
+    if (existing) {
+      if (now - existing.lastSentAt < env.otp.resendCooldownSeconds * 1000) {
+        throw new HttpError(429, 'Please wait before requesting another code');
+      }
+      if (existing.sendCount >= env.otp.maxResends) {
+        throw new HttpError(429, 'Too many code requests. Try again later');
+      }
+    }
+
+    const code = generateOtp();
+    await otpStore.set(key, {
+      code,
+      expiresAt: now + env.otp.ttlSeconds * 1000,
+      attempts: 0,
+      sendCount: (existing?.sendCount ?? 0) + 1,
+      lastSentAt: now,
+    });
+
+    const expiryMinutes = Math.round(env.otp.ttlSeconds / 60);
+    await smsProvider.send({
+      to: user.phone,
+      body: `Your Tootica login code is ${code}. It expires in ${expiryMinutes} minutes. Do not share it with anyone.`,
+    });
+  },
+
+  /**
+   * Passwordless login step 2: verify the SMS code and establish a session.
+   * Unlike the reset-password OTP (which hands back a short-lived reset token),
+   * this issues the full access/refresh tokens — the user is now logged in.
+   */
+  loginWithOtp: async (identifier: string, code: string) => {
+    const user = await resolveLoginUser(identifier);
+    // Generic message so a wrong identifier can't be told apart from a wrong code.
+    if (!user) {
+      throw new HttpError(400, 'Invalid or expired code');
+    }
+    const key = loginOtpKey(user.id);
+    const record = await otpStore.get(key);
+    if (!record || Date.now() > record.expiresAt) {
+      await otpStore.delete(key);
+      throw new HttpError(400, 'Invalid or expired code');
+    }
+    if (record.attempts >= env.otp.maxAttempts) {
+      await otpStore.delete(key);
+      throw new HttpError(429, 'Too many attempts. Request a new code');
+    }
+    if (record.code !== code) {
+      await otpStore.set(key, { ...record, attempts: record.attempts + 1 });
+      throw new HttpError(400, 'Invalid or expired code');
+    }
+
+    await otpStore.delete(key);
     assertActive(user);
     return { user: toPublicUser(user), ...issueTokens(user) };
   },

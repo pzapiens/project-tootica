@@ -169,10 +169,10 @@ have set them yet).
 ## Auth ✅ — `/api/auth`
 
 ### 1. `POST /api/auth/login` — public
-Request:
+Request (`identifier` is an email **or** a phone number):
 
 ```json
-{ "email": "admin@tootica.local", "password": "Password123!" }
+{ "identifier": "admin@tootica.local", "password": "Password123!" }
 ```
 
 **200** — sets `access_token` + `refresh_token` cookies:
@@ -183,6 +183,24 @@ Request:
 
 Errors: `400` validation · `401 { "error": "Invalid credentials" }` ·
 `403 { "error": "Account is not active" }` (also "Account access has not started yet" / "…has expired").
+
+### 1a. `POST /api/auth/login/request-otp` — public
+Passwordless login step 1. Request `{ "identifier": "admin@tootica.local" }`
+(email or phone). Sends a 6-digit code by **SMS** to the phone on the account.
+**200** (always, to avoid account enumeration):
+
+```json
+{ "message": "If an account matches, a login code has been sent by SMS." }
+```
+
+`429` when the resend cooldown / send cap is hit.
+
+### 1b. `POST /api/auth/login/verify-otp` — public
+Passwordless login step 2. Request `{ "identifier": "…", "code": "123456" }`.
+**200** — sets the session cookies and returns `{ "user": { "...": "PublicUser" } }`.
+Errors: `400 { "error": "Invalid or expired code" }` ·
+`429 { "error": "Too many attempts. Request a new code" }` ·
+`403` account not active.
 
 ### 2. `GET /api/auth/me` — cookie
 **200** — the caller plus their clinic (`clinic` is `null` for a SUPER_ADMIN,
@@ -263,13 +281,22 @@ Request:
 **200** `[ Clinic, … ]`
 
 ### `POST /api/super-admin/clinics`
-Request (`plan`/`status` optional; default `FREE` / `ACTIVE`):
+Request (`plan`/`status` optional; default `FREE` / `ACTIVE`). `code` is the
+super-admin-assigned clinic code — letters then digits, upper-cased (e.g.
+`TDG001`) — and prefixes every child code:
 
 ```json
-{ "name": "New Clinic", "plan": "BASIC", "status": "ACTIVE" }
+{ "name": "New Clinic", "code": "TDG001", "plan": "BASIC", "branches": [ { "name": "Main" } ] }
 ```
 
-**201** → `Clinic`.
+**201** → `Clinic` (with its branches). `409 { "error": "Clinic code already in use" }`
+if the code is taken · `400` validation (bad code format).
+
+Child codes derive from the clinic code, sequenced per clinic:
+`branch` `TDG001-B001`, `doctor` `TDG001-D001`, `patient` `TDG001-P000001`,
+`appointment` `TDG001-A000001`. All primary keys are UUIDs.
+
+The clinic `code` is fixed once set (it can't be changed via `PATCH`).
 
 ### `GET /api/super-admin/clinics/:id`
 **200** → `Clinic` · `404 { "error": "Clinic not found" }`.
@@ -433,6 +460,22 @@ Request: any subset of `{ specialization, licenseNumber, phone, bio }` (not `use
 ### `DELETE /api/doctors/:id`
 **204** · `404`.
 
+### Shifts + availability blocks — `/api/doctors/:id/shifts`, `/api/doctors/:id/blocks`
+Replace-all semantics (the editor / availability popup save the whole set at
+once). Dates are `YYYY-MM-DD`; times are `HH:mm` (24h). Client ids are ignored —
+the DB assigns them.
+
+`GET /api/doctors/:id/shifts` → `[ { id, groupId, frequency, date, startTime, endTime }, … ]`
+where `frequency` ∈ `Day | Weekly | Biweekly | Monthly | Yearly | Every day`.
+
+`PUT /api/doctors/:id/shifts` — body `{ "shifts": [ { groupId?, frequency, date, startTime, endTime }, … ] }`;
+**200** → the stored shifts. `404` if the doctor isn't in this clinic · `400` validation.
+
+`GET /api/doctors/:id/blocks` → `[ { id, date, startTime, endTime }, … ]`.
+
+`PUT /api/doctors/:id/blocks` — body `{ "blocks": [ { date, startTime, endTime }, … ] }`;
+**200** → the stored blocks. `404` · `400`.
+
 ---
 
 ## Appointments ✅ — `/api/appointments` (tenant)
@@ -525,7 +568,7 @@ doctors also get a `Doctor` profile. **201** → PublicUser-shaped account.
 
 | Area                 | Status | Notes                                              |
 | -------------------- | ------ | -------------------------------------------------- |
-| Auth (9 endpoints)   | ✅     | Cookie-based; `/me` returns `{ user, clinic }`; strong-password policy; distinct login errors |
+| Auth (11 endpoints)  | ✅     | Cookie-based; email **or** phone login identifier; password **or** SMS-OTP sign-in; `/me` returns `{ user, clinic }`; strong-password policy |
 | Clinic Management    | ✅     | Super-admin CRUD; create can add a first branch      |
 | Branches             | ✅     | Tenant list + super-admin list/edit/delete; unique `cNNN` codes |
 | Accounts / Staff     | ✅     | Super-admin onboarding (`POST /super-admin/accounts`) |

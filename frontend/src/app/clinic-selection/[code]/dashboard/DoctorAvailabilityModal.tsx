@@ -8,10 +8,12 @@ import { apiFetch, type AvailabilityResponse } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import {
   shiftWindowsForDate,
-  loadBlocks,
+  fetchShifts,
+  fetchBlocks,
   saveBlocks,
   dmy,
   type BlockedSlot,
+  type StoredShift,
 } from "@/lib/shifts";
 
 import { parseDmy } from "./DateInput";
@@ -133,7 +135,9 @@ export default function DoctorAvailabilityModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Blocked slots (Block Time Slot form) — persisted per doctor in localStorage.
+  // The doctor's saved shifts (drive the green availability windows) and blocked
+  // slots (Block Time Slot form) — both fetched from the backend per doctor.
+  const [shifts, setShifts] = useState<StoredShift[]>([]);
   const [blocks, setBlocks] = useState<BlockedSlot[]>([]);
   const [from, setFrom] = useState<TimeParts>(emptyParts);
   const [to, setTo] = useState<TimeParts>(emptyParts);
@@ -175,7 +179,20 @@ export default function DoctorAvailabilityModal({
     };
   }, [view, doctorId]);
   useEffect(() => {
-    setBlocks(loadBlocks(doctorId));
+    if (!doctorId) return;
+    let active = true;
+    Promise.all([fetchShifts(doctorId), fetchBlocks(doctorId)])
+      .then(([s, b]) => {
+        if (!active) return;
+        setShifts(s);
+        setBlocks(b);
+      })
+      .catch(() => {
+        // Availability still renders from bookings/hours; shifts/blocks stay empty.
+      });
+    return () => {
+      active = false;
+    };
   }, [doctorId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -183,8 +200,8 @@ export default function DoctorAvailabilityModal({
   // their saved shifts. No shift covering this date ⇒ the day is Not Available.
   // (Kept above the early return so hooks always run in the same order.)
   const availability = useMemo(
-    () => (doctorId ? shiftWindowsForDate(doctorId, view) : []),
-    [doctorId, view],
+    () => shiftWindowsForDate(shifts, view),
+    [shifts, view],
   );
 
   if (typeof document === "undefined") return null;
@@ -312,7 +329,7 @@ export default function DoctorAvailabilityModal({
       ? blocks.map((b) => (b.id === editingBlockId ? { ...b, startMin: s, endMin: e } : b))
       : [...blocks, { id: `${dayKey}-${s}-${e}-${blockSeq.current++}`, date: dayKey, startMin: s, endMin: e }];
     setBlocks(next);
-    saveBlocks(doctorId, next);
+    void saveBlocks(doctorId, next).catch(() => {});
     setFrom(emptyParts());
     setTo(emptyParts());
     setBlockError("");
@@ -338,7 +355,7 @@ export default function DoctorAvailabilityModal({
   function removeBlock(id: string) {
     const next = blocks.filter((b) => b.id !== id);
     setBlocks(next);
-    saveBlocks(doctorId, next);
+    void saveBlocks(doctorId, next).catch(() => {});
     // Deleting the row being edited abandons that edit.
     if (id === editingBlockId) cancelBlockEdit();
   }

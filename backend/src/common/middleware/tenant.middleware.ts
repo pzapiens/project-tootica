@@ -6,6 +6,9 @@ import { HttpError } from '../utils/httpError';
 /** Header a super admin uses to target a specific clinic on tenant routes. */
 export const CLINIC_HEADER = 'x-clinic-id';
 
+/** Canonical UUID form — used to tell a real id from a human-friendly code. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Derives the tenant and attaches `req.clinicId`. Must run after `authenticate`.
  *
@@ -80,9 +83,14 @@ export const resolveBranch: RequestHandler = (req, _res, next) => {
   }
   const clinicId = requireClinicId(req);
   // The `[code]` route segment is usually the branch code, but can fall back to
-  // the branch id — match either, scoped to the caller's clinic.
+  // the branch id — match either, scoped to the caller's clinic. `id` is a
+  // native uuid column, so only match against it when the segment is actually a
+  // UUID (comparing a code like "BSD001-B001" to a uuid errors in Postgres).
+  const where = UUID_RE.test(code)
+    ? { clinicId, OR: [{ code }, { id: code }] }
+    : { clinicId, code };
   prisma.branch
-    .findFirst({ where: { clinicId, OR: [{ code }, { id: code }] }, select: { id: true } })
+    .findFirst({ where, select: { id: true } })
     .then((branch) => {
       req.branchId = branch?.id;
       next();

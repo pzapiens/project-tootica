@@ -54,7 +54,7 @@ export const appointmentRepository = {
 
   create: async (clinicId: string, data: CreateAppointmentData) =>
     prisma.appointment.create({
-      data: { ...data, clinicId, code: await nextAppointmentCode(data.startTime) },
+      data: { ...data, clinicId, code: await nextAppointmentCode(clinicId) },
     }),
 
   /** The clinic's doctors (optionally a single one / one branch), with names. */

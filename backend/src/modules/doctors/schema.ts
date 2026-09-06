@@ -37,3 +37,47 @@ export const updateDoctorSchema = z.object({
 
 export type CreateDoctorInput = z.infer<typeof createDoctorSchema>;
 export type UpdateDoctorInput = z.infer<typeof updateDoctorSchema>;
+
+/* ------------------------------------------------------------- shifts / blocks
+
+ * The Edit Doctor Shift screen and the Doctor Availability popup save the whole
+ * set at once, so shifts/blocks use replace-all (PUT) semantics. Times are
+ * canonical "HH:mm" 24h; dates are "YYYY-MM-DD" (date-only). Client-supplied ids
+ * are ignored — the DB assigns them.
+ */
+const timeHHmm = z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Time must be HH:mm (24h)');
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
+const SHIFT_FREQUENCIES = ['Day', 'Weekly', 'Biweekly', 'Monthly', 'Yearly', 'Every day'] as const;
+
+const shiftEntrySchema = z
+  .object({
+    groupId: z.string().nullable().optional(),
+    frequency: z.enum(SHIFT_FREQUENCIES),
+    date: dateOnly,
+    startTime: timeHHmm,
+    endTime: timeHHmm,
+  })
+  .refine((s) => s.startTime < s.endTime, {
+    message: 'Shift end time must be after the start time',
+  });
+
+export const putShiftsSchema = z.object({
+  shifts: z.array(shiftEntrySchema).max(500),
+});
+
+const blockEntrySchema = z
+  .object({
+    date: dateOnly,
+    startTime: timeHHmm,
+    endTime: timeHHmm,
+  })
+  .refine((b) => b.startTime < b.endTime, {
+    message: 'Block end time must be after the start time',
+  });
+
+export const putBlocksSchema = z.object({
+  blocks: z.array(blockEntrySchema).max(500),
+});
+
+export type PutShiftsInput = z.infer<typeof putShiftsSchema>;
+export type PutBlocksInput = z.infer<typeof putBlocksSchema>;

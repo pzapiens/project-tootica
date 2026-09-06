@@ -42,6 +42,15 @@ export const env = {
     maxAttempts: Number(process.env.OTP_MAX_ATTEMPTS ?? 5),
     maxResends: Number(process.env.OTP_MAX_RESENDS ?? 5),
   },
+  sms: {
+    // Twilio credentials for outbound SMS (login OTP). When any is missing we
+    // fall back to a console provider that logs the code — see smsProvider.ts.
+    twilio: {
+      accountSid: process.env.TWILIO_ACCOUNT_SID ?? '',
+      authToken: process.env.TWILIO_AUTH_TOKEN ?? '',
+      from: process.env.TWILIO_FROM ?? '',
+    },
+  },
   superAdmin: {
     // Secret code a super admin must type to confirm any destructive delete
     // (account / branch / clinic). Set SUPER_ADMIN_DELETE_CODE in production.

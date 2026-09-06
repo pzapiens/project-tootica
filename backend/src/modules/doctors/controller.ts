@@ -1,7 +1,12 @@
 import type { Request, Response } from 'express';
 
 import { getBranchId, requireClinicId } from '../../common/middleware/tenant.middleware';
-import { createDoctorSchema, updateDoctorSchema } from './schema';
+import {
+  createDoctorSchema,
+  putBlocksSchema,
+  putShiftsSchema,
+  updateDoctorSchema,
+} from './schema';
 import { doctorService } from './service';
 
 export const doctorController = {
@@ -33,5 +38,27 @@ export const doctorController = {
     const clinicId = requireClinicId(req);
     await doctorService.remove(clinicId, req.params.id);
     res.status(204).send();
+  },
+
+  listShifts: async (req: Request, res: Response) => {
+    const clinicId = requireClinicId(req);
+    res.json(await doctorService.listShifts(clinicId, req.params.id));
+  },
+
+  putShifts: async (req: Request, res: Response) => {
+    const clinicId = requireClinicId(req);
+    const data = putShiftsSchema.parse(req.body);
+    res.json(await doctorService.replaceShifts(clinicId, req.params.id, data));
+  },
+
+  listBlocks: async (req: Request, res: Response) => {
+    const clinicId = requireClinicId(req);
+    res.json(await doctorService.listBlocks(clinicId, req.params.id));
+  },
+
+  putBlocks: async (req: Request, res: Response) => {
+    const clinicId = requireClinicId(req);
+    const data = putBlocksSchema.parse(req.body);
+    res.json(await doctorService.replaceBlocks(clinicId, req.params.id, data));
   },
 };

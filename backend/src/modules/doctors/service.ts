@@ -1,8 +1,38 @@
 import { randomUUID } from 'crypto';
 
 import { HttpError } from '../../common/utils/httpError';
+import { rethrowUserUniqueViolation } from '../../common/utils/prismaErrors';
 import { doctorRepository } from './repository';
-import type { CreateDoctorInput, UpdateDoctorInput } from './schema';
+import type {
+  CreateDoctorInput,
+  PutBlocksInput,
+  PutShiftsInput,
+  UpdateDoctorInput,
+} from './schema';
+
+// Date-only ("YYYY-MM-DD") is stored at UTC midnight, matching how patient DOB
+// is handled, so the calendar day never shifts across timezones.
+const toDateOnly = (s: string): Date => new Date(`${s}T00:00:00.000Z`);
+const fmtDateOnly = (d: Date): string => d.toISOString().slice(0, 10);
+
+type ShiftRow = Awaited<ReturnType<typeof doctorRepository.listShifts>>[number];
+type BlockRow = Awaited<ReturnType<typeof doctorRepository.listBlocks>>[number];
+
+const toShiftDto = (r: ShiftRow) => ({
+  id: r.id,
+  groupId: r.groupId,
+  frequency: r.frequency,
+  date: fmtDateOnly(r.date),
+  startTime: r.startTime,
+  endTime: r.endTime,
+});
+
+const toBlockDto = (r: BlockRow) => ({
+  id: r.id,
+  date: fmtDateOnly(r.date),
+  startTime: r.startTime,
+  endTime: r.endTime,
+});
 
 type DoctorRow = Awaited<ReturnType<typeof doctorRepository.findMany>>[number];
 
@@ -69,14 +99,17 @@ export const doctorService = {
     // satisfies the unique/non-null User.email constraint.
     const email = data.email ?? `guest-${randomUUID()}@${PLACEHOLDER_EMAIL_DOMAIN}`;
     const { firstName, lastName } = splitName(data.name);
-    const doctor = await doctorRepository.createGuest(clinicId, {
-      firstName,
-      lastName,
-      email,
-      phone: data.phone,
-      specialization: data.specialization,
-      branchId,
-    });
+    const doctor = await doctorRepository
+      .createGuest(clinicId, {
+        firstName,
+        lastName,
+        email,
+        phone: data.phone,
+        specialization: data.specialization,
+        branchId,
+      })
+      // Safety net: surface any unique clash (e.g. email race) as a clean 409.
+      .catch(rethrowUserUniqueViolation);
     return toDoctorSummary(doctor);
   },
 
@@ -98,7 +131,7 @@ export const doctorService = {
       }
     }
 
-    const userData: { firstName?: string; lastName?: string; email?: string; phone?: string | null } = {};
+    const userData: { firstName?: string; lastName?: string; email?: string } = {};
     const doctorData: { specialization?: string; phone?: string | null } = {};
     if (data.name !== undefined) {
       const { firstName, lastName } = splitName(data.name);
@@ -106,19 +139,14 @@ export const doctorService = {
       userData.lastName = lastName;
     }
     if (data.email !== undefined) userData.email = data.email;
-    if (data.phone !== undefined) {
-      userData.phone = data.phone ?? null;
-      doctorData.phone = data.phone ?? null;
-    }
+    // Phone lives on the doctor profile only — never on the login user (unique
+    // OTP-login identifier), so a guest doctor's phone can't collide there.
+    if (data.phone !== undefined) doctorData.phone = data.phone ?? null;
     if (data.specialization !== undefined) doctorData.specialization = data.specialization;
 
-    const updated = await doctorRepository.updateProfile(
-      clinicId,
-      id,
-      existing.userId,
-      userData,
-      doctorData,
-    );
+    const updated = await doctorRepository
+      .updateProfile(clinicId, id, existing.userId, userData, doctorData)
+      .catch(rethrowUserUniqueViolation);
     return toDoctorSummary(updated);
   },
 
@@ -134,4 +162,46 @@ export const doctorService = {
     }
     await doctorRepository.remove(clinicId, id);
   },
+
+  /* --------------------------------------------------------- shifts / blocks */
+
+  listShifts: async (clinicId: string, doctorId: string) => {
+    await ensureDoctor(clinicId, doctorId);
+    return (await doctorRepository.listShifts(clinicId, doctorId)).map(toShiftDto);
+  },
+
+  replaceShifts: async (clinicId: string, doctorId: string, input: PutShiftsInput) => {
+    await ensureDoctor(clinicId, doctorId);
+    const rows = input.shifts.map((s) => ({
+      groupId: s.groupId ?? null,
+      frequency: s.frequency,
+      date: toDateOnly(s.date),
+      startTime: s.startTime,
+      endTime: s.endTime,
+    }));
+    return (await doctorRepository.replaceShifts(clinicId, doctorId, rows)).map(toShiftDto);
+  },
+
+  listBlocks: async (clinicId: string, doctorId: string) => {
+    await ensureDoctor(clinicId, doctorId);
+    return (await doctorRepository.listBlocks(clinicId, doctorId)).map(toBlockDto);
+  },
+
+  replaceBlocks: async (clinicId: string, doctorId: string, input: PutBlocksInput) => {
+    await ensureDoctor(clinicId, doctorId);
+    const rows = input.blocks.map((b) => ({
+      date: toDateOnly(b.date),
+      startTime: b.startTime,
+      endTime: b.endTime,
+    }));
+    return (await doctorRepository.replaceBlocks(clinicId, doctorId, rows)).map(toBlockDto);
+  },
 };
+
+/** Ensure the doctor exists in this clinic (tenant scoping) or 404. */
+async function ensureDoctor(clinicId: string, doctorId: string): Promise<void> {
+  const doctor = await doctorRepository.findById(clinicId, doctorId);
+  if (!doctor) {
+    throw new HttpError(404, 'Doctor not found');
+  }
+}

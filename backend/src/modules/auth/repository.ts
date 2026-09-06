@@ -4,6 +4,10 @@ export const authRepository = {
   findByEmail: (email: string) =>
     prisma.user.findUnique({ where: { email }, include: { clinic: true } }),
 
+  /** Resolve an account by its (normalized) phone — the phone + OTP login path. */
+  findByPhone: (phone: string) =>
+    prisma.user.findUnique({ where: { phone }, include: { clinic: true } }),
+
   findById: (id: string) =>
     prisma.user.findUnique({ where: { id }, include: { clinic: true } }),
 

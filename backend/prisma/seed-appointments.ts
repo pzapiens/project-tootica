@@ -104,7 +104,7 @@ async function ensurePatients(clinicId: string, target: number): Promise<Array<{
     const patient = await prisma.patient.create({
       data: {
         clinicId,
-        code: await nextPatientCode(),
+        code: await nextPatientCode(clinicId),
         name: `${first} ${last}`,
         email: `${first}.${last}${patientCursor}@example.com`.toLowerCase(),
         phone: `+9198${String(10000000 + patientCursor * 7).slice(-8)}`,
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
       await prisma.appointment.create({
         data: {
           clinicId: clinic.id,
-          code: await nextAppointmentCode(start),
+          code: await nextAppointmentCode(clinic.id),
           patientId: pick(patients).id,
           doctorId: pick(doctors).id,
           startTime: start,

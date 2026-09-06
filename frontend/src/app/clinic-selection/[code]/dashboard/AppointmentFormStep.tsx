@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { apiFetch, type AvailabilityResponse } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
-import { isSlotOnShift, isSlotBlocked } from "@/lib/shifts";
+import { fetchShifts, fetchBlocks, isSlotOnShift, isSlotBlocked } from "@/lib/shifts";
 
 import { DateInput, parseDmy } from "./DateInput";
 import DoctorAvailabilityModal from "./DoctorAvailabilityModal";
@@ -272,10 +272,12 @@ export default function AppointmentFormStep({
         `/appointments/availability?date=${ymd(docDate)}&from=${hhmm24(docFrom)}&to=${hhmm24(docTo)}&doctorId=${doctorId}${excludeParam}`,
       );
       // A doctor is only available inside a shift they've marked for the date,
-      // and not during a slot they've blocked in the availability popup.
+      // and not during a slot they've blocked in the availability popup. Their
+      // shifts/blocks come from the backend, fetched alongside the check.
       const day = parseDmy(docDate);
-      const onShift = day !== null && isSlotOnShift(doctorId, day, f, t);
-      const blocked = day !== null && isSlotBlocked(doctorId, day, f, t);
+      const [shifts, blocks] = await Promise.all([fetchShifts(doctorId), fetchBlocks(doctorId)]);
+      const onShift = day !== null && isSlotOnShift(shifts, day, f, t);
+      const blocked = day !== null && isSlotBlocked(blocks, day, f, t);
       const d = res.doctors[0];
       const ok = Boolean(d?.available) && onShift && !blocked;
       setDocAvailable(ok);
@@ -365,18 +367,22 @@ export default function AppointmentFormStep({
       const res = await apiFetch<AvailabilityResponse>(
         `/appointments/availability?date=${ymd(dtDate)}&from=${hhmm24(dtFrom)}&to=${hhmm24(dtTo)}${excludeParam}`,
       );
-      // Keep only doctors who are free AND on a shift they've marked for the date.
+      // Keep only doctors who are free AND on a shift they've marked for the
+      // date (and not blocked). Shifts/blocks are per-doctor backend data, so
+      // fetch them for each backend-free candidate, then filter.
       const day = parseDmy(dtDate);
-      const free = res.doctors
-        .filter(
-          (d) =>
-            d.available &&
-            d.name &&
+      const candidates = res.doctors.filter((d) => d.available && d.name && day !== null);
+      const checked = await Promise.all(
+        candidates.map(async (d) => {
+          const [shifts, blocks] = await Promise.all([fetchShifts(d.id), fetchBlocks(d.id)]);
+          const ok =
             day !== null &&
-            isSlotOnShift(d.id, day, f, t) &&
-            !isSlotBlocked(d.id, day, f, t),
-        )
-        .map((d) => d.name as string);
+            isSlotOnShift(shifts, day, f, t) &&
+            !isSlotBlocked(blocks, day, f, t);
+          return ok ? (d.name as string) : null;
+        }),
+      );
+      const free = checked.filter((n): n is string => n !== null);
       if (free.length === 0) {
         // If every doctor is blocked by the break, say so specifically.
         const allBreak =

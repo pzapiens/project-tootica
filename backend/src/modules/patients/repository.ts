@@ -12,7 +12,7 @@ export const patientRepository = {
     prisma.patient.findFirst({ where: { id, clinicId } }),
 
   create: async (clinicId: string, data: CreatePatientInput) =>
-    prisma.patient.create({ data: { ...data, clinicId, code: await nextPatientCode() } }),
+    prisma.patient.create({ data: { ...data, clinicId, code: await nextPatientCode(clinicId) } }),
 
   update: (clinicId: string, id: string, data: UpdatePatientInput) =>
     prisma.patient.updateMany({ where: { id, clinicId }, data }),

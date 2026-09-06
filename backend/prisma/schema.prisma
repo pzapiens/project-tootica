@@ -59,9 +59,10 @@ enum AppointmentStatus {
 // Models
 // ---------------------------------------------------------------------------
 
-/// Named monotonic counters that back the human-friendly display codes
-/// (CL-…, BR-…, PAT-…, DOC-…, APT-…). Each `name` (e.g. "clinic", "patient",
-/// or "appointment:20260830") holds the last-issued sequence number.
+/// Named monotonic counters that back the clinic-prefixed display codes. Child
+/// codes are sequenced PER CLINIC, so each `name` is scoped by clinic id — e.g.
+/// "branch:<clinicId>", "doctor:<clinicId>", "patient:<clinicId>",
+/// "appointment:<clinicId>" — holding the last-issued sequence for that clinic.
 model Counter {
   name  String @id
   value Int    @default(0)
@@ -71,9 +72,10 @@ model Counter {
 
 /// A tenant. Each clinic owns its own users, doctors, patients and appointments.
 model Clinic {
-  id        String       @id @default(cuid())
-  // Human-friendly display code, e.g. "CL-000123".
-  code      String?      @unique
+  id        String       @id @default(uuid()) @db.Uuid
+  // Human-friendly code, assigned by the super admin on creation (e.g. "TDG001").
+  // All child codes are derived from it (e.g. "TDG001-B001", "TDG001-P000001").
+  code      String?      @unique @map("clinic_code")
   name      String
   status    ClinicStatus @default(ACTIVE)
   plan      ClinicPlan   @default(FREE)
@@ -84,6 +86,7 @@ model Clinic {
   patients     Patient[]
   appointments Appointment[]
   doctorShifts DoctorShift[]
+  doctorBlocks DoctorBlock[]
   branches     Branch[]
 
   @@map("clinics")
@@ -92,14 +95,14 @@ model Clinic {
 /// A physical branch / location under a Clinic. The clinic-selection screen
 /// lists these; each may have a person-in-charge (PIC) user.
 model Branch {
-  id        String   @id @default(cuid())
-  clinicId  String   @map("clinic_id")
-  // Human-friendly unique code shown on the super-admin list (c001, c002, …).
-  code      String   @unique
+  id        String   @id @default(uuid()) @db.Uuid
+  clinicId  String   @map("clinic_id") @db.Uuid
+  // Clinic-prefixed code, e.g. "TDG001-B001" (per-clinic branch sequence).
+  code      String   @unique @map("branch_code")
   name      String
   // A branch's person-in-charge can be a linked user (picUserId) OR free-text
   // (picName/contact) captured when the branch is created via the admin form.
-  picUserId String?  @map("pic_user_id")
+  picUserId String?  @map("pic_user_id") @db.Uuid
   picName   String?  @map("pic_name")
   contact   String?
   createdAt DateTime @default(now()) @map("created_at")
@@ -119,41 +122,43 @@ model Branch {
 /// SUPER_ADMIN can exist outside any single clinic. Profile data for doctors
 /// lives on the separate `doctors` table.
 model User {
-  id              String     @id @default(cuid())
-  clinicId        String?    @map("clinic_id")
+  id                String     @id @default(uuid()) @db.Uuid
+  clinicId          String?    @map("clinic_id") @db.Uuid
   // The branch a DOCTOR / RECEPTIONIST is assigned to. Null for CLIENT_ADMIN
   // (clinic-wide access) and SUPER_ADMIN (no clinic).
-  branchId        String?    @map("branch_id")
-  email           String     @unique
+  branchId          String?    @map("branch_id") @db.Uuid
+  email             String     @unique
   // Optional honorific (e.g. "Mr", "Mrs", "Ms"). Doctors are addressed as "Dr"
   // from their role, so this is mainly for non-doctor staff.
-  title           String?    @map("title")
+  title             String?    @map("title")
   // Optional display name. Populated at onboarding; used for greetings / PIC.
-  firstName       String?    @map("first_name")
-  lastName        String?    @map("last_name")
+  firstName         String?    @map("first_name")
+  lastName          String?    @map("last_name")
   // Optional contact number for the user (e.g. a PIC's phone on the branch list).
-  phone           String?    @map("phone")
+  // Unique when present (Postgres allows many NULLs) so it can serve as a login
+  // identifier for the phone + OTP sign-in flow. Stored normalized (E.164-ish).
+  phone             String?    @unique @map("phone")
   // Nullable: invite-onboarded users (Client Admins, Doctors) exist before they
   // set a password via the /auth/set-password invite link.
-  passwordHash    String?    @map("password_hash")
-  role            Role
-  status          UserStatus @default(ACTIVE)
+  passwordHash      String?    @map("password_hash")
+  role              Role
+  status            UserStatus @default(ACTIVE)
   // True until the user completes the forced first-login reset (set a new
   // password + accept the Terms & Conditions). New accounts start with a
   // temporary password and this flag set; the client shows the reset prompt
   // while it's true.
-  mustResetPassword Boolean  @default(true) @map("must_reset_password")
+  mustResetPassword Boolean    @default(true) @map("must_reset_password")
   // When the user accepted the Terms & Conditions / Privacy Policy (null until
   // they do). Set during the first-login reset.
-  termsAcceptedAt DateTime?  @map("terms_accepted_at")
-  accessStartDate DateTime?  @map("access_start_date")
-  accessEndDate   DateTime?  @map("access_end_date")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  termsAcceptedAt   DateTime?  @map("terms_accepted_at")
+  accessStartDate   DateTime?  @map("access_start_date")
+  accessEndDate     DateTime?  @map("access_end_date")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
 
-  clinic          Clinic?  @relation(fields: [clinicId], references: [id])
-  branch          Branch?  @relation("BranchStaff", fields: [branchId], references: [id])
-  doctor          Doctor?
+  clinic           Clinic?  @relation(fields: [clinicId], references: [id])
+  branch           Branch?  @relation("BranchStaff", fields: [branchId], references: [id])
+  doctor           Doctor?
   branchesInCharge Branch[] @relation("BranchPIC")
 
   @@index([clinicId, id])
@@ -165,13 +170,13 @@ model User {
 /// Doctor profile, one-to-one with a User (the auth record). Kept separate from
 /// `users` so profile fields don't bloat the auth table.
 model Doctor {
-  id             String   @id @default(cuid())
-  // Human-friendly display code, e.g. "DOC-000001".
-  code           String?  @unique
-  userId         String   @unique @map("user_id")
-  clinicId       String   @map("clinic_id")
+  id             String   @id @default(uuid()) @db.Uuid
+  // Clinic-prefixed code, e.g. "TDG001-D001" (per-clinic doctor sequence).
+  code           String?  @unique @map("doctor_code")
+  userId         String   @unique @map("user_id") @db.Uuid
+  clinicId       String   @map("clinic_id") @db.Uuid
   // Branch this doctor works at (mirrors the linked user's branchId).
-  branchId       String?  @map("branch_id")
+  branchId       String?  @map("branch_id") @db.Uuid
   specialization String?
   licenseNumber  String?  @map("license_number")
   phone          String?
@@ -182,6 +187,7 @@ model Doctor {
   clinic       Clinic        @relation(fields: [clinicId], references: [id])
   branch       Branch?       @relation("BranchDoctors", fields: [branchId], references: [id])
   shifts       DoctorShift[]
+  blocks       DoctorBlock[]
   appointments Appointment[]
 
   @@index([clinicId, id])
@@ -189,30 +195,55 @@ model Doctor {
   @@map("doctors")
 }
 
-/// A doctor's recurring weekly availability. `dayOfWeek` is 0 (Sunday) – 6
-/// (Saturday); times are stored as "HH:mm" strings in the clinic's local time.
+/// A doctor's shift, as captured in the "Edit Doctor Shift" screen: a picked
+/// start `date` plus a `frequency` describing how it repeats forward from there
+/// (Day | Weekly | Biweekly | Monthly | Yearly | Every day), and a time window.
+/// Dates added together in one action share a `groupId` (one editor row). Times
+/// are "HH:mm" 24h strings; `date` is date-only, in the clinic's local time.
 model DoctorShift {
-  id        String @id @default(cuid())
-  doctorId  String @map("doctor_id")
-  clinicId  String @map("clinic_id")
-  dayOfWeek Int    @map("day_of_week")
-  startTime String @map("start_time")
-  endTime   String @map("end_time")
+  id        String   @id @default(uuid()) @db.Uuid
+  doctorId  String   @map("doctor_id") @db.Uuid
+  clinicId  String   @map("clinic_id") @db.Uuid
+  groupId   String?  @map("group_id")
+  frequency String
+  date      DateTime @db.Date
+  startTime String   @map("start_time")
+  endTime   String   @map("end_time")
+  createdAt DateTime @default(now()) @map("created_at")
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   clinic Clinic @relation(fields: [clinicId], references: [id])
 
   @@index([clinicId, id])
-  @@index([doctorId, dayOfWeek])
+  @@index([doctorId])
   @@map("doctor_shifts")
+}
+
+/// A time range on a specific `date` a doctor has marked as Blocked (unavailable
+/// for booking) from the Doctor Availability popup. Times are "HH:mm" 24h.
+model DoctorBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  doctorId  String   @map("doctor_id") @db.Uuid
+  clinicId  String   @map("clinic_id") @db.Uuid
+  date      DateTime @db.Date
+  startTime String   @map("start_time")
+  endTime   String   @map("end_time")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@index([clinicId, id])
+  @@index([doctorId])
+  @@map("doctor_blocks")
 }
 
 /// A patient record, scoped to a single clinic.
 model Patient {
-  id           String    @id @default(cuid())
-  clinicId     String    @map("clinic_id")
-  // Human-friendly display code, e.g. "PAT-000001".
-  code         String?   @unique
+  id           String    @id @default(uuid()) @db.Uuid
+  clinicId     String    @map("clinic_id") @db.Uuid
+  // Clinic-prefixed code, e.g. "TDG001-P000001" (per-clinic patient sequence).
+  code         String?   @unique @map("patient_code")
   name         String
   phone        String?
   email        String?
@@ -232,23 +263,23 @@ model Patient {
 
 /// A booked appointment linking a patient and a doctor within a clinic.
 model Appointment {
-  id        String            @id @default(cuid())
-  // Human-friendly display code, e.g. "APT-20260830-0001" (date + daily seq).
-  code      String?           @unique
-  clinicId  String            @map("clinic_id")
-  patientId String            @map("patient_id")
-  doctorId  String            @map("doctor_id")
-  startTime DateTime          @map("start_time")
-  endTime   DateTime          @map("end_time")
-  status    AppointmentStatus @default(SCHEDULED)
+  id               String            @id @default(uuid()) @db.Uuid
+  // Clinic-prefixed code, e.g. "TDG001-A000001" (per-clinic appointment seq).
+  code             String?           @unique @map("appointment_code")
+  clinicId         String            @map("clinic_id") @db.Uuid
+  patientId        String            @map("patient_id") @db.Uuid
+  doctorId         String            @map("doctor_id") @db.Uuid
+  startTime        DateTime          @map("start_time")
+  endTime          DateTime          @map("end_time")
+  status           AppointmentStatus @default(SCHEDULED)
   // Structured consultation type (e.g. "Teeth Whitening"); free-text `notes`
   // holds any additional message.
-  consultationType String?    @map("consultation_type")
+  consultationType String?           @map("consultation_type")
   // Where the enquiry came from (e.g. "Google Search", "Referral").
-  sourceOfEnquiry  String?    @map("source_of_enquiry")
-  notes     String?
-  createdAt DateTime          @default(now()) @map("created_at")
-  updatedAt DateTime          @updatedAt @map("updated_at")
+  sourceOfEnquiry  String?           @map("source_of_enquiry")
+  notes            String?
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
   clinic  Clinic  @relation(fields: [clinicId], references: [id])
   patient Patient @relation(fields: [patientId], references: [id])

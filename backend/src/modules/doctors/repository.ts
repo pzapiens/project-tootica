@@ -49,7 +49,9 @@ export const doctorRepository = {
           firstName: data.firstName,
           lastName: data.lastName,
           title: 'Dr',
-          phone: data.phone ?? null,
+          // NOTE: phone lives on the doctor profile below, NOT on the login user.
+          // Guest doctors can't log in, and `User.phone` is unique (it's an OTP
+          // login identifier) — putting a guest's phone there would collide.
           // Guest doctors are visiting staff — no login, so no password.
           role: 'GUEST_DOCTOR',
           status: 'ACTIVE',
@@ -62,7 +64,7 @@ export const doctorRepository = {
           branchId: data.branchId ?? null,
           specialization: data.specialization ?? null,
           phone: data.phone ?? null,
-          code: await nextDoctorCode(),
+          code: await nextDoctorCode(clinicId),
         },
         include: withUser,
       });
@@ -73,7 +75,7 @@ export const doctorRepository = {
     clinicId: string,
     id: string,
     userId: string,
-    userData: { firstName?: string; lastName?: string; email?: string; phone?: string | null },
+    userData: { firstName?: string; lastName?: string; email?: string },
     doctorData: { specialization?: string; phone?: string | null },
   ) =>
     prisma.$transaction(async (tx) => {
@@ -88,4 +90,56 @@ export const doctorRepository = {
 
   remove: (clinicId: string, id: string) =>
     prisma.doctor.deleteMany({ where: { id, clinicId } }),
+
+  /* --------------------------------------------------------- shifts / blocks */
+
+  listShifts: (clinicId: string, doctorId: string) =>
+    prisma.doctorShift.findMany({
+      where: { doctorId, clinicId },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    }),
+
+  /** Replace all of a doctor's shifts in one transaction (save-whole-array). */
+  replaceShifts: (
+    clinicId: string,
+    doctorId: string,
+    rows: { groupId: string | null; frequency: string; date: Date; startTime: string; endTime: string }[],
+  ) =>
+    prisma.$transaction(async (tx) => {
+      await tx.doctorShift.deleteMany({ where: { doctorId, clinicId } });
+      if (rows.length > 0) {
+        await tx.doctorShift.createMany({
+          data: rows.map((r) => ({ ...r, doctorId, clinicId })),
+        });
+      }
+      return tx.doctorShift.findMany({
+        where: { doctorId, clinicId },
+        orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      });
+    }),
+
+  listBlocks: (clinicId: string, doctorId: string) =>
+    prisma.doctorBlock.findMany({
+      where: { doctorId, clinicId },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    }),
+
+  /** Replace all of a doctor's blocked slots in one transaction. */
+  replaceBlocks: (
+    clinicId: string,
+    doctorId: string,
+    rows: { date: Date; startTime: string; endTime: string }[],
+  ) =>
+    prisma.$transaction(async (tx) => {
+      await tx.doctorBlock.deleteMany({ where: { doctorId, clinicId } });
+      if (rows.length > 0) {
+        await tx.doctorBlock.createMany({
+          data: rows.map((r) => ({ ...r, doctorId, clinicId })),
+        });
+      }
+      return tx.doctorBlock.findMany({
+        where: { doctorId, clinicId },
+        orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      });
+    }),
 };

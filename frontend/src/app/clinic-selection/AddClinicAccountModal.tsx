@@ -259,6 +259,9 @@ function AddClinicForm({
 }) {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
+  // Super-admin-assigned clinic code (e.g. TDG001) that prefixes all child codes.
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState("");
   // A clinic is created with one or more branches, each with its own name.
   const [branches, setBranches] = useState<BranchDraft[]>([emptyBranch()]);
   const [branchErrors, setBranchErrors] = useState<Record<number, { name?: string; contact?: string }>>({});
@@ -273,6 +276,11 @@ function AddClinicForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const nameErr = name.trim() ? "" : "Clinic name is required.";
+    const codeErr = !code.trim()
+      ? "Clinic code is required."
+      : /^[A-Za-z]{2,6}\d{2,6}$/.test(code.trim())
+        ? ""
+        : "Use letters then digits, e.g. TDG001.";
     const bErrors: Record<number, { name?: string; contact?: string }> = {};
     branches.forEach((b, i) => {
       const err: { name?: string; contact?: string } = {};
@@ -282,9 +290,10 @@ function AddClinicForm({
       if (err.name || err.contact) bErrors[i] = err;
     });
     setNameError(nameErr);
+    setCodeError(codeErr);
     setBranchErrors(bErrors);
     setFormError("");
-    if (nameErr || Object.keys(bErrors).length > 0) return;
+    if (nameErr || codeErr || Object.keys(bErrors).length > 0) return;
 
     setSubmitting(true);
     try {
@@ -297,6 +306,7 @@ function AddClinicForm({
         method: "POST",
         body: JSON.stringify({
           name: name.trim(),
+          code: code.trim().toUpperCase(),
           branches: branches.map((b) => ({
             name: b.name.trim(),
             picName: b.picName.trim() || undefined,
@@ -329,6 +339,14 @@ function AddClinicForm({
           onChange={(v) => { setName(v); setNameError(""); }}
           placeholder="e.g. Bright Smile Dental"
           error={nameError}
+        />
+        <LabeledInput
+          id="clinic-code"
+          label="Clinic Code"
+          value={code}
+          onChange={(v) => { setCode(v.toUpperCase()); setCodeError(""); }}
+          placeholder="e.g. TDG001"
+          error={codeError}
         />
 
         <div className="flex flex-col gap-4 border-t border-field-border pt-5">

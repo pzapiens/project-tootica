@@ -1,9 +1,6 @@
 import { prisma } from '../../common/db/prisma';
-import {
-  nextBranchCode,
-  nextClinicCode,
-  nextDoctorCode,
-} from '../../common/utils/codes';
+import { nextBranchCode, nextBranchCodeFor, nextDoctorCode } from '../../common/utils/codes';
+import { normalizePhone } from '../../common/utils/phone.util';
 import type { Role } from '../../generated/prisma/enums';
 import type { CreateClinicInput, UpdateClinicInput } from './schema';
 
@@ -75,39 +72,38 @@ export const superAdminRepository = {
 
   findClinicById: (id: string) => prisma.clinic.findUnique({ where: { id } }),
 
-  createClinic: async (data: CreateClinicInput) =>
-    prisma.clinic.create({ data: { ...data, code: await nextClinicCode() } }),
+  // The clinic code is supplied by the super admin (in `data.code`).
+  createClinic: async (data: CreateClinicInput) => prisma.clinic.create({ data }),
 
   /** Create a clinic together with one or more branches in one transaction. */
-  createClinicWithBranches: async (data: CreateClinicInput, branches: BranchInput[]) => {
-    const clinicCode = await nextClinicCode();
-    const branchCodes = await Promise.all(branches.map(() => nextBranchCode()));
-    return prisma.$transaction(async (tx) => {
-      const clinic = await tx.clinic.create({ data: { ...data, code: clinicCode } });
+  createClinicWithBranches: async (data: CreateClinicInput, branches: BranchInput[]) =>
+    prisma.$transaction(async (tx) => {
+      const clinic = await tx.clinic.create({ data });
       const createdBranches = [];
-      for (let i = 0; i < branches.length; i++) {
+      for (const branch of branches) {
         createdBranches.push(
           await tx.branch.create({
             data: {
               clinicId: clinic.id,
-              code: branchCodes[i],
-              name: branches[i].name,
-              picName: branches[i].picName ?? null,
-              contact: branches[i].contact ?? null,
+              // Derive from the just-assigned clinic code — the clinic row isn't
+              // committed yet, so we pass the code rather than re-reading it.
+              code: await nextBranchCodeFor(clinic.id, clinic.code!),
+              name: branch.name,
+              picName: branch.picName ?? null,
+              contact: branch.contact ?? null,
             },
           }),
         );
       }
       return { clinic, branches: createdBranches };
-    });
-  },
+    }),
 
   /** Add a single branch to an existing clinic. */
   createBranch: async (clinicId: string, branch: BranchInput) =>
     prisma.branch.create({
       data: {
         clinicId,
-        code: await nextBranchCode(),
+        code: await nextBranchCode(clinicId),
         name: branch.name,
         picName: branch.picName ?? null,
         contact: branch.contact ?? null,
@@ -143,7 +139,8 @@ export const superAdminRepository = {
   ) =>
     prisma.user.update({
       where: { id },
-      data,
+      // Normalize the phone so it stays comparable for phone + OTP login.
+      data: 'phone' in data ? { ...data, phone: normalizePhone(data.phone) } : data,
       include: { branch: { select: { id: true, code: true, name: true } } },
     }),
 
@@ -174,7 +171,8 @@ export const superAdminRepository = {
           firstName: data.firstName,
           lastName: data.lastName,
           title: data.title ?? null,
-          phone: data.phone ?? null,
+          // Normalize so the value matches during phone + OTP login lookups.
+          phone: normalizePhone(data.phone),
           role: data.role,
           status: 'ACTIVE',
           // Temporary password + forced first-login reset (mustResetPassword
@@ -188,7 +186,7 @@ export const superAdminRepository = {
             userId: user.id,
             clinicId: data.clinicId,
             branchId: data.branchId,
-            code: await nextDoctorCode(),
+            code: await nextDoctorCode(data.clinicId),
           },
         });
       }
@@ -206,7 +204,8 @@ export const superAdminRepository = {
    *
    * Order notes:
    *  - Appointments reference patients + doctors, so they go first.
-   *  - Doctor shifts cascade on doctor delete, but are cleared explicitly too.
+   *  - Doctor shifts + blocks cascade on doctor delete, but are cleared
+   *    explicitly too (their clinic FK is RESTRICT).
    *  - Branch ⇄ User is a cycle (a branch's PIC is a user; a user's branchId is
    *    a branch), so both links are nulled before either side is deleted.
    */
@@ -214,6 +213,7 @@ export const superAdminRepository = {
     prisma.$transaction([
       prisma.appointment.deleteMany({ where: { clinicId: id } }),
       prisma.doctorShift.deleteMany({ where: { clinicId: id } }),
+      prisma.doctorBlock.deleteMany({ where: { clinicId: id } }),
       prisma.doctor.deleteMany({ where: { clinicId: id } }),
       prisma.patient.deleteMany({ where: { clinicId: id } }),
       // Break the Branch ⇄ User cycle before deleting either table.
