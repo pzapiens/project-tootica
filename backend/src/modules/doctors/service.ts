@@ -65,12 +65,13 @@ function toDoctorSummary(row: DoctorRow) {
   };
 }
 
-/** "Dr. Sanjay Prakash" → { firstName: "Sanjay", lastName: "Prakash" }. The
- *  "Dr." honorific comes from the role, so any leading title is stripped. */
-function splitName(name: string): { firstName: string; lastName: string } {
-  const bare = name.trim().replace(/^dr\.?\s+/i, '');
-  const parts = bare.split(/\s+/);
-  return { firstName: parts[0], lastName: parts.slice(1).join(' ') || parts[0] };
+/** Normalise a doctor's typed name for storage. The whole name is kept as-is in
+ *  `firstName` (no first/last split — a single-word name stays single, a
+ *  multi-word name isn't chopped up) with `lastName` cleared. The "Dr."
+ *  honorific comes from the role, so any leading title the user typed is
+ *  stripped here to avoid doubling it up on display. */
+function toNameFields(name: string): { firstName: string; lastName: null } {
+  return { firstName: name.trim().replace(/^dr\.?\s+/i, ''), lastName: null };
 }
 
 export const doctorService = {
@@ -98,7 +99,7 @@ export const doctorService = {
     // No email given → mint a unique placeholder so the login-less guest still
     // satisfies the unique/non-null User.email constraint.
     const email = data.email ?? `guest-${randomUUID()}@${PLACEHOLDER_EMAIL_DOMAIN}`;
-    const { firstName, lastName } = splitName(data.name);
+    const { firstName, lastName } = toNameFields(data.name);
     const doctor = await doctorRepository
       .createGuest(clinicId, {
         firstName,
@@ -131,10 +132,10 @@ export const doctorService = {
       }
     }
 
-    const userData: { firstName?: string; lastName?: string; email?: string } = {};
+    const userData: { firstName?: string; lastName?: string | null; email?: string } = {};
     const doctorData: { specialization?: string; phone?: string | null } = {};
     if (data.name !== undefined) {
-      const { firstName, lastName } = splitName(data.name);
+      const { firstName, lastName } = toNameFields(data.name);
       userData.firstName = firstName;
       userData.lastName = lastName;
     }

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 import { apiFetch, ApiError } from "@/lib/api";
-import { phoneDigits } from "@/lib/validation";
+import { phoneDigits, phoneLocalPart } from "@/lib/validation";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
 import { DateInput, parseDmy, toIso } from "../dashboard/DateInput";
@@ -17,7 +17,7 @@ import type { PatientRow } from "./PatientsClient";
 
 const LABEL = "font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-[#1e1e24]";
 const FIELD =
-  "w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/50 focus:border-[#0077c0]";
+  "w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]";
 const REQ = <span className="text-red-500">*</span>;
 const GENDERS = ["M", "F"];
 
@@ -42,7 +42,7 @@ export default function EditPatientModal({
 }) {
   const [name, setName] = useState(patient.name);
   const [dob, setDob] = useState(isoToDmy(patient.dob));
-  const [phone, setPhone] = useState(phoneDigits(patient.phone ?? ""));
+  const [phone, setPhone] = useState(phoneLocalPart(patient.phone));
   const [gender, setGender] = useState(patient.gender ?? "");
   const [email, setEmail] = useState(patient.email ?? "");
   const [saving, setSaving] = useState(false);
@@ -213,7 +213,7 @@ function GenderDropdown({ value, onChange }: { value: string; onChange: (v: stri
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
       >
-        <span className={`font-inter text-[15px] ${value ? "text-[#1e1e24]" : "text-[#1e1e24]/70"}`}>
+        <span className="font-inter text-[15px] text-[#1e1e24]">
           {value || "Select"}
         </span>
         <Image

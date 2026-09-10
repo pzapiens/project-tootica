@@ -69,7 +69,7 @@ export function DateInput({
           onFocus={() => setOpen(false)}
           placeholder={placeholder}
           inputMode="numeric"
-          className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/70"
+          className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]"
         />
         <button
           type="button"

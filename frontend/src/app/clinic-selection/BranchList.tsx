@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState } from "react";
 
+import { Tip } from "@/components/HoverTip";
+
 export type Branch = {
   id: string;
   branch: string;
@@ -73,7 +75,7 @@ export default function BranchList({
             }}
             className={[
               "grid cursor-pointer grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-[28px] border-[1.5px] px-6 py-5 text-left transition-colors",
-              "lg:min-h-[125px] lg:grid-cols-[451fr_326fr_283fr_208fr] lg:items-center lg:gap-0 lg:px-7 lg:py-0",
+              "lg:min-h-[125px] lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)] lg:items-center lg:gap-0 lg:px-7 lg:py-0",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               selected
                 ? "border-brand bg-brand text-white"
@@ -135,13 +137,14 @@ export default function BranchList({
                         e.stopPropagation();
                         onEdit(b);
                       }}
-                      className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
+                      className={`group relative flex size-9 items-center justify-center rounded-full border transition-colors ${
                         selected
                           ? "border-white/40 text-white hover:bg-white/10"
                           : "border-field-border text-ink/70 hover:border-brand hover:text-brand"
                       }`}
                     >
                       <EditIcon />
+                      <Tip label="Edit" />
                     </button>
                   )}
                   {onDelete && (
@@ -152,13 +155,14 @@ export default function BranchList({
                         e.stopPropagation();
                         onDelete(b);
                       }}
-                      className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
+                      className={`group relative flex size-9 items-center justify-center rounded-full border transition-colors ${
                         selected
                           ? "border-white/40 text-white hover:bg-white/10"
                           : "border-field-border text-ink/70 hover:border-red-500 hover:text-red-500"
                       }`}
                     >
                       <DeleteIcon />
+                      <Tip label="Delete" />
                     </button>
                   )}
                 </span>

@@ -15,7 +15,7 @@ const withUser = {
 /** Fields for provisioning a guest doctor's user + profile. */
 interface GuestDoctorInput {
   firstName: string;
-  lastName: string;
+  lastName: string | null;
   email: string;
   phone?: string;
   specialization?: string;
@@ -75,7 +75,7 @@ export const doctorRepository = {
     clinicId: string,
     id: string,
     userId: string,
-    userData: { firstName?: string; lastName?: string; email?: string },
+    userData: { firstName?: string; lastName?: string | null; email?: string },
     doctorData: { specialization?: string; phone?: string | null },
   ) =>
     prisma.$transaction(async (tx) => {

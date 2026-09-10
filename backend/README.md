@@ -26,7 +26,7 @@ sample appointments — both **wipe** existing data:
 
 ```bash
 npm run db:provision            # 1 super admin + 2 clinics × 2 branches + staff
-npm run db:seed:appointments    # ~30 appointments per clinic + patients
+npm run db:seed:appointments    # ~38 appointments per clinic (8 pending WhatsApp) + patients
 ```
 
 `npm run setup` is idempotent — safe to re-run. It won't overwrite an existing
@@ -66,8 +66,21 @@ Seed scripts (all refuse to run with `NODE_ENV=production`):
   (the receptionist is the branch's person-in-charge). Client admins are
   clinic-wide. Every account is pre-onboarded (known password, no forced reset),
   and each entity gets a display code (`CL-…`, `BR-…`, `DOC-…`). Wipes first.
-- **`npm run db:seed:appointments`** — tops up patients and adds ~30 appointments
-  per clinic across the previous months (deterministic, replayable).
+- **`npm run db:seed:appointments`** — tops up patients and adds ~30 past
+  appointments per clinic plus 8 **pending WhatsApp bookings** (SCHEDULED → the
+  "Pending" badge; unassigned doctor, no time slot, dated today onward). These
+  surface only in the appointments page's **"WhatsApp Appointments" popup** (not
+  the main table) to exercise the accept/reject flow — accepting flips one to
+  CONFIRMED and it then lists in the main table. Each carries a
+  **consultation type** + **lead source** drawn from the canonical form lists, so
+  the appointments table + edit prefill show real values (deterministic,
+  replayable).
+- **`npm run db:seed:whatsapp`** — leaves each clinic with **exactly 5 pending
+  WhatsApp bookings** (SCHEDULED, unassigned doctor, no time slot) for exercising
+  the accept / reject flow. It first clears the clinic's existing pending
+  (SCHEDULED) rows, then inserts a fresh set of 5, so re-running always gives a
+  clean, predictable set. Only touches SCHEDULED rows — confirmed / completed /
+  cancelled history is left untouched.
 - **`npm run db:seed`** — an older, richer sample set (3 clinics, guest doctors,
   weekly shifts). Not the documented dataset.
 
@@ -119,6 +132,7 @@ Stop with `docker compose down` (add `-v` to also wipe the database volume).
 | `npm run db:seed:all`     | **One-shot full seed**: accounts + branches + doctor shifts + patients + past/today/upcoming appointments — wipes first |
 | `npm run db:provision`    | Seed the documented dataset (2 clinics × 2 branches) — wipes first |
 | `npm run db:seed:appointments` | Add sample patients + appointments      |
+| `npm run db:seed:whatsapp` | Reset each clinic to 5 pending WhatsApp bookings |
 | `npm run db:studio`       | Open Prisma Studio                           |
 | `npm run db:reset`        | Drop, re-migrate and re-seed the database    |
 
@@ -227,8 +241,11 @@ Full request/response JSON shapes for every endpoint (built and planned) are in
   and `DELETE` operate on guest doctors only and **reject employed doctors** (role
   `DOCTOR`, managed via the account flow) with 403
 - `GET/POST/PATCH/DELETE /api/appointments` — tenant-scoped CRUD. The list joins
-  patient + doctor and accepts `from`/`to`/`status`/`limit` filters. `POST` takes
-  a `nonMandatory` flag: when **false** it enforces **business hours (9 AM–6 PM)**
+  patient + doctor and accepts `from`/`to`/`status`/`limit` filters. `doctorId`
+  is **optional** — an appointment may be left **unassigned** (WhatsApp bookings
+  arrive with no doctor, and the date-&-time flow lets staff save without one);
+  the double-booking check only runs when a doctor is set. `POST` takes a
+  `nonMandatory` flag: when **false** it enforces **business hours (9 AM–6 PM)**
   and rejects a **doctor double-booking**; when **true** it skips both. A no-time
   booking is stored as zero-duration (`startTime == endTime`).
 - `GET /api/appointments/availability?date=&from=&to=&doctorId=&excludeAppointmentId=`

@@ -30,7 +30,12 @@ export const createDoctorSchema = z.object({
 /** Editing a guest doctor's profile — all fields optional (partial update). */
 export const updateDoctorSchema = z.object({
   name: z.string().min(1).optional(),
-  email: z.string().email('Enter a valid email address').optional(),
+  // Blank is treated as absent (a guest doctor may have no email), matching
+  // create; when given it must be a valid email.
+  email: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().email('Enter a valid email address').optional(),
+  ),
   phone: optionalPhone,
   specialization: z.string().optional(),
 });

@@ -23,6 +23,7 @@
     "db:seed:all": "tsx prisma/seed-all.ts",
     "db:provision": "tsx prisma/provision.ts",
     "db:seed:appointments": "tsx prisma/seed-appointments.ts",
+    "db:seed:whatsapp": "tsx prisma/seed-whatsapp.ts",
     "db:reset": "prisma migrate reset",
     "postinstall": "prisma generate"
   },

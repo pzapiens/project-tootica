@@ -9,6 +9,8 @@ import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import DeletePatientDialog from "./DeletePatientDialog";
 import EditPatientModal from "./EditPatientModal";
 import NewPatientModal from "./NewPatientModal";
+import { Tip } from "@/components/HoverTip";
+
 import FilterPanel, { type SortKey } from "./FilterPanel";
 
 /** A patient row enriched with the derived age + most-recent visit. */
@@ -235,12 +237,12 @@ export default function PatientsClient() {
   }
 
   return (
-    // Fill the panel's content area so the pagination pins to the bottom and only
-    // the table body scrolls (Figma "Patients": fixed pagination bar under a
-    // scrolling table). Height ≈ viewport − main padding (19*2) − panel padding
-    // (24*2 base / 42*2 md), divided by the shell's 0.9 zoom. The constant is
-    // trimmed by 10px so the bottom gap matches the top (no extra space below).
-    <div className="flex h-[calc((100dvh-76px)/0.9)] flex-col gap-[24px] md:h-[calc((100dvh-112px)/0.9)]">
+    // flex-1 fills the shell's content column (which is sized to the scroll
+    // viewport) so the pagination footer pins to the page bottom via mt-auto
+    // when the table is short; once the rows overflow, the page scrolls and the
+    // footer follows the last row (Figma "Patients": pagination bar under the
+    // table).
+    <div className="flex flex-1 flex-col gap-[24px]">
       {/* Header */}
       <div className="flex shrink-0 items-center gap-[19px]">
         <h1 className="flex-1 font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
@@ -256,11 +258,12 @@ export default function PatientsClient() {
         </button>
         <IconButton
           label="Filter patients"
+          tip="Filter"
           onClick={() => setFilterOpen(true)}
           icon="/dashboard/filter_alt.svg"
           badge={sorts.length}
         />
-        <IconButton label="Export patients to CSV" onClick={exportCsv} icon="/dashboard/download.svg" />
+        <IconButton label="Export patients to CSV" tip="Export" onClick={exportCsv} icon="/dashboard/download.svg" />
       </div>
 
       {/* Search + count */}
@@ -291,14 +294,18 @@ export default function PatientsClient() {
       </div>
 
       {/* Table — fills the space between search and pagination; the body scrolls. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white">
+      <div className="flex flex-col overflow-hidden rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white">
         {/* Header row (fixed) */}
-        <div className="grid shrink-0 grid-cols-[104fr_198fr_150fr_212fr_94fr_204fr_164fr] border-b-[1.2px] border-[rgba(194,198,212,0.5)]">
+        <div className="grid shrink-0 grid-cols-[minmax(0,104fr)_minmax(0,198fr)_minmax(0,150fr)_minmax(0,212fr)_minmax(0,94fr)_minmax(0,204fr)_minmax(160px,164fr)] items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)]">
           {["ID", "Patient Name", "Phone", "Email", "Age / Gender", "Last Clinic Visit", "Actions"].map(
             (h) => (
               <span
                 key={h}
-                className="px-[29px] py-[26px] text-left font-inter text-[14px] font-semibold uppercase leading-[19px] tracking-[0.7px] text-[#727783]"
+                // The Actions cell's content is padded to px-[20px] (tighter, to
+                // fit its icon buttons), so its header matches that start.
+                className={`py-[26px] text-left font-inter text-[14px] font-semibold uppercase leading-[19px] tracking-[0.7px] text-[#727783] ${
+                  h === "Actions" ? "px-[20px]" : "px-[29px]"
+                }`}
               >
                 {h}
               </span>
@@ -306,8 +313,8 @@ export default function PatientsClient() {
           )}
         </div>
 
-        {/* Body (scrolls) */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Body */}
+        <div>
           {loading ? (
             <p className="px-[29px] py-10 font-inter text-[16px] text-[#94a3b8]">Loading patients…</p>
           ) : total === 0 ? (
@@ -327,10 +334,11 @@ export default function PatientsClient() {
         </div>
       </div>
 
-      {/* Footer: records + per-page + pagination. A fixed bar at the bottom of
-          the panel (Figma "Pagination"); the table body above it scrolls. */}
+      {/* Footer: records + per-page + pagination. mt-auto pins it to the page
+          bottom when the table is too short to scroll; it follows the rows once
+          the table overflows (Figma "Pagination"). */}
       {!loading && total > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
+        <div className="mt-auto flex shrink-0 flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-[24px]">
             <span className="font-inter text-[15px] leading-[22px] text-[#1e1e24]">
               Showing {firstRow}-{lastRow} of {total} records
@@ -389,11 +397,14 @@ export default function PatientsClient() {
  *  small count badge (e.g. active filters) when `badge` is a positive number. */
 function IconButton({
   label,
+  tip,
   onClick,
   icon,
   badge = 0,
 }: {
   label: string;
+  /** Short hover-tooltip text (falls back to `label`). */
+  tip?: string;
   onClick: () => void;
   icon: string;
   badge?: number;
@@ -403,7 +414,7 @@ function IconButton({
       type="button"
       aria-label={badge > 0 ? `${label} (${badge} active)` : label}
       onClick={onClick}
-      className="relative flex size-[54px] items-center justify-center rounded-full border-[1.4px] border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
+      className="group relative flex size-[54px] items-center justify-center rounded-full border-[1.4px] border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
     >
       <Image src={icon} alt="" width={28} height={28} className="size-7" />
       {badge > 0 && (
@@ -411,6 +422,7 @@ function IconButton({
           {badge}
         </span>
       )}
+      <Tip label={tip ?? label} below />
     </button>
   );
 }
@@ -425,7 +437,7 @@ function PatientRowView({
   onDelete: () => void;
 }) {
   return (
-    <div className="grid grid-cols-[104fr_198fr_150fr_212fr_94fr_204fr_164fr] items-start border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0">
+    <div className="grid grid-cols-[minmax(0,104fr)_minmax(0,198fr)_minmax(0,150fr)_minmax(0,212fr)_minmax(0,94fr)_minmax(0,204fr)_minmax(160px,164fr)] items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0">
       {/* ID */}
       <span className="px-[29px] py-[24px] text-left font-inter text-[16px] font-medium leading-[24px] text-[#1e1e24]">
         {patient.code ?? "—"}
@@ -459,18 +471,21 @@ function PatientRowView({
       </div>
       {/* Actions */}
       <div className="flex items-center justify-start gap-[8px] px-[20px] py-[24px]">
-        <button type="button" onClick={onEdit} aria-label={`Edit ${patient.name}`} className="flex size-[34px] items-center justify-center">
+        <button type="button" onClick={onEdit} aria-label={`Edit ${patient.name}`} className="group relative flex size-[34px] items-center justify-center">
           <Image src="/dashboard/edit_square.svg" alt="" width={24} height={24} className="size-6" />
+          <Tip label="Edit" />
         </button>
         <button
           type="button"
           aria-label={`Book appointment for ${patient.name}`}
-          className="flex size-[34px] items-center justify-center opacity-90"
+          className="group relative flex size-[34px] items-center justify-center opacity-90"
         >
           <Image src="/dashboard/book_appointment.svg" alt="" width={24} height={24} className="size-6" />
+          <Tip label="Appointments" />
         </button>
-        <button type="button" onClick={onDelete} aria-label={`Delete ${patient.name}`} className="flex size-[34px] items-center justify-center">
+        <button type="button" onClick={onDelete} aria-label={`Delete ${patient.name}`} className="group relative flex size-[34px] items-center justify-center">
           <Image src="/dashboard/delete.svg" alt="" width={24} height={24} className="size-6" />
+          <Tip label="Delete" />
         </button>
       </div>
     </div>

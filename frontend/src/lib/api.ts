@@ -293,15 +293,17 @@ export function honorific(user: Pick<PublicUser, "title" | "role">): string {
 }
 
 /**
- * First name for greetings, prefixed with "Dr" only for doctors. Non-doctor
- * titles (Mr/Mrs/Ms) are intentionally omitted from greetings.
+ * First name for greetings, prefixed with the user's salutation — "Dr" for
+ * doctors (from their role), otherwise their chosen title (Mr/Mrs/Ms) set at
+ * account creation. Shown in the title area of the dashboard and
+ * clinic-selection pages (e.g. "Dr. Sanjay", "Mr. Sanjay").
  */
 export function greetingLabel(
-  user: Pick<PublicUser, "role" | "firstName" | "email">,
+  user: Pick<PublicUser, "role" | "firstName" | "email" | "title">,
 ): string {
   const first = user.firstName?.trim() || user.email.split("@")[0];
-  const isDoctor = user.role === "DOCTOR" || user.role === "GUEST_DOCTOR";
-  return isDoctor ? `Dr ${first}` : first;
+  const salutation = honorific(user);
+  return salutation ? `${salutation}. ${first}` : first;
 }
 
 /**
@@ -371,7 +373,8 @@ export interface AppointmentListItem {
     gender: string | null;
   };
   doctor: {
-    id: string;
+    /** Null when no doctor is assigned (unassigned / WhatsApp booking). */
+    id: string | null;
     name: string | null;
     specialization: string | null;
   };

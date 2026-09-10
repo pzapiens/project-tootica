@@ -77,7 +77,7 @@ export type StatKey = keyof StatCounts;
 export const STAT_CARDS = [
   { key: "total", label: "Total Appointments", icon: "/dashboard/stat_productivity.svg" },
   { key: "completed", label: "Total Appointments Completed", icon: "/dashboard/stat_event_available.svg" },
-  { key: "pending", label: "Total Appointments Pending", icon: "/dashboard/stat_hourglass_empty.svg" },
+  { key: "pending", label: "Total Appointments Upcoming", icon: "/dashboard/stat_hourglass_empty.svg" },
   { key: "cancelled", label: "Total Appointments Cancelled", icon: "/dashboard/stat_cancel.svg" },
 ] as const;
 

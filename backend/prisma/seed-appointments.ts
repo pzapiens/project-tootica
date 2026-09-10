@@ -18,6 +18,11 @@ import { prisma } from '../src/common/db/prisma';
 import type { AppointmentStatus } from '../src/generated/prisma/enums';
 
 const APPOINTMENTS_PER_CLINIC = 30;
+// Pending "WhatsApp" bookings per clinic. A WhatsApp booking always arrives
+// SCHEDULED (→ "Pending") with NO doctor and NO time slot — the patient can't
+// pick either when booking over WhatsApp. These surface only in the "WhatsApp
+// Appointments" popup (not the main table) until staff accept them.
+const WHATSAPP_PENDING_PER_CLINIC = 8;
 const MIN_PATIENTS_PER_CLINIC = 10;
 const WINDOW_MONTHS = 6; // how far back the date window reaches
 
@@ -53,12 +58,47 @@ const MEDICAL_NOTES = [
 const STATUS_WEIGHTS: Array<[AppointmentStatus, number]> = [
   ['COMPLETED', 68], ['NO_SHOW', 14], ['CANCELLED', 14], ['CONFIRMED', 4],
 ];
+// Canonical consultation types + lead sources — must mirror the frontend form
+// (src/app/clinic-selection/[code]/dashboard/AppointmentFormStep.tsx) so seeded
+// rows show values the dropdowns also offer.
+const CONSULTATION_TYPES = [
+  'GENERAL CONSULTATION / XRAY',
+  'ROOT CANAL TREATMENT',
+  'RE ROOT CANAL TREATMENT',
+  'CROWN / VENEER / FPD',
+  'EXTRACTION / SURGICAL EXTRACTION',
+  'SCALING',
+  'RESTORATION',
+  'TEETH WHITENING',
+  'ORTHODONTIC TREATMENT BRACES / ALIGNERS',
+  'PEDODONTIC TREATMENT',
+  'RPD / CD',
+  'IMPLANTS',
+  'TMJ DISORDERS',
+  'GUM RELATED TREATMENTS',
+  'INTRAORAL SCANNING',
+  'OTHER LASER TREATMENTS',
+  'OTHERS',
+];
+const LEAD_SOURCES = [
+  'INSTAGRAM',
+  'FACEBOOK',
+  'WHATSAPP',
+  'GOOGLE SEARCH',
+  'WEBSITE',
+  'BOARD / SIGNBOARD',
+  'PATIENT REFERRAL',
+  'DOCTOR REFERRAL',
+  'CAMP / DENTAL CAMP',
+  'ONLINE ADS',
+  'OTHERS',
+];
 const APPOINTMENT_NOTES: Record<AppointmentStatus, string[]> = {
   COMPLETED: ['Routine check-up', 'Scaling & polishing', 'Filling', 'Follow-up review', 'Root canal — session complete'],
   NO_SHOW: ['Patient did not attend', 'No show — did not call'],
   CANCELLED: ['Cancelled by patient', 'Rescheduled — cancelled slot'],
   CONFIRMED: ['Consultation', 'Whitening consultation'],
-  SCHEDULED: ['Consultation'],
+  SCHEDULED: ['Consultation', 'New booking — awaiting confirmation', 'Requested appointment', 'Follow-up requested'],
 };
 
 function weightedStatus(): AppointmentStatus {
@@ -165,6 +205,8 @@ async function main(): Promise<void> {
           startTime: start,
           endTime: end,
           status,
+          consultationType: pick(CONSULTATION_TYPES),
+          sourceOfEnquiry: pick(LEAD_SOURCES),
           notes: pick(APPOINTMENT_NOTES[status]),
           createdAt: start,
         },
@@ -172,7 +214,42 @@ async function main(): Promise<void> {
       grandTotal += 1;
     }
 
-    console.log(`  ${clinic.name}: ${dates.length} appointments (${patients.length} patients)`);
+    // PENDING WhatsApp bookings (future-dated, no doctor, no time) so the
+    // accept/reject flow is demoable. They mimic a patient booking via WhatsApp:
+    // the doctor is unassigned and no time slot is chosen yet (zero-duration →
+    // shown as "--"). They appear in the "WhatsApp Appointments" popup; staff
+    // accept them (→ CONFIRMED, now in the main table), then edit to assign a
+    // doctor/time.
+    const today = new Date();
+    for (let i = 0; i < WHATSAPP_PENDING_PER_CLINIC; i += 1) {
+      const day = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + randInt(1, 14),
+        0, 0, 0, 0,
+      );
+      await prisma.appointment.create({
+        data: {
+          clinicId: clinic.id,
+          code: await nextAppointmentCode(clinic.id),
+          patientId: pick(patients).id,
+          doctorId: null,
+          startTime: day,
+          endTime: day,
+          status: 'SCHEDULED',
+          consultationType: pick(CONSULTATION_TYPES),
+          sourceOfEnquiry: 'WHATSAPP',
+          notes: pick(APPOINTMENT_NOTES.SCHEDULED),
+          createdAt: today,
+        },
+      });
+      grandTotal += 1;
+    }
+
+    console.log(
+      `  ${clinic.name}: ${dates.length + WHATSAPP_PENDING_PER_CLINIC} appointments ` +
+        `(${WHATSAPP_PENDING_PER_CLINIC} pending WhatsApp, ${patients.length} patients)`,
+    );
   }
 
   console.log(`\nDone. ${grandTotal} appointments across ${clinics.length} clinics.`);

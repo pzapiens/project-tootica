@@ -15,6 +15,7 @@ import {
   type BlockedSlot,
   type StoredShift,
 } from "@/lib/shifts";
+import { Tip } from "@/components/HoverTip";
 
 import { parseDmy } from "./DateInput";
 
@@ -285,6 +286,16 @@ export default function DoctorAvailabilityModal({
   function shiftDay(delta: number) {
     setView((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + delta));
   }
+  function goToday() {
+    const n = new Date();
+    setView(new Date(n.getFullYear(), n.getMonth(), n.getDate()));
+  }
+  // Whether the viewed day is the present day, so it can be flagged as "Today".
+  const now = new Date();
+  const isToday =
+    view.getFullYear() === now.getFullYear() &&
+    view.getMonth() === now.getMonth() &&
+    view.getDate() === now.getDate();
   function setMonth(m: number) {
     setView((d) => new Date(d.getFullYear(), m, d.getDate()));
   }
@@ -406,11 +417,17 @@ export default function DoctorAvailabilityModal({
               >
                 <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6" />
               </button>
+              {/* The present day is shown in blue (day + date); any other day in
+                  black — the only "today" indicator, keeping the original layout. */}
               <div className="flex flex-col items-center">
                 <span className="font-inter text-[12px] font-semibold uppercase leading-[16px] tracking-[1.2px] text-[#1e1e24]">
                   {MONTHS[view.getMonth()]} {view.getFullYear()}
                 </span>
-                <span className="font-manrope text-[24px] font-semibold leading-[32px] text-[#1e1e24]">
+                <span
+                  className={`font-manrope text-[24px] font-semibold leading-[32px] ${
+                    isToday ? "text-[#0077c0]" : "text-[#1e1e24]"
+                  }`}
+                >
                   {WEEKDAYS[view.getDay()]}, {view.getDate()}
                 </span>
               </div>
@@ -424,19 +441,36 @@ export default function DoctorAvailabilityModal({
               </button>
             </div>
 
-            <div className="flex items-start gap-[8px]">
-              <PickerButton
-                label={MONTHS[view.getMonth()]}
-                options={MONTHS.map((m, i) => ({ label: m, value: i }))}
-                selected={view.getMonth()}
-                onSelect={setMonth}
-              />
-              <PickerButton
-                label={String(view.getFullYear())}
-                options={years.map((y) => ({ label: String(y), value: y }))}
-                selected={view.getFullYear()}
-                onSelect={setYear}
-              />
+            <div className="flex flex-col items-end gap-[10px]">
+              <div className="flex items-start gap-[8px]">
+                <PickerButton
+                  label={MONTHS[view.getMonth()]}
+                  options={MONTHS.map((m, i) => ({ label: m, value: i }))}
+                  selected={view.getMonth()}
+                  onSelect={setMonth}
+                />
+                <PickerButton
+                  label={String(view.getFullYear())}
+                  options={years.map((y) => ({ label: String(y), value: y }))}
+                  selected={view.getFullYear()}
+                  onSelect={setYear}
+                />
+              </div>
+              {/* Jump-to-today, placed below the month/year dropdowns. */}
+              <button
+                type="button"
+                onClick={goToday}
+                disabled={isToday}
+                aria-label="Go to today"
+                title={isToday ? "Showing today" : "Go to today"}
+                className={`rounded-[8px] border px-[16px] py-[8px] font-inter text-[14px] font-medium transition-colors ${
+                  isToday
+                    ? "cursor-default border-[#c2c6d4] text-[#94a3b8]"
+                    : "border-[#0077c0] text-[#0077c0] hover:bg-[#0077c0]/[.06]"
+                }`}
+              >
+                Today
+              </button>
             </div>
           </div>
 
@@ -606,17 +640,19 @@ export default function DoctorAvailabilityModal({
                         type="button"
                         aria-label={`Edit block ${fmtMin(b.startMin)} to ${fmtMin(b.endMin)}`}
                         onClick={() => editBlock(b)}
-                        className="flex size-[28px] items-center justify-center"
+                        className="group relative flex size-[28px] items-center justify-center"
                       >
                         <Image src="/dashboard/edit_square.svg" alt="" width={18} height={18} className="size-[18px]" />
+                        <Tip label="Edit" />
                       </button>
                       <button
                         type="button"
                         aria-label={`Remove block ${fmtMin(b.startMin)} to ${fmtMin(b.endMin)}`}
                         onClick={() => removeBlock(b.id)}
-                        className="flex size-[28px] items-center justify-center"
+                        className="group relative flex size-[28px] items-center justify-center"
                       >
                         <Image src="/dashboard/delete.svg" alt="" width={18} height={18} className="size-[18px]" />
+                        <Tip label="Delete" />
                       </button>
                     </div>
                   </div>

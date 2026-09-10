@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { apiFetch, type AppointmentListItem } from "@/lib/api";
+import { statusColor } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
 import { chipTime, groupByDay, type CalAppointment, type CalStatus } from "./calendar-mock";
@@ -235,7 +236,9 @@ export default function FullCalendarView() {
             setSelectedDay(null);
             setSelectedAppt(null);
           }}
-          onView={() => router.push(`/clinic-selection/${code}/appointments`)}
+          onView={(apptId) =>
+            router.push(`/clinic-selection/${code}/appointments?q=${encodeURIComponent(apptId)}`)
+          }
         />
       )}
     </div>
@@ -244,31 +247,11 @@ export default function FullCalendarView() {
 
 /* ------------------------------------------------------------------ chips */
 
-const CHIP_STYLE: Record<CalStatus, { box: string; dot: string; text: string }> = {
-  Completed: {
-    box: "bg-[#f1f5f9] border border-[#1e1e24]",
-    dot: "bg-[#1e1e24]",
-    text: "text-[#1e1e24] font-normal",
-  },
-  Ongoing: {
-    box: "bg-[#0077c0] border border-[#0077c0]",
-    dot: "bg-white",
-    text: "text-white font-bold",
-  },
-  Upcoming: {
-    box: "bg-[#f0fdf4] border border-[#45b56e] opacity-80",
-    dot: "bg-[#16a34a]",
-    text: "text-[#16a34a] font-normal",
-  },
-  Cancelled: {
-    box: "bg-[#f9f1f1] border border-[#ab2222] opacity-80",
-    dot: "bg-[#ab2222]",
-    text: "text-[#ab2222] font-normal line-through",
-  },
-};
-
 function ApptChip({ appt, onOpen }: { appt: CalAppointment; onOpen: (e: React.MouseEvent) => void }) {
-  const s = CHIP_STYLE[appt.status];
+  const c = statusColor(appt.status);
+  // Solid statuses (On going) fill with the accent + white content; the rest are
+  // a light tint with the accent used for the border, dot and text.
+  const fg = c.solid ? "#ffffff" : c.accent;
   return (
     <span
       role="button"
@@ -277,10 +260,16 @@ function ApptChip({ appt, onOpen }: { appt: CalAppointment; onOpen: (e: React.Mo
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onOpen(e as unknown as React.MouseEvent);
       }}
-      className={`flex items-center gap-[6px] overflow-hidden rounded-[5px] p-[5px] ${s.box}`}
+      className={`flex items-center gap-[6px] overflow-hidden rounded-[5px] border p-[5px] ${c.solid ? "" : c.bg}`}
+      style={{ borderColor: c.accent, backgroundColor: c.solid ? c.accent : undefined }}
     >
-      <span className={`size-[6.6px] shrink-0 rounded-full ${s.dot}`} />
-      <span className={`truncate font-inter text-[11px] leading-[16px] ${s.text}`}>
+      <span className="size-[6.6px] shrink-0 rounded-full" style={{ backgroundColor: fg }} />
+      <span
+        className={`truncate font-inter text-[11px] leading-[16px] ${
+          appt.status === "Cancelled" ? "line-through" : ""
+        }`}
+        style={{ color: fg }}
+      >
         {chipTime(appt.start)} - {appt.shortName}
       </span>
     </span>
@@ -290,12 +279,13 @@ function ApptChip({ appt, onOpen }: { appt: CalAppointment; onOpen: (e: React.Mo
 /* ----------------------------------------------------------------- legend */
 
 function Legend() {
+  const items: CalStatus[] = ["Completed", "Ongoing", "Upcoming", "Cancelled"];
   return (
     <div className="flex items-center gap-[18px]">
-      <LegendDot color="#1e1e24" text="#1e1e24" label="Completed" />
-      <LegendDot color="#0077c0" text="#0077c0" label="Ongoing" />
-      <LegendDot color="#16a34a" text="#16a34a" label="Upcoming" />
-      <LegendDot color="#ab2222" text="#ab2222" label="Cancelled" />
+      {items.map((s) => {
+        const { accent } = statusColor(s);
+        return <LegendDot key={s} color={accent} text={accent} label={s} />;
+      })}
     </div>
   );
 }
@@ -400,7 +390,7 @@ function SlideOver({
   onSelectAppt: (a: CalAppointment) => void;
   onBack: () => void;
   onClose: () => void;
-  onView: () => void;
+  onView: (apptId: string) => void;
 }) {
   const heading = `Appointments - ${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   if (typeof document === "undefined") return null;
@@ -445,29 +435,6 @@ function SlideOver({
   );
 }
 
-const CARD_STYLE: Record<CalStatus, { box: string; time: string; name: string; sub: string; badge: string; badgeText: string }> = {
-  Completed: {
-    box: "bg-[#f1f5f9] border border-[#1e1e24]",
-    time: "text-[#1e1e24]", name: "text-[#1e1e24]", sub: "text-[#1e1e24]",
-    badge: "border border-[#1e1e24]", badgeText: "text-[#1e1e24]",
-  },
-  Ongoing: {
-    box: "bg-[#0077c0]",
-    time: "text-white", name: "text-white", sub: "text-white",
-    badge: "bg-white", badgeText: "text-[#0077c0]",
-  },
-  Upcoming: {
-    box: "bg-[#f0fdf4] border border-[#16a34a]",
-    time: "text-[#1e1e24]", name: "text-[#1e1e24]", sub: "text-[#1e1e24]",
-    badge: "border border-[#16a34a]", badgeText: "text-[#16a34a]",
-  },
-  Cancelled: {
-    box: "bg-[#f9f1f1] border border-[#ab2222]",
-    time: "text-[#1e1e24]", name: "text-[#1e1e24]", sub: "text-[#1e1e24]",
-    badge: "border border-[#ab2222]", badgeText: "text-[#ab2222]",
-  },
-};
-
 const BADGE_LABEL: Record<CalStatus, string> = {
   Completed: "COMPLETED",
   Ongoing: "ON GOING",
@@ -476,24 +443,38 @@ const BADGE_LABEL: Record<CalStatus, string> = {
 };
 
 function ApptListCard({ appt, onClick }: { appt: CalAppointment; onClick: () => void }) {
-  const s = CARD_STYLE[appt.status];
+  const c = statusColor(appt.status);
+  const solid = !!c.solid;
+  // Solid statuses fill with the accent + white content; light ones keep dark
+  // content on a tint and carry the accent only on the border + badge.
+  const contentColor = solid ? "#ffffff" : "#1e1e24";
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-[10px] p-[15px] text-left transition-opacity hover:opacity-95 ${s.box}`}
+      className={`flex w-full items-center justify-between rounded-[10px] border p-[15px] text-left transition-opacity hover:opacity-95 ${
+        solid ? "" : c.bg
+      }`}
+      style={{ borderColor: c.accent, backgroundColor: solid ? c.accent : undefined }}
     >
       <div className="flex flex-col gap-[3px]">
-        <span className={`font-manrope text-[13px] font-medium leading-[19px] ${s.time}`}>
+        <span className="font-manrope text-[13px] font-medium leading-[19px]" style={{ color: contentColor }}>
           {appt.start === "--" ? "--" : `${appt.start} - ${appt.end}`}
         </span>
-        <span className={`font-manrope text-[19px] font-semibold leading-[27px] ${s.name}`}>
+        <span className="font-manrope text-[19px] font-semibold leading-[27px]" style={{ color: contentColor }}>
           {appt.patientName}
         </span>
-        <span className={`font-inter text-[13px] leading-[19px] ${s.sub}`}>{appt.consultationType}</span>
+        <span className="font-inter text-[13px] leading-[19px]" style={{ color: contentColor }}>
+          {appt.consultationType}
+        </span>
       </div>
       <span
-        className={`shrink-0 rounded-[11.5px] px-[8px] py-[2px] font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px] ${s.badge} ${s.badgeText}`}
+        className="shrink-0 rounded-[11.5px] border px-[8px] py-[2px] font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px]"
+        style={
+          solid
+            ? { backgroundColor: "#ffffff", color: c.accent, borderColor: "#ffffff" }
+            : { color: c.accent, borderColor: c.accent }
+        }
       >
         {BADGE_LABEL[appt.status]}
       </span>
@@ -501,7 +482,7 @@ function ApptListCard({ appt, onClick }: { appt: CalAppointment; onClick: () => 
   );
 }
 
-function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; onView: () => void }) {
+function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; onView: (apptId: string) => void }) {
   const dateLabel = `${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   return (
     <>
@@ -562,7 +543,7 @@ function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; 
       <div className="shrink-0 border-t border-[#c2c6d4] px-[30px] pb-[30px] pt-[30px]">
         <button
           type="button"
-          onClick={onView}
+          onClick={() => onView(appt.apptId)}
           className="w-full rounded-[50px] bg-[#0077c0] py-[15px] text-center font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px] text-white transition-colors hover:bg-[#0069a8]"
         >
           View Appointment
@@ -614,18 +595,11 @@ function DetailRow({
 }
 
 function StatusPill({ status }: { status: CalStatus }) {
-  const bg =
-    status === "Completed"
-      ? "#1e1e24"
-      : status === "Ongoing"
-        ? "#0077c0"
-        : status === "Cancelled"
-          ? "#ab2222"
-          : "#16a34a";
+  const { accent } = statusColor(status);
   return (
     <span
       className="flex items-center gap-[4px] rounded-[11.5px] px-[11px] py-[3.5px] font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px] text-white"
-      style={{ backgroundColor: bg }}
+      style={{ backgroundColor: accent }}
     >
       <span className="size-[9px] rounded-full bg-white" />
       {status}

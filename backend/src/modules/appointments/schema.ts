@@ -10,7 +10,9 @@ export const appointmentStatuses = [
 
 const appointmentBase = z.object({
   patientId: z.string().min(1),
-  doctorId: z.string().min(1),
+  // Optional: WhatsApp bookings and the date-&-time flow may leave the doctor
+  // unassigned.
+  doctorId: z.string().min(1).optional(),
   startTime: z.coerce.date(),
   endTime: z.coerce.date(),
   status: z.enum(appointmentStatuses).optional(),

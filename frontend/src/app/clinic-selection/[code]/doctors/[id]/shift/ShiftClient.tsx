@@ -5,9 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { apiFetch, ApiError, type DoctorSummary } from "@/lib/api";
-import { phoneDigits, phoneWithCc } from "@/lib/validation";
+import { phoneDigits, phoneLocalPart, phoneWithCc } from "@/lib/validation";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { fetchShifts, saveShifts } from "@/lib/shifts";
+import { Tip } from "@/components/HoverTip";
 
 import { SPECIALIZATIONS } from "../../constants";
 
@@ -165,7 +166,7 @@ export default function ShiftClient() {
         if (found) {
           setName(found.name ? `Dr. ${found.name}` : "");
           setEmail(found.email ?? "");
-          setPhone(phoneDigits(found.phone ?? ""));
+          setPhone(phoneLocalPart(found.phone));
           setSpec(found.specialization ?? "");
         }
       })
@@ -238,7 +239,15 @@ export default function ShiftClient() {
         }),
       });
       setDoctor((d) =>
-        d ? { ...d, name: name.trim().replace(/^dr\.?\s+/i, ""), email, specialization: spec } : d,
+        d
+          ? {
+              ...d,
+              name: name.trim().replace(/^dr\.?\s+/i, ""),
+              email,
+              phone: phone ? phoneWithCc(phone) : null,
+              specialization: spec,
+            }
+          : d,
       );
       setDetailsSaved(true);
       setTimeout(() => setDetailsSaved(false), 1600);
@@ -467,7 +476,7 @@ export default function ShiftClient() {
 
       {/* Shifts table */}
       <div className="overflow-hidden rounded-[16px] border-[1.2px] border-[#c2c6d4]">
-        <div className="grid grid-cols-[1fr_1fr_1.4fr_120px] border-b-[1.2px] border-[rgba(194,198,212,0.5)] bg-[#f8fafc]">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_120px] border-b-[1.2px] border-[rgba(194,198,212,0.5)] bg-[#f8fafc]">
           {["Frequency", "Day/Date", "Shift Timing", "Action"].map((h) => (
             <span
               key={h}
@@ -485,7 +494,7 @@ export default function ShiftClient() {
           sortedShifts.map((s) => (
             <div
               key={s.id}
-              className="grid grid-cols-[1fr_1fr_1.4fr_120px] items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0"
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_120px] items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0"
             >
               <span className="px-[24px] py-[18px] font-inter text-[15px] text-[#1e1e24]">{s.frequency}</span>
               <span className="px-[24px] py-[18px] font-inter text-[15px] text-[#1e1e24]">{s.date}</span>
@@ -495,17 +504,19 @@ export default function ShiftClient() {
                   type="button"
                   aria-label={`Edit shift on ${s.date}`}
                   onClick={() => editShift(s)}
-                  className="flex size-[32px] items-center justify-center"
+                  className="group relative flex size-[32px] items-center justify-center"
                 >
                   <Image src="/dashboard/edit_square.svg" alt="" width={22} height={22} className="size-[22px]" />
+                  <Tip label="Edit" />
                 </button>
                 <button
                   type="button"
                   aria-label={`Remove shift on ${s.date}`}
                   onClick={() => setPendingDelete(s)}
-                  className="flex size-[32px] items-center justify-center"
+                  className="group relative flex size-[32px] items-center justify-center"
                 >
                   <Image src="/dashboard/delete.svg" alt="" width={22} height={22} className="size-[22px]" />
+                  <Tip label="Delete" />
                 </button>
               </div>
             </div>
@@ -1007,9 +1018,9 @@ function Dropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <span className={`font-inter text-[15px] ${value ? "text-[#1e1e24]" : "text-[#1e1e24]/70"}`}>
+        <span className="font-inter text-[15px] text-[#1e1e24]">
           {value || placeholder}
         </span>
         {disabled ? (

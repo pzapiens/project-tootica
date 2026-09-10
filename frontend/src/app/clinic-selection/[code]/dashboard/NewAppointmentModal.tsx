@@ -76,10 +76,14 @@ function toFound(p: Patient): FoundPatient {
 }
 
 
-/** The form's status labels → backend appointment status enum. */
+/**
+ * The form's status labels → backend appointment status enum. "Upcoming" is the
+ * single active state and maps to `CONFIRMED` (a booked appointment); the raw
+ * `SCHEDULED`/"Pending" state only exists for un-accepted WhatsApp bookings and
+ * isn't a choice in the edit form.
+ */
 const STATUS_TO_BACKEND: Record<string, AppointmentStatus> = {
-  Upcoming: "SCHEDULED",
-  Confirmed: "CONFIRMED",
+  Upcoming: "CONFIRMED",
   Completed: "COMPLETED",
   Cancelled: "CANCELLED",
   "No Show": "NO_SHOW",
@@ -234,9 +238,10 @@ export default function NewAppointmentModal({
     start: string;
     end: string;
   } {
+    // The doctor is optional — an appointment may be left unassigned (e.g. a
+    // WhatsApp booking). Empty string means "no doctor".
     const doctorId =
-      result.doctorId || (result.doctor && doctorByName.get(result.doctor)) || doctors[0]?.id;
-    if (!doctorId) throw new Error("No doctor available to assign.");
+      result.doctorId || (result.doctor && doctorByName.get(result.doctor)) || "";
     const hasTime = Boolean(result.startTime);
     const start = combineDateTime(result.date, result.startTime, hasTime ? 9 : 0);
     if (!start) throw new Error("Pick a valid appointment date.");
@@ -262,10 +267,13 @@ export default function NewAppointmentModal({
       method: "POST",
       body: JSON.stringify({
         patientId: selected.id,
-        doctorId,
+        doctorId: doctorId || undefined,
         startTime: start,
         endTime: end,
-        status: STATUS_TO_BACKEND[result.status] ?? "SCHEDULED",
+        // A staff (web) booking is confirmed immediately — "Upcoming". Only
+        // patient WhatsApp bookings arrive as SCHEDULED ("Pending") for the
+        // clinic to accept/reject.
+        status: "CONFIRMED",
         // Consultation type is now a structured field; `notes` holds the free
         // message only.
         consultationType: result.consultationType || undefined,
@@ -285,10 +293,10 @@ export default function NewAppointmentModal({
     await apiFetch(`/appointments/${edit.id}`, {
       method: "PATCH",
       body: JSON.stringify({
-        doctorId,
+        doctorId: doctorId || undefined,
         startTime: start,
         endTime: end,
-        status: STATUS_TO_BACKEND[result.status] ?? "SCHEDULED",
+        status: STATUS_TO_BACKEND[result.status] ?? "CONFIRMED",
         consultationType: result.consultationType,
         sourceOfEnquiry: result.leadSource,
         notes: result.message,
@@ -653,7 +661,7 @@ function NewPatientStep({
               placeholder="10-digit mobile number"
               inputMode="numeric"
               type="tel"
-              className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/70"
+              className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]"
             />
           </div>
           {phone.length > 0 && phone.length < 10 && (
@@ -709,7 +717,7 @@ function NewPatientStep({
 }
 
 const INPUT_CLASS =
-  "w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/70 focus:border-[#0077c0]";
+  "w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]";
 
 function Field({
   label,
@@ -754,7 +762,7 @@ function GenderDropdown({ value, onChange }: { value: string; onChange: (v: stri
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
       >
-        <span className={`font-inter text-[15px] ${value ? "text-[#1e1e24]" : "text-[#1e1e24]/70"}`}>
+        <span className="font-inter text-[15px] text-[#1e1e24]">
           {value || "Select"}
         </span>
         <Image

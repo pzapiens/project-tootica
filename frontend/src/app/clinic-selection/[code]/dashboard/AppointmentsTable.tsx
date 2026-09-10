@@ -5,7 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { apiFetch, type AppointmentListItem } from "@/lib/api";
 import { useAppointmentsRevision } from "@/lib/appointmentsBus";
+import { bookingChannelLabel } from "@/lib/bookingChannelStore";
+import { statusBadgeClass, statusColor } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
+import { Tip } from "@/components/HoverTip";
 
 import { type Time } from "./AppointmentFormStep";
 import NewAppointmentModal, { type EditAppointment } from "./NewAppointmentModal";
@@ -110,9 +113,11 @@ function toDashboardAppointment(item: AppointmentListItem): DashboardAppointment
   const noTime = item.startTime === item.endTime;
   // Prefer the structured consultation type for the treatment column; fall back
   // to notes for older appointments created before the field existed.
+  // Show only the chosen consultation type; no dummy fallback to notes /
+  // "Consultation" when none was set.
   const treatment = item.consultationType?.trim()
     ? titleCase(item.consultationType.trim())
-    : item.notes?.trim() || "Consultation";
+    : "--";
   return {
     id: item.id,
     patientName: item.patient.name,
@@ -164,28 +169,26 @@ function toEdit(a: DashboardAppointment): EditAppointment {
       // ("Smith"), so strip the honorific for the prefill to match/resolve.
       doctor: a.doctor === "Unassigned" ? "" : a.doctor.replace(/^Dr\.?\s*/i, ""),
       status: a.status,
+      bookingChannel: bookingChannelLabel(a.id),
+      // Pre-tick "Skip time & availability check" for a time-less booking.
+      nonMandatory: a.startTime === "--",
     },
   };
 }
 
-const STATUS_BADGE: Record<AppointmentStatus, string> = {
-  Upcoming: "bg-[#f0fdf4] text-[#16a34a]",
-  "On going": "bg-[#0077c0] text-white",
-  Completed: "bg-[#f1f5f9] text-[#1e1e24]",
-  Rescheduled: "bg-[#fdf9f0] text-[#a36d16]",
-  Cancelled: "bg-[#f9f1f1] text-[#ab2222]",
-};
-
 // Row styling for each option inside the status dropdown (Figma "Appts Status
-// Dropdown"). `text` colours both the label and the selected check (via
-// currentColor), so the tick matches the option's content colour.
+// Dropdown"), derived from the shared status palette so the dropdown, the row
+// badges and the calendar all stay in sync. `text` colours both the label and
+// the selected check (via currentColor). "All status" is not a real status, so
+// it keeps its own neutral brand tint.
 const STATUS_OPTION: Record<string, { row: string; text: string }> = {
   "All status": { row: "bg-[rgba(0,94,184,0.1)]", text: "text-[#0077c0]" },
-  Upcoming: { row: "bg-[#f0fdf4]", text: "text-[#16a34a]" },
-  "On going": { row: "bg-[#0077c0]", text: "text-white" },
-  Completed: { row: "bg-[#f1f5f9]", text: "text-[#1e1e24]" },
-  Rescheduled: { row: "bg-[#fdf9f0]", text: "text-[#a36d16]" },
-  Cancelled: { row: "bg-[#f9f1f1]", text: "text-[#ab2222]" },
+  ...Object.fromEntries(
+    STATUS_FILTER_OPTIONS.filter((o) => o !== "All status").map((o) => {
+      const c = statusColor(o);
+      return [o, { row: c.bg, text: c.text }];
+    }),
+  ),
 };
 
 /** check_small icon (from the Figma asset) rendered with currentColor. */
@@ -339,7 +342,7 @@ export default function AppointmentsTable({
       {/* Bordered table — height hugs its content, capped by the section max */}
       <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[18.667px] border-[1.2px] border-[#c2c6d4] bg-white shadow-[0px_1.167px_2.333px_0px_rgba(0,0,0,0.05)]">
         {/* Header row */}
-        <div className="grid shrink-0 grid-cols-[197fr_123fr_114fr_119fr_75fr] border-b-[1.167px] border-[#c2c6d4] px-[18.667px]">
+        <div className="grid shrink-0 grid-cols-[minmax(0,197fr)_minmax(0,123fr)_minmax(0,114fr)_minmax(0,119fr)_minmax(0,75fr)] border-b-[1.167px] border-[#c2c6d4] px-[18.667px]">
           {["Patient Name", "Doctor", "Date & Time", "Status", "Action"].map((h, i) => (
             <span
               key={h}
@@ -430,7 +433,7 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
   const cellColor = ongoing ? "text-[#0077c0]" : "text-[#1e1e24]";
 
   return (
-    <div className="grid grid-cols-[197fr_123fr_114fr_119fr_75fr] items-center border-t-[1.167px] border-[#c2c6d4] px-[18.667px]">
+    <div className="grid grid-cols-[minmax(0,197fr)_minmax(0,123fr)_minmax(0,114fr)_minmax(0,119fr)_minmax(0,75fr)] items-center border-t-[1.167px] border-[#c2c6d4] px-[18.667px]">
       {/* Patient */}
       <div className="py-[18.667px] pr-2">
         <p className={`font-inter text-[16.333px] font-medium leading-[23.333px] ${nameColor}`}>
@@ -451,14 +454,19 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
       {/* Status */}
       <div>
         <span
-          className={`inline-flex rounded-full px-[14px] py-[4px] font-inter text-[14px] font-medium leading-[18.667px] ${STATUS_BADGE[appt.status]}`}
+          className={`inline-flex rounded-full px-[14px] py-[4px] font-inter text-[14px] font-medium leading-[18.667px] ${statusBadgeClass(appt.status)}`}
         >
           {appt.status}
         </span>
       </div>
       {/* Action */}
       <div className="flex justify-end">
-        <button type="button" onClick={onEdit} aria-label={`Edit ${appt.patientName}'s appointment`}>
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Edit ${appt.patientName}'s appointment`}
+          className="group relative flex items-center justify-center"
+        >
           <Image
             src={ongoing ? "/dashboard/edit_square_blue.svg" : "/dashboard/edit_square.svg"}
             alt=""
@@ -466,6 +474,7 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
             height={24}
             className="size-6"
           />
+          <Tip label="Edit" />
         </button>
       </div>
     </div>

@@ -72,7 +72,7 @@ export default function SelectBranchSection({
       </div>
 
       {/* Column headers — desktop table only */}
-      <div className="hidden shrink-0 px-7 lg:grid lg:grid-cols-[451fr_326fr_283fr_208fr]">
+      <div className="hidden shrink-0 px-7 lg:grid lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)]">
         <HeaderCell>{firstColumnLabel}</HeaderCell>
         <HeaderCell>Person in charge(PIC)</HeaderCell>
         <HeaderCell>Contact number</HeaderCell>

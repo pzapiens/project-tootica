@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch, type AvailabilityResponse } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { fetchShifts, fetchBlocks, isSlotOnShift, isSlotBlocked } from "@/lib/shifts";
+import { statusColor } from "@/lib/statusColors";
 
 import { DateInput, parseDmy } from "./DateInput";
 import DoctorAvailabilityModal from "./DoctorAvailabilityModal";
@@ -42,6 +43,12 @@ export interface AppointmentInitial {
   to: Time;
   doctor: string;
   status?: string;
+  /** Read-only booking channel — "Web" (default) or "WhatsApp" (accepted from a
+   *  patient's WhatsApp booking). Frozen either way. */
+  bookingChannel?: string;
+  /** Pre-tick "Skip time & availability check" — set for time-less bookings
+   *  (e.g. a WhatsApp booking accepted with no time/doctor yet). */
+  nonMandatory?: boolean;
 }
 
 /** A clinic doctor the form can pick + resolve to an id for availability/booking. */
@@ -68,7 +75,8 @@ export interface AppointmentEditResult {
   status: string;
 }
 
-const CONSULTATION_TYPES = [
+/** The canonical consultation types offered when creating an appointment. */
+export const CONSULTATION_TYPES = [
   "GENERAL CONSULTATION / XRAY",
   "ROOT CANAL TREATMENT",
   "RE ROOT CANAL TREATMENT",
@@ -101,8 +109,11 @@ const LEAD_SOURCES = [
   "OTHERS",
 ];
 // Editable appointment status; "Upcoming" is the default for a new booking.
-// (Each maps 1:1 to a backend status when the appointment is saved.)
-const STATUS_OPTIONS = ["Upcoming", "Confirmed", "Completed", "Cancelled", "No Show"];
+// (Each maps 1:1 to a backend status when the appointment is saved — see
+// STATUS_TO_BACKEND in NewAppointmentModal. "Upcoming" is the single active
+// state; there's no separate "Confirmed" — a booked appointment is "Upcoming"
+// until it's Completed / No Show / Cancelled.)
+const STATUS_OPTIONS = ["Upcoming", "Completed", "No Show", "Cancelled"];
 // Clinic working hours (for the fast client-side time-range check): 9 AM – 6 PM.
 // The backend is authoritative — it re-checks hours + real doctor conflicts.
 const OPEN_MIN = 9 * 60;
@@ -179,11 +190,15 @@ export default function AppointmentFormStep({
   const [dtFrom, setDtFrom] = useState<Time>(editDatetime?.from ?? { h: "", m: "", p: "AM" });
   const [dtTo, setDtTo] = useState<Time>(editDatetime?.to ?? { h: "", m: "", p: "AM" });
   const [dtDoctor, setDtDoctor] = useState(editDatetime?.doctor ?? "");
-  const [dtNonMandatory, setDtNonMandatory] = useState(false);
-  // Editing a date-&-time appointment starts already verified (doctor assigned).
-  const [availabilityChecked, setAvailabilityChecked] = useState(Boolean(editDatetime));
+  const [dtNonMandatory, setDtNonMandatory] = useState(editDatetime?.nonMandatory ?? false);
+  // A TIMED appointment opens already "verified" so its Doctor dropdown shows the
+  // assigned doctor. A time-less (Skip-ticked / WhatsApp) appointment opens like a
+  // fresh Skip-ticked form instead: no availability was run, so the Doctor field
+  // stays an inactive "Select" placeholder (WhatsApp bookings carry no doctor).
+  const editVerified = Boolean(editDatetime && !editDatetime.nonMandatory);
+  const [availabilityChecked, setAvailabilityChecked] = useState(editVerified);
   const [availableDoctors, setAvailableDoctors] = useState<string[]>(
-    editDatetime ? doctorNames : [],
+    editVerified ? doctorNames : [],
   );
   const [checkingAvail, setCheckingAvail] = useState(false);
   const [availError, setAvailError] = useState("");
@@ -196,7 +211,7 @@ export default function AppointmentFormStep({
   const [docDate, setDocDate] = useState(editDoctor?.date ?? "");
   const [docFrom, setDocFrom] = useState<Time>(editDoctor?.from ?? { h: "", m: "", p: "AM" });
   const [docTo, setDocTo] = useState<Time>(editDoctor?.to ?? { h: "", m: "", p: "AM" });
-  const [docNonMandatory, setDocNonMandatory] = useState(false);
+  const [docNonMandatory, setDocNonMandatory] = useState(editDoctor?.nonMandatory ?? false);
   // Editing a by-doctor appointment starts already verified as available.
   const [docAvailChecked, setDocAvailChecked] = useState(Boolean(editDoctor));
   const [docAvailable, setDocAvailable] = useState(Boolean(editDoctor));
@@ -213,21 +228,18 @@ export default function AppointmentFormStep({
   const dtDoctorOptions =
     availableDoctors.length > 0 ? availableDoctors : editDatetime ? doctorNames : [];
   // Doctors were found free for the slot — drives the dropdown + the success line.
+  // Picking one is optional (the doctor field is non-mandatory).
   const doctorAvailable = availabilityChecked && dtDoctorOptions.length > 0;
-  // ...but the user must still pick one from the dropdown (even when only one is
-  // free); Confirm stays disabled until a doctor is actually selected.
-  const doctorSelected = doctorAvailable && dtDoctorOptions.includes(dtDoctor);
 
   // Consultation Type is the only shared mandatory field above the tabs; the
   // Source of Enquiry is optional.
   const coreOk = consultation.length > 0;
 
-  // Select-by-Date-&-Time: core + Date + a Time Range verified via "Available
-  // Doctors" (no doctor pick needed). Non-mandatory drops the time range →
-  // Confirm with core + just the Date.
+  // Select-by-Date-&-Time: core + Date + a Time Range. The doctor is OPTIONAL
+  // here — an appointment can be saved unassigned. Non-mandatory drops the time
+  // range → Confirm with core + just the Date.
   const datetimeOk =
-    coreOk &&
-    (dtNonMandatory ? Boolean(dtDate) : Boolean(dtDate && dtTimeFilled && doctorSelected));
+    coreOk && (dtNonMandatory ? Boolean(dtDate) : Boolean(dtDate && dtTimeFilled));
 
   // Select-by-Doctor: core + doctor + date. When a time range is required (not
   // non-mandatory), it must have been verified free — which now happens
@@ -430,11 +442,11 @@ export default function AppointmentFormStep({
       <div className="flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto px-[32px] py-[28px]">
         {/* Patient details — auto-filled, read-only */}
         <div className="grid grid-cols-2 gap-x-[32px] gap-y-[20px]">
-          <ReadonlyField label="Patient Name" value={patient.name} dim />
-          <ReadonlyField label="Date of Birth" value={patient.dob} icon="calendar" dim />
-          <ReadonlyField label="Gender" value={patient.gender} icon="block" dim />
-          <ReadonlyField label="Phone" value={`+91 ${patient.phone}`} dim />
-          <ReadonlyField label="Email" value={patient.email || "--"} dim />
+          <ReadonlyField label="Patient Name" value={patient.name} />
+          <ReadonlyField label="Date of Birth" value={patient.dob} icon="calendar" />
+          <ReadonlyField label="Gender" value={patient.gender} icon="block" />
+          <ReadonlyField label="Phone" value={`+91 ${patient.phone}`} />
+          <ReadonlyField label="Email" value={patient.email || "--"} />
           <MultiSelectDropdown
             label="Consultation Type"
             values={consultation}
@@ -448,22 +460,24 @@ export default function AppointmentFormStep({
             options={LEAD_SOURCES}
             onChange={setLeadSource}
           />
-          <BoxedDropdown
-            label="Status"
-            required={false}
-            value={status}
-            options={STATUS_OPTIONS}
-            onChange={setStatus}
-            format={(s) => s}
-          />
-          <ReadonlyField label="Booking Channel" value="Web" icon="block" />
+          {/* A brand-new booking is always "Upcoming" — locked (read-only with a
+              block icon). Editing an existing appointment unlocks the colour-coded
+              status dropdown. */}
+          {initial ? (
+            <StatusDropdown value={status} options={STATUS_OPTIONS} onChange={setStatus} />
+          ) : (
+            <ReadonlyField label="Status" value="Upcoming" icon="block" />
+          )}
+          {/* Booking channel is frozen; only its value differs — "WhatsApp" for
+              an appointment accepted from a patient's WhatsApp booking. */}
+          <ReadonlyField label="Booking Channel" value={initial?.bookingChannel ?? "Web"} icon="block" />
           <div className="flex flex-col gap-2">
             <span className={LABEL}>Message</span>
             <input
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Add any additional notes..."
-              className="w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/70 focus:border-[#0077c0]"
+              className="w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]"
             />
           </div>
         </div>
@@ -523,6 +537,7 @@ export default function AppointmentFormStep({
               {doctorAvailable ? (
                 <BoxedDropdown
                   label="Doctor"
+                  required={false}
                   value={dtDoctor}
                   options={dtDoctorOptions}
                   onChange={setDtDoctor}
@@ -532,7 +547,8 @@ export default function AppointmentFormStep({
                 <div className="flex flex-col gap-2">
                   <span className={LABEL}>Doctor</span>
                   <div className="flex items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1">
-                    <span className="font-inter text-[15px] text-[#1e1e24]/70">Select</span>
+                    {/* Inactive until availability is checked → input dimmed to 50%. */}
+                    <span className="font-inter text-[15px] text-[#1e1e24] opacity-50">Select</span>
                     <BlockIcon className="size-[18px] text-[#c2c6d4]" />
                   </div>
                 </div>
@@ -661,13 +677,10 @@ function ReadonlyField({
   label,
   value,
   icon,
-  dim,
 }: {
   label: string;
   value: string;
   icon?: "calendar" | "block";
-  /** Auto-filled patient values render at 50% opacity to read as inactive. */
-  dim?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -675,7 +688,8 @@ function ReadonlyField({
         {label} {REQ}
       </span>
       <div className="flex items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1">
-        <span className={`font-inter text-[15px] text-[#1e1e24] ${dim ? "opacity-50" : ""}`}>{value}</span>
+        {/* Read-only (inactive) → value dimmed to 50% opacity app-wide. */}
+        <span className="font-inter text-[15px] text-[#1e1e24] opacity-50">{value}</span>
         {icon === "calendar" && (
           <Image src="/dashboard/calendar_today.svg" alt="" width={18} height={18} className="size-[18px] opacity-40" />
         )}
@@ -686,6 +700,94 @@ function ReadonlyField({
 }
 
 /* --------------------------------------------------------- boxed dropdown */
+
+/** check_small icon (Figma) rendered with currentColor — matches the dashboard. */
+function CheckSmall({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M10 16.4L6 12.4L7.4 11L10 13.6L16.6 7L18 8.4L10 16.4Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
+ * Status field dropdown — styled like the dashboard "Today's Appointments" status
+ * filter (Figma "Appts Status Dropdown"): the selected value shows as a coloured
+ * status pill in the trigger, and each option row carries its status colour with
+ * a check on the active one. Keeps the underline trigger + top label so it sits
+ * flush with the sibling fields in the grid.
+ */
+function StatusDropdown({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useExclusiveDropdown();
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [setOpen]);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={LABEL}>Status</span>
+      <div ref={ref} className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex w-full items-center justify-between gap-2 border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
+        >
+          {/* The active selection reads in plain black (like the dashboard status
+              filter); only the dropdown option rows carry their status colour. */}
+          <span className="truncate font-inter text-[15px] text-[#1e1e24]">
+            {value || "Select"}
+          </span>
+          <Image
+            src="/dashboard/chevron_dark.svg"
+            alt=""
+            width={20}
+            height={20}
+            className={`size-5 shrink-0 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          />
+        </button>
+        {open && (
+          <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex w-full flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+            {options.map((opt) => {
+              // Pull the light-badge colours from the app's single status palette
+              // (statusColors.ts) so an option reads the same colour here as its
+              // badge does in the tables and calendar.
+              const c = statusColor(opt);
+              const selected = opt === value;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-[8px] px-[16px] py-[10px] ${c.bg} ${c.text}`}
+                >
+                  <span className="font-manrope text-[14px] font-semibold leading-[20px]">{opt}</span>
+                  {selected && <CheckSmall className="size-6" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Boxed dropdown (Figma "LD Dropdown" / "Doctors Dropdown"): light option rows
@@ -731,7 +833,7 @@ function BoxedDropdown({
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-center justify-between gap-2 border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
         >
-          <span className={`truncate font-inter text-[15px] ${value ? "text-[#1e1e24]" : "text-[#1e1e24]/70"}`}>
+          <span className="truncate font-inter text-[15px] text-[#1e1e24]">
             {value ? format(value) : placeholder}
           </span>
           <Image
@@ -815,7 +917,7 @@ function MultiSelectDropdown({
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-center justify-between gap-2 border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
         >
-          <span className={`truncate font-inter text-[15px] ${values.length ? "text-[#1e1e24]" : "text-[#1e1e24]/70"}`}>
+          <span className="truncate font-inter text-[15px] text-[#1e1e24]">
             {display}
           </span>
           <Image
@@ -916,7 +1018,7 @@ function TimeRange({
 }
 
 const TIME_BOX =
-  "h-[38px] w-[34px] rounded-[8px] border border-[#c2c6d4] bg-white text-center font-inter text-[13px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/40 focus:border-[#0077c0]";
+  "h-[38px] w-[34px] rounded-[8px] border border-[#c2c6d4] bg-white text-center font-inter text-[13px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]";
 
 function TimeGroup({ label, value, onChange }: { label: string; value: Time; onChange: (t: Time) => void }) {
   const two = (s: string, max: number) => {

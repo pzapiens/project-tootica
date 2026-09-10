@@ -17,7 +17,7 @@ import { DateInput, parseDmy, toIso } from "../dashboard/DateInput";
 
 const LABEL = "font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-[#1e1e24]";
 const FIELD =
-  "w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/50 focus:border-[#0077c0]";
+  "w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]";
 const REQ = <span className="text-red-500">*</span>;
 const GENDERS = ["M", "F"];
 
@@ -114,7 +114,7 @@ export default function NewPatientModal({
                 onChange={(e) => setPhone(phoneDigits(e.target.value))}
                 inputMode="numeric"
                 placeholder="0000000000"
-                className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/50"
+                className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]"
               />
             </div>
           </Field>
@@ -202,7 +202,7 @@ function GenderDropdown({ value, onChange }: { value: string; onChange: (v: stri
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
       >
-        <span className={`font-inter text-[15px] ${value ? "text-[#1e1e24]" : "text-[#1e1e24]/70"}`}>
+        <span className="font-inter text-[15px] text-[#1e1e24]">
           {value || "Select"}
         </span>
         <Image

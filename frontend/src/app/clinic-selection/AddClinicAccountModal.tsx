@@ -327,7 +327,7 @@ function AddClinicForm({
   }
 
   return (
-    <Overlay onClose={onCancel} labelledBy="add-clinic-title" className="[zoom:0.95]">
+    <Overlay onClose={onCancel} labelledBy="add-clinic-title" className="[zoom:0.82]">
       <h2 id="add-clinic-title" className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink">
         Add New Clinic
       </h2>
@@ -600,7 +600,7 @@ export default function AddClinicAccountModal({
 
   return (
     <>
-      <Overlay onClose={onClose} labelledBy="add-title" className="[zoom:0.95]">
+      <Overlay onClose={onClose} labelledBy="add-title" className="[zoom:0.82]">
         <div className="flex items-center justify-between">
           <h2 id="add-title" className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink">
             Add Clinic &amp; Account

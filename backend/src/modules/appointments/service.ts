@@ -47,10 +47,11 @@ type ListRow = Awaited<ReturnType<typeof appointmentRepository.findMany>>[number
 
 /** Flatten the joined patient/doctor into the shape the dashboard table uses. */
 function toListItem(row: ListRow) {
-  const doctorName = [row.doctor.user.firstName, row.doctor.user.lastName]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
+  // The doctor is optional now (unassigned / WhatsApp bookings) — the join is
+  // null in that case.
+  const doctorName = row.doctor
+    ? [row.doctor.user.firstName, row.doctor.user.lastName].filter(Boolean).join(' ').trim()
+    : '';
   return {
     id: row.id,
     code: row.code,
@@ -70,9 +71,9 @@ function toListItem(row: ListRow) {
       gender: row.patient.gender,
     },
     doctor: {
-      id: row.doctor.id,
+      id: row.doctor?.id ?? null,
       name: doctorName || null,
-      specialization: row.doctor.specialization,
+      specialization: row.doctor?.specialization ?? null,
     },
   };
 }
@@ -186,17 +187,20 @@ export const appointmentService = {
           `This time falls within the clinic ${br.label.toLowerCase()} break (${to12h(br.start)}–${to12h(br.end)}). Tick "Skip time & availability check" to book anyway.`,
         );
       }
-      const clash = await appointmentRepository.findOverlappingForDoctor(
-        clinicId,
-        data.doctorId,
-        data.startTime,
-        data.endTime,
-      );
-      if (clash) {
-        throw new HttpError(
-          409,
-          'The selected doctor already has an appointment in this time range.',
+      // Only a doctor-assigned appointment can clash with another booking.
+      if (data.doctorId) {
+        const clash = await appointmentRepository.findOverlappingForDoctor(
+          clinicId,
+          data.doctorId,
+          data.startTime,
+          data.endTime,
         );
+        if (clash) {
+          throw new HttpError(
+            409,
+            'The selected doctor already has an appointment in this time range.',
+          );
+        }
       }
     }
     return appointmentRepository.create(clinicId, data);

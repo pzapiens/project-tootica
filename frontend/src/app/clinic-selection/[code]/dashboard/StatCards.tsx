@@ -1,14 +1,28 @@
-import Image from "next/image";
+"use client";
 
-import { STAT_CARDS, type StatCounts } from "./mock";
+import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+
+import { STAT_CARDS, STAT_CARD_REVIEW, type StatCounts } from "./mock";
 
 /**
  * Row of 4 appointment stat cards (Figma "Dashboard - Stats Cards"). Solid-blue
  * cards, big count on top, an icon + "Review" link pinned to the bottom. The
- * counts change with the selected timeframe. The "Review" link's action is
- * disabled for now (kept visually as part of the card design).
+ * counts change with the selected timeframe. Clicking a card's "Review" opens the
+ * Appointments page pre-focused on that metric: the Total card opens it with no
+ * filter; the others auto-apply the matching status filter (Completed / Upcoming
+ * / Cancelled) via a `?status=` query param that AppointmentsClient reads.
  */
 export default function StatCards({ counts }: { counts: StatCounts }) {
+  const router = useRouter();
+  const { code } = useParams<{ code: string }>();
+
+  function review(key: keyof StatCounts) {
+    const status = STAT_CARD_REVIEW[key].status;
+    const q = status && status !== "All status" ? `?status=${encodeURIComponent(status)}` : "";
+    router.push(`/clinic-selection/${code}/appointments${q}`);
+  }
+
   return (
     <div className="flex flex-wrap gap-[28px] xl:flex-nowrap">
       {STAT_CARDS.map((card) => (
@@ -28,6 +42,7 @@ export default function StatCards({ counts }: { counts: StatCounts }) {
             <Image src={card.icon} alt="" width={40} height={40} className="size-10" />
             <button
               type="button"
+              onClick={() => review(card.key)}
               className="font-inter text-[16.333px] font-medium leading-[23.333px] text-white hover:underline"
             >
               Review

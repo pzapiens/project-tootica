@@ -9,7 +9,7 @@ import {
   apiFetch,
   ApiError,
   displayName,
-  honorific,
+  type BranchSummary,
   type MeResponse,
   type Role,
 } from "@/lib/api";
@@ -77,6 +77,7 @@ export default function DashboardShell({
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [branchName, setBranchName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReset, setShowReset] = useState(false);
 
@@ -110,6 +111,24 @@ export default function DashboardShell({
     };
   }, [router]);
 
+  // Resolve the current branch's display name from the URL `[code]` segment so
+  // the sidebar can show "Clinic · Branch" under the account name.
+  useEffect(() => {
+    let active = true;
+    apiFetch<BranchSummary[]>("/branches")
+      .then((branches) => {
+        if (!active) return;
+        const match = branches.find((b) => b.code === code);
+        setBranchName(match?.name ?? null);
+      })
+      .catch(() => {
+        // No branch access (e.g. super admin) → just omit the branch line.
+      });
+    return () => {
+      active = false;
+    };
+  }, [code]);
+
   if (loading || !me) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#1e1e24]">
@@ -123,12 +142,18 @@ export default function DashboardShell({
 
   return (
     <div className="flex h-dvh overflow-hidden bg-[#1e1e24]">
-      <Sidebar code={code} items={items} pathname={pathname} me={me} />
+      <Sidebar code={code} items={items} pathname={pathname} me={me} branchName={branchName} />
       <main className="min-w-0 flex-1 p-[19px]">
         {/* Fixed white panel; only the inner region scrolls. */}
         <div className="h-full overflow-hidden rounded-[28px] bg-white">
           <div className="h-full overflow-y-auto px-[24px] py-[24px] md:px-[42px] md:py-[42px]">
-            <div className="origin-top [zoom:0.9]">
+            {/* min-h-full fills the scroll viewport so pages can push a footer
+                to the page bottom via mt-auto (flex-col lets a page's root
+                stretch to this height). It's capped at 100% — never taller than
+                the visible area — so it can't introduce a scrollbar when the
+                content fits; the page only scrolls when the rows genuinely
+                overflow. */}
+            <div className="flex min-h-full origin-top flex-col [zoom:0.9]">
               <MeContext.Provider value={me}>{children}</MeContext.Provider>
             </div>
           </div>
@@ -144,11 +169,13 @@ function Sidebar({
   items,
   pathname,
   me,
+  branchName,
 }: {
   code: string;
   items: NavItem[];
   pathname: string;
   me: MeResponse;
+  branchName: string | null;
 }) {
   // zoom 0.9 shrinks the sidebar width + all contents by 10%; the height is
   // pre-divided by 0.9 so it still fills the viewport after the zoom.
@@ -206,7 +233,7 @@ function Sidebar({
       </nav>
 
       {/* User chip + footer */}
-      <UserChip me={me} />
+      <UserChip me={me} branchName={branchName} />
       <div className="pt-[16px]">
         <p className="font-inter text-[16px] font-medium leading-[24px] text-[#94a3b8]">
           © 2026 Tootica.
@@ -218,7 +245,7 @@ function Sidebar({
   );
 }
 
-function UserChip({ me }: { me: MeResponse }) {
+function UserChip({ me, branchName }: { me: MeResponse; branchName: string | null }) {
   const router = useRouter();
   const [open, setOpen] = useExclusiveDropdown();
   const [active, setActive] = useState<"profile" | "accounts" | "switch" | null>(null);
@@ -232,12 +259,14 @@ function UserChip({ me }: { me: MeResponse }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, [setOpen]);
 
-  // Show the signed-in account's salutation + FIRST name only (e.g. "Dr. John",
-  // "Mr. John"). The salutation is "Dr" for doctors, otherwise the stored title;
-  // falls back to the display name / email local part when no first name is set.
-  const first = me.user.firstName?.trim() || displayName(me.user).split(" ")[0];
-  const salutation = honorific(me.user);
-  const label = salutation ? `${salutation}. ${first}` : first;
+  // Side-panel account name shows the FIRST name only — no salutation (that's
+  // reserved for the title-area greeting on the dashboard / clinic-selection
+  // pages). Falls back to the display name / email local part when no first
+  // name is set.
+  const label = me.user.firstName?.trim() || displayName(me.user).split(" ")[0];
+
+  // Clinic + branch shown small beneath the name (e.g. "Bright Smiles · Downtown").
+  const subLabel = [me.clinic?.name, branchName].filter(Boolean).join(" · ");
 
   async function logout() {
     try {
@@ -312,7 +341,7 @@ function UserChip({ me }: { me: MeResponse }) {
         <span className="flex size-[37px] shrink-0 items-center justify-center rounded-full bg-[#0077c0]">
           <Image src="/dashboard/person_shield.svg" alt="" width={24} height={24} className="size-6" />
         </span>
-        <span className="ml-[10px] flex-1 truncate font-inter text-[16px] font-medium leading-[16px] text-white">
+        <span className="ml-[10px] min-w-0 flex-1 truncate font-inter text-[16px] font-medium leading-[16px] text-white">
           {label}
         </span>
         <Image
@@ -323,6 +352,12 @@ function UserChip({ me }: { me: MeResponse }) {
           className={`size-6 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
+      {/* Full clinic + branch shown under the account box so long names wrap. */}
+      {subLabel && (
+        <p className="mt-[8px] px-[16px] font-inter text-[11px] font-normal leading-[14px] text-white/50">
+          {subLabel}
+        </p>
+      )}
     </div>
   );
 }

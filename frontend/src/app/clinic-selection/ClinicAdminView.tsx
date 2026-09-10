@@ -44,7 +44,7 @@ export default function ClinicAdminView({ me }: { me: MeResponse }) {
     };
   }, []);
 
-  // Greeting uses the first name ("Hi, Sanjay"), with "Dr" only for doctors;
+  // Greeting uses the salutation + first name ("Dr. Sanjay", "Mr. Sanjay");
   // the branch PIC uses the plain full name.
   const greetingName = greetingLabel(me.user);
 
