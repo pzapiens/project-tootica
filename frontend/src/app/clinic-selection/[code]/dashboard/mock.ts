@@ -30,6 +30,8 @@ export interface DashboardAppointment {
   consultationType: string;
   leadSource: string;
   message: string;
+  /** How the booking came in — drives the form's read-only Booking Channel. */
+  bookingChannel: import("@/lib/api").BookingChannel;
   /** Which scheduling flow this appointment was created with. */
   scheduleMode: "datetime" | "doctor";
 }

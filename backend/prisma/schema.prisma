@@ -55,6 +55,17 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+// How an appointment entered the system. `WEB` = created by clinic staff in the
+// app; `WHATSAPP` = booked by the patient over WhatsApp (arrives SCHEDULED with
+// no doctor/time, surfaced in the "WhatsApp Appointments" popup). This is the
+// durable channel marker — it survives accept/reject (which only change status),
+// unlike `sourceOfEnquiry` (an editable lead-source). The inbound WhatsApp
+// webhook stamps `WHATSAPP`; the real Meta Cloud API integration will reuse it.
+enum BookingChannel {
+  WEB
+  WHATSAPP
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -81,13 +92,16 @@ model Clinic {
   plan      ClinicPlan   @default(FREE)
   createdAt DateTime     @default(now()) @map("created_at")
 
-  users        User[]
-  doctors      Doctor[]
-  patients     Patient[]
-  appointments Appointment[]
-  doctorShifts DoctorShift[]
-  doctorBlocks DoctorBlock[]
-  branches     Branch[]
+  users          User[]
+  doctors        Doctor[]
+  patients       Patient[]
+  appointments   Appointment[]
+  doctorShifts   DoctorShift[]
+  doctorBlocks   DoctorBlock[]
+  branches       Branch[]
+  toothRemarks   ToothRemark[]
+  medicalHistory MedicalHistoryEntry[]
+  documents      PatientDocument[]
 
   @@map("clinics")
 }
@@ -251,10 +265,17 @@ model Patient {
   gender       String?
   dob          DateTime? @db.Date
   medicalNotes String?   @map("medical_notes")
+  // Doctor/clinic observation note captured on the Patient Records screen (a
+  // single free-text note per patient, stamped when last saved).
+  observation          String?   @map("observation")
+  observationUpdatedAt DateTime? @map("observation_updated_at")
   createdAt    DateTime  @default(now()) @map("created_at")
 
-  clinic       Clinic        @relation(fields: [clinicId], references: [id])
-  appointments Appointment[]
+  clinic         Clinic                @relation(fields: [clinicId], references: [id])
+  appointments   Appointment[]
+  toothRemarks   ToothRemark[]
+  medicalHistory MedicalHistoryEntry[]
+  documents      PatientDocument[]
 
   @@index([clinicId, id])
   @@index([clinicId, createdAt])
@@ -265,6 +286,8 @@ model Patient {
 model Appointment {
   id               String            @id @default(uuid()) @db.Uuid
   // Clinic-prefixed code, e.g. "TDG001-A000001" (per-clinic appointment seq).
+  // Null for a pending WhatsApp booking until it's accepted — the code is
+  // claimed on accept, so rejected requests never burn a sequence number.
   code             String?           @unique @map("appointment_code")
   clinicId         String            @map("clinic_id") @db.Uuid
   patientId        String            @map("patient_id") @db.Uuid
@@ -274,6 +297,9 @@ model Appointment {
   startTime        DateTime          @map("start_time")
   endTime          DateTime          @map("end_time")
   status           AppointmentStatus @default(SCHEDULED)
+  // How the booking came in — WEB (staff-created) or WHATSAPP (patient booked
+  // over WhatsApp). Durable across accept/reject; see the enum's doc comment.
+  bookingChannel   BookingChannel    @default(WEB) @map("booking_channel")
   // Structured consultation type (e.g. "Teeth Whitening"); free-text `notes`
   // holds any additional message.
   consultationType String?           @map("consultation_type")
@@ -283,13 +309,89 @@ model Appointment {
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
-  clinic  Clinic  @relation(fields: [clinicId], references: [id])
-  patient Patient @relation(fields: [patientId], references: [id])
-  doctor  Doctor? @relation(fields: [doctorId], references: [id])
+  clinic   Clinic    @relation(fields: [clinicId], references: [id])
+  patient  Patient   @relation(fields: [patientId], references: [id])
+  doctor   Doctor?   @relation(fields: [doctorId], references: [id])
+  payments Payment[]
 
   @@index([clinicId, id])
   @@index([clinicId, startTime])
   @@index([doctorId, startTime])
   @@index([patientId])
   @@map("appointments")
+}
+
+/// A single payment/charge entry against an appointment (Payment Management
+/// dialog). An appointment can have several, each individually marked paid /
+/// unpaid; the appointment reads as "settled" once every entry is paid. Scoped
+/// to its clinic through the appointment.
+model Payment {
+  id            String   @id @default(uuid()) @db.Uuid
+  appointmentId String   @map("appointment_id") @db.Uuid
+  description   String
+  // Money, two decimals (e.g. 1500.00). Serialised to a JS number for the client.
+  amount        Decimal  @db.Decimal(12, 2)
+  // Whether this entry has been paid (per-entry checkbox in the dialog).
+  paid          Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@map("payments")
+}
+
+/// A per-tooth remark from the Patient Records "Perio-dental chart": an FDI tooth
+/// number plus free-text. Multiple remarks per tooth are allowed.
+model ToothRemark {
+  id        String   @id @default(uuid()) @db.Uuid
+  clinicId  String   @map("clinic_id") @db.Uuid
+  patientId String   @map("patient_id") @db.Uuid
+  toothNo   String   @map("tooth_no")
+  remarks   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, patientId])
+  @@map("tooth_remarks")
+}
+
+/// A dated entry in a patient's medical history (Patient Records screen).
+model MedicalHistoryEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  clinicId  String   @map("clinic_id") @db.Uuid
+  patientId String   @map("patient_id") @db.Uuid
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, patientId])
+  @@map("medical_history_entries")
+}
+
+/// An uploaded patient document (consent form / x-ray / other). Only metadata
+/// lives here; the file bytes are held by the file-storage module (local disk
+/// for now) under `storageKey`.
+model PatientDocument {
+  id         String   @id @default(uuid()) @db.Uuid
+  clinicId   String   @map("clinic_id") @db.Uuid
+  patientId  String   @map("patient_id") @db.Uuid
+  // One of: "consent" | "xray" | "other" (the upload sections on the screen).
+  category   String
+  name       String
+  size       Int
+  mimeType   String   @map("mime_type")
+  storageKey String   @map("storage_key")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, patientId])
+  @@map("patient_documents")
 }

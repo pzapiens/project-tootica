@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { apiFetch, type AppointmentListItem } from "@/lib/api";
 import { useAppointmentsRevision } from "@/lib/appointmentsBus";
-import { bookingChannelLabel } from "@/lib/bookingChannelStore";
+import { bookingChannelLabel } from "@/lib/whatsapp";
 import { statusBadgeClass, statusColor } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
@@ -134,6 +134,7 @@ function toDashboardAppointment(item: AppointmentListItem): DashboardAppointment
     consultationType: item.consultationType ?? "",
     leadSource: item.sourceOfEnquiry ?? "",
     message: item.notes ?? "",
+    bookingChannel: item.bookingChannel,
     scheduleMode: "datetime",
   };
 }
@@ -169,7 +170,7 @@ function toEdit(a: DashboardAppointment): EditAppointment {
       // ("Smith"), so strip the honorific for the prefill to match/resolve.
       doctor: a.doctor === "Unassigned" ? "" : a.doctor.replace(/^Dr\.?\s*/i, ""),
       status: a.status,
-      bookingChannel: bookingChannelLabel(a.id),
+      bookingChannel: bookingChannelLabel(a.bookingChannel),
       // Pre-tick "Skip time & availability check" for a time-less booking.
       nonMandatory: a.startTime === "--",
     },
@@ -442,7 +443,7 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
       </div>
       {/* Doctor */}
       <span className={`-ml-[15px] font-inter text-[16.333px] font-medium leading-[23.333px] ${cellColor}`}>
-        {appt.doctor}
+        {appt.doctor === "Unassigned" ? "--" : appt.doctor}
       </span>
       {/* Date & Time */}
       <div className={`flex flex-col gap-[6px] font-inter text-[12px] font-semibold leading-[15px] ${cellColor}`}>

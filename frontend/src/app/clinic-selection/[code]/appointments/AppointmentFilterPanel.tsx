@@ -20,8 +20,8 @@ export interface AppointmentFilters {
   doctorIds: string[];
   /** Selected consultation types (raw values, upper-case). */
   consultationTypes: string[];
-  /** Selected enquiry sources (raw values, upper-case). */
-  sources: string[];
+  /** Selected booking channels ("WEB" / "WHATSAPP"). */
+  channels: string[];
   /** Selected status chip labels (display statuses). */
   statuses: string[];
 }
@@ -31,7 +31,7 @@ export const EMPTY_FILTERS: AppointmentFilters = {
   dateSort: null,
   doctorIds: [],
   consultationTypes: [],
-  sources: [],
+  channels: [],
   statuses: [],
 };
 
@@ -42,7 +42,7 @@ export function filterCount(f: AppointmentFilters): number {
     (f.dateSort ? 1 : 0) +
     f.doctorIds.length +
     f.consultationTypes.length +
-    f.sources.length +
+    f.channels.length +
     f.statuses.length
   );
 }
@@ -55,7 +55,6 @@ export const STATUS_CHIPS = [
   "Upcoming",
   "On going",
   "Completed",
-  "Rescheduled",
   "Cancelled",
   "No Show",
 ] as const;
@@ -69,14 +68,14 @@ export default function AppointmentFilterPanel({
   applied,
   doctorOptions,
   consultationOptions,
-  sourceOptions,
+  channelOptions,
   onApply,
   onClose,
 }: {
   applied: AppointmentFilters;
   doctorOptions: FilterOption[];
   consultationOptions: FilterOption[];
-  sourceOptions: FilterOption[];
+  channelOptions: FilterOption[];
   onApply: (filters: AppointmentFilters) => void;
   onClose: () => void;
 }) {
@@ -97,7 +96,7 @@ export default function AppointmentFilterPanel({
   }, [doctorOptions, doctorQuery]);
 
   /** Toggle a value inside one of the multi-select arrays. */
-  function toggleIn(key: "doctorIds" | "consultationTypes" | "sources" | "statuses", value: string) {
+  function toggleIn(key: "doctorIds" | "consultationTypes" | "channels" | "statuses", value: string) {
     setDraft((d) => {
       const set = new Set(d[key]);
       if (set.has(value)) set.delete(value);
@@ -184,18 +183,18 @@ export default function AppointmentFilterPanel({
               </div>
             </Card>
 
-            {/* Source */}
-            <Card title="Source" icon={<SourceIcon className="size-6 text-[#1e1e24]" />}>
+            {/* Booking Channel */}
+            <Card title="Booking Channel" icon={<SourceIcon className="size-6 text-[#1e1e24]" />}>
               <div className="flex flex-col gap-[12px] pt-[6px]">
-                {sourceOptions.length === 0 ? (
-                  <span className="font-inter text-[13px] text-[#94a3b8]">No sources.</span>
+                {channelOptions.length === 0 ? (
+                  <span className="font-inter text-[13px] text-[#94a3b8]">No channels.</span>
                 ) : (
-                  sourceOptions.map((s) => (
+                  channelOptions.map((c) => (
                     <BoxedCheckboxRow
-                      key={s.value}
-                      label={s.label}
-                      selected={draft.sources.includes(s.value)}
-                      onClick={() => toggleIn("sources", s.value)}
+                      key={c.value}
+                      label={c.label}
+                      selected={draft.channels.includes(c.value)}
+                      onClick={() => toggleIn("channels", c.value)}
                     />
                   ))
                 )}

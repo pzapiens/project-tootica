@@ -80,6 +80,8 @@ const CONSULTATION_TYPES = [
   'OTHER LASER TREATMENTS',
   'OTHERS',
 ];
+// Marketing lead source (how the patient heard of the clinic) — distinct from
+// the booking channel (WEB / WHATSAPP), which records how the booking was made.
 const LEAD_SOURCES = [
   'INSTAGRAM',
   'FACEBOOK',
@@ -231,12 +233,13 @@ async function main(): Promise<void> {
       await prisma.appointment.create({
         data: {
           clinicId: clinic.id,
-          code: await nextAppointmentCode(clinic.id),
+          // No code yet — a pending WhatsApp booking claims its code on accept.
           patientId: pick(patients).id,
           doctorId: null,
           startTime: day,
           endTime: day,
           status: 'SCHEDULED',
+          bookingChannel: 'WHATSAPP',
           consultationType: pick(CONSULTATION_TYPES),
           sourceOfEnquiry: 'WHATSAPP',
           notes: pick(APPOINTMENT_NOTES.SCHEDULED),

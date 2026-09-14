@@ -30,12 +30,22 @@ are shared across a clinic's branches.
   the user is forced to **reset their password + accept the Terms**.
 - **Human-friendly codes** — every entity gets a readable code: `CL-000123`
   (clinic), `BR-0001` (branch), `PAT-000001` (patient), `DOC-000001` (doctor),
-  `APT-20260830-0001` (appointment).
+  `APT-20260830-0001` (appointment). A **pending WhatsApp booking stays code-less
+  until it's accepted** — the appointment code is claimed on accept, so a
+  rejected request never burns a number.
 - **Appointments** — a New Appointment flow (search or create a patient → book):
   schedule **by date & time** or **by doctor**, with **real availability checks**
   (business hours 9 AM–6 PM + doctor double-booking), auto-validated as you type
   the time. A **"Non-mandatory"** option bypasses the checks (any time; no time →
-  shows `--`). Editable status, defaulting to *Upcoming*.
+  shows `--`). Editable status, defaulting to *Upcoming*. **WhatsApp bookings**
+  from patients arrive as **Pending** (no doctor/time) and collect in a
+  **"WhatsApp Appointments"** popup, where staff **accept** them (→ *Upcoming*,
+  added to the list) or **reject** them (discarded). Each appointment records its
+  **booking channel** (`Web` / `WhatsApp`) on the backend, so a WhatsApp booking
+  stays identifiable even after it's accepted. An inbound webhook
+  (`POST /api/appointments/whatsapp/inbound`) and the click-to-chat links
+  (centralised in `frontend/src/lib/whatsapp.ts`) are the single seams to swap
+  for the **Meta WhatsApp Cloud API** later.
 - **Dashboard** — per-clinic **stat cards** driven by real analytics (with a
   timeframe filter that applies only to the cards), a **Today's Appointments**
   table (status filter + search, paginated), and a **display-only mini calendar**
@@ -78,6 +88,11 @@ npm run setup   # first time: creates .env (+ JWT secrets), starts Docker, migra
 # + a few months of sample appointments. Both WIPE existing data.
 npm run db:provision
 npm run db:seed:appointments
+
+# Optional: reset each clinic to exactly 5 PENDING WhatsApp bookings so you can
+# try the "WhatsApp Appointments" popup's accept/reject flow (touches only
+# pending rows; leaves confirmed/completed/cancelled history untouched).
+npm run db:seed:whatsapp
 
 npm run dev     # http://localhost:4000
 

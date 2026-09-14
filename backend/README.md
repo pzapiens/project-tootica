@@ -76,11 +76,13 @@ Seed scripts (all refuse to run with `NODE_ENV=production`):
   the appointments table + edit prefill show real values (deterministic,
   replayable).
 - **`npm run db:seed:whatsapp`** — leaves each clinic with **exactly 5 pending
-  WhatsApp bookings** (SCHEDULED, unassigned doctor, no time slot) for exercising
-  the accept / reject flow. It first clears the clinic's existing pending
-  (SCHEDULED) rows, then inserts a fresh set of 5, so re-running always gives a
-  clean, predictable set. Only touches SCHEDULED rows — confirmed / completed /
-  cancelled history is left untouched.
+  WhatsApp bookings** (SCHEDULED, `bookingChannel = WHATSAPP`, unassigned doctor,
+  no time slot, **and no code yet**) for exercising the accept / reject flow. It
+  first clears the clinic's existing pending (SCHEDULED) rows, then inserts a
+  fresh set of 5, so re-running always gives a clean, predictable set. Only
+  touches SCHEDULED rows — confirmed / completed / cancelled history is left
+  untouched. (The appointment **code is claimed on accept**, so a rejected
+  booking never burns a number.)
 - **`npm run db:seed`** — an older, richer sample set (3 clinics, guest doctors,
   weekly shifts). Not the documented dataset.
 
@@ -241,13 +243,23 @@ Full request/response JSON shapes for every endpoint (built and planned) are in
   and `DELETE` operate on guest doctors only and **reject employed doctors** (role
   `DOCTOR`, managed via the account flow) with 403
 - `GET/POST/PATCH/DELETE /api/appointments` — tenant-scoped CRUD. The list joins
-  patient + doctor and accepts `from`/`to`/`status`/`limit` filters. `doctorId`
-  is **optional** — an appointment may be left **unassigned** (WhatsApp bookings
-  arrive with no doctor, and the date-&-time flow lets staff save without one);
-  the double-booking check only runs when a doctor is set. `POST` takes a
+  patient + doctor and accepts `from`/`to`/`status`/`limit` filters. Every row
+  carries a **`bookingChannel`** (`WEB` / `WHATSAPP`) — the durable record of how
+  the booking came in (survives accept/reject, which only change `status`).
+  `doctorId` is **optional** — an appointment may be left **unassigned** (WhatsApp
+  bookings arrive with no doctor, and the date-&-time flow lets staff save without
+  one); the double-booking check only runs when a doctor is set. `POST` takes a
   `nonMandatory` flag: when **false** it enforces **business hours (9 AM–6 PM)**
   and rejects a **doctor double-booking**; when **true** it skips both. A no-time
-  booking is stored as zero-duration (`startTime == endTime`).
+  booking is stored as zero-duration (`startTime == endTime`). Accepting a pending
+  WhatsApp booking is a `PATCH` to `status: CONFIRMED`; if it's still code-less
+  (WhatsApp bookings arrive without a code), that transition **mints its code**.
+- `POST /api/appointments/whatsapp/inbound` — ingests a WhatsApp booking (the
+  patient is matched/created by `phone` within the clinic). Stores a pending,
+  doctor-less, time-less, **code-less** appointment tagged `WHATSAPP`, which
+  surfaces in the "WhatsApp Appointments" popup. This is the seam the real **Meta
+  WhatsApp Cloud API** webhook will feed — it'll parse Meta's payload into this
+  shape and call this endpoint server-side.
 - `GET /api/appointments/availability?date=&from=&to=&doctorId=&excludeAppointmentId=`
   — per-doctor day bookings and, when a time range is given, whether each doctor
   is free. `excludeAppointmentId` drops one appointment from the day's bookings —

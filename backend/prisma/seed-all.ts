@@ -15,6 +15,11 @@
  *   - Appointments per clinic spread across the PAST 6 months, a handful for
  *     TODAY, and some UPCOMING — so the dashboard's "Today's Appointments", the
  *     stat cards, and the full calendar all have data on first login.
+ *   - A few PENDING WhatsApp bookings per clinic (SCHEDULED, no doctor, no time)
+ *     so the "WhatsApp Appointments" accept/reject popup is demoable.
+ *
+ * Consultation types and lead sources are the canonical values from the frontend
+ * appointment form, so seeded rows match what the dropdowns offer.
  *
  * Every account is created "already onboarded" (known password, no forced
  * first-login reset, Terms pre-accepted). The credentials match docs/ACCOUNTS.md.
@@ -200,11 +205,48 @@ const MEDICAL_NOTES = [
   'No known allergies', 'Penicillin allergy', 'Hypertension — monitor before anaesthetic',
   'Type 2 diabetic', 'Nut allergy', null,
 ];
+// Canonical consultation types + lead sources — must mirror the frontend form
+// (src/app/clinic-selection/[code]/dashboard/AppointmentFormStep.tsx) so seeded
+// rows show values the dropdowns also offer.
 const CONSULTATION_TYPES = [
-  'Routine Check-up', 'Scaling & Polishing', 'Cavity Filling', 'Root Canal',
-  'Teeth Whitening', 'Braces Consultation', 'Dental Implant', 'Extraction',
+  'GENERAL CONSULTATION / XRAY',
+  'ROOT CANAL TREATMENT',
+  'RE ROOT CANAL TREATMENT',
+  'CROWN / VENEER / FPD',
+  'EXTRACTION / SURGICAL EXTRACTION',
+  'SCALING',
+  'RESTORATION',
+  'TEETH WHITENING',
+  'ORTHODONTIC TREATMENT BRACES / ALIGNERS',
+  'PEDODONTIC TREATMENT',
+  'RPD / CD',
+  'IMPLANTS',
+  'TMJ DISORDERS',
+  'GUM RELATED TREATMENTS',
+  'INTRAORAL SCANNING',
+  'OTHER LASER TREATMENTS',
+  'OTHERS',
 ];
-const SOURCES = ['Google Search', 'Referral', 'Walk-in', 'Instagram', 'Facebook'];
+const LEAD_SOURCES = [
+  'INSTAGRAM',
+  'FACEBOOK',
+  'WHATSAPP',
+  'GOOGLE SEARCH',
+  'WEBSITE',
+  'BOARD / SIGNBOARD',
+  'PATIENT REFERRAL',
+  'DOCTOR REFERRAL',
+  'CAMP / DENTAL CAMP',
+  'ONLINE ADS',
+  'OTHERS',
+];
+const APPOINTMENT_NOTES: Record<AppointmentStatus, string[]> = {
+  COMPLETED: ['Routine check-up', 'Scaling & polishing', 'Filling', 'Follow-up review', 'Root canal — session complete'],
+  NO_SHOW: ['Patient did not attend', 'No show — did not call'],
+  CANCELLED: ['Cancelled by patient', 'Rescheduled — cancelled slot'],
+  CONFIRMED: ['Consultation', 'Whitening consultation'],
+  SCHEDULED: ['Consultation', 'New booking — awaiting confirmation', 'Requested appointment', 'Follow-up requested'],
+};
 
 // Weighted status for PAST appointments (mostly done, some missed / cancelled).
 const PAST_STATUS_WEIGHTS: Array<[AppointmentStatus, number]> = [
@@ -230,6 +272,11 @@ const SLOTS: Array<[number, number, number]> = [
 const HISTORICAL_APPTS = 24; // distinct past days per clinic
 const TODAY_APPTS = 4; // per clinic, distinct slots
 const UPCOMING_APPTS = 8; // distinct future days per clinic
+// Pending "WhatsApp" bookings per clinic. A WhatsApp booking always arrives
+// SCHEDULED (→ "Pending") with NO doctor and NO time slot — the patient can't
+// pick either over WhatsApp. These surface only in the "WhatsApp Appointments"
+// popup until staff accept them.
+const WHATSAPP_PENDING_PER_CLINIC = 5;
 const PATIENTS_PER_CLINIC = 12;
 const WINDOW_MONTHS = 6;
 
@@ -346,7 +393,8 @@ async function createAppointment(
       endTime: end,
       status: appt.status,
       consultationType: pick(CONSULTATION_TYPES),
-      sourceOfEnquiry: pick(SOURCES),
+      sourceOfEnquiry: pick(LEAD_SOURCES),
+      notes: pick(APPOINTMENT_NOTES[appt.status]),
       createdAt: start,
     },
   });
@@ -504,6 +552,35 @@ async function main(): Promise<void> {
       });
       apptTotal++;
     }
+
+    // Pending WhatsApp bookings — future-dated, no doctor, no time slot
+    // (zero-duration → shown as "--"). They mimic a patient booking over
+    // WhatsApp and appear only in the "WhatsApp Appointments" popup until staff
+    // accept them (→ CONFIRMED, into the main table) then assign a doctor/time.
+    for (let i = 0; i < WHATSAPP_PENDING_PER_CLINIC; i++) {
+      const day = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + randInt(1, 14),
+        0, 0, 0, 0,
+      );
+      await prisma.appointment.create({
+        data: {
+          clinicId: clinic.id,
+          code: await nextAppointmentCode(clinic.id),
+          patientId: pick(patientIds),
+          doctorId: null,
+          startTime: day,
+          endTime: day,
+          status: 'SCHEDULED',
+          consultationType: pick(CONSULTATION_TYPES),
+          sourceOfEnquiry: 'WHATSAPP',
+          notes: pick(APPOINTMENT_NOTES.SCHEDULED),
+          createdAt: today,
+        },
+      });
+      apptTotal++;
+    }
   }
 
   // --- summary ---
@@ -531,7 +608,10 @@ async function main(): Promise<void> {
   console.log(`    receptionists:  ${receptionists}`);
   console.log(`  doctor shifts:  ${shifts}`);
   console.log(`  patients:       ${patients}`);
-  console.log(`  appointments:   ${appts} (incl. ${TODAY_APPTS} today per clinic)`);
+  console.log(
+    `  appointments:   ${appts} ` +
+      `(incl. ${TODAY_APPTS} today + ${WHATSAPP_PENDING_PER_CLINIC} pending WhatsApp per clinic)`,
+  );
   console.log('\nLogins (all documented in docs/ACCOUNTS.md):');
   console.log(`  Super Admin:  ${SUPER_ADMIN.email} / ${SUPER_ADMIN_PASSWORD}`);
   console.log(`  Bright Smile: admin@brightsmile.com / ${STAFF_PASSWORD}`);

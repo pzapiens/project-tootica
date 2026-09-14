@@ -56,6 +56,10 @@ export const env = {
     // (account / branch / clinic). Set SUPER_ADMIN_DELETE_CODE in production.
     deleteCode: process.env.SUPER_ADMIN_DELETE_CODE ?? '246810',
   },
+  // Local directory where uploaded patient documents are stored (bytes on disk;
+  // metadata in the DB). Relative paths resolve from the backend's cwd. This is
+  // the local-disk stand-in behind the storage module — point at S3 later.
+  uploadDir: process.env.UPLOAD_DIR ?? 'uploads',
 } as const;
 
 /** Cookie flags for the auth token cookies. `secure` is on outside dev. */

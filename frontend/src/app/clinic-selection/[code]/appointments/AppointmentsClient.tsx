@@ -5,18 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { apiFetch, type AppointmentListItem, type AppointmentStatus } from "@/lib/api";
+import { apiFetch, type AppointmentListItem, type AppointmentStatus, type BookingChannel } from "@/lib/api";
 import { analyticsRangeQuery } from "@/lib/analytics";
 import { useAppointmentsRevision, notifyAppointmentsChanged } from "@/lib/appointmentsBus";
-import { bookingChannelLabel } from "@/lib/bookingChannelStore";
-import { getPaymentRecord, usePaymentsRevision } from "@/lib/paymentsStore";
-import {
-  ensureWhatsAppDummiesSeeded,
-  isDummyId,
-  readWhatsAppDummies,
-  removeWhatsAppDummy,
-  useWhatsAppDummyRevision,
-} from "@/lib/whatsappDummyStore";
+import { bookingChannelLabel } from "@/lib/whatsapp";
 import { statusBadgeClass } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
@@ -126,7 +118,6 @@ const CHIP_STATUSES: Record<string, AppointmentStatus[]> = {
   Upcoming: ["CONFIRMED"],
   "On going": [],
   Completed: ["COMPLETED"],
-  Rescheduled: [],
   Cancelled: ["CANCELLED"],
   "No Show": ["NO_SHOW"],
 };
@@ -148,7 +139,11 @@ interface AppointmentRow {
   noTime: boolean;
   age: number | null;
   gender: string;
-  sourceRaw: string;
+  /** How the booking came in — WEB / WHATSAPP (drives the Booking Channel filter). */
+  bookingChannel: BookingChannel;
+  /** Payment summary for the row's status glyph. */
+  paymentCount: number;
+  paymentComplete: boolean;
   startTime: string;
   // Extra fields carried for the Edit Appointment prefill.
   dob: string;
@@ -182,7 +177,9 @@ function toRow(item: AppointmentListItem): AppointmentRow {
     noTime,
     age: ageFromDob(item.patient.dob),
     gender: item.patient.gender ?? "",
-    sourceRaw: (item.sourceOfEnquiry ?? "").toUpperCase(),
+    bookingChannel: item.bookingChannel,
+    paymentCount: item.paymentCount,
+    paymentComplete: item.paymentComplete,
     startTime: item.startTime,
     dob: fmtDate(item.patient.dob),
     phone: item.patient.phone ?? "",
@@ -206,7 +203,7 @@ function toEdit(item: AppointmentListItem, r: AppointmentRow): EditAppointment {
       to: r.noTime ? { h: "", m: "", p: "AM" } : parseTime(fmtClock(item.endTime)),
       doctor: r.doctor === "Unassigned" ? "" : r.doctor.replace(/^Dr\.?\s*/i, ""),
       status: FORM_STATUS[item.status],
-      bookingChannel: bookingChannelLabel(item.id, item.status),
+      bookingChannel: bookingChannelLabel(item.bookingChannel),
       // A time-less booking (e.g. accepted from WhatsApp) opens with "Skip time
       // & availability check" pre-ticked so it can be saved without a time.
       nonMandatory: r.noTime,
@@ -242,7 +239,7 @@ const COLS =
 
 /** The active row dialog (accept/reject/delete confirm, cancel, or info). */
 type RowDialog =
-  | { kind: "confirm"; variant: ConfirmVariant; row: AppointmentRow; dummy?: boolean }
+  | { kind: "confirm"; variant: ConfirmVariant; row: AppointmentRow }
   | { kind: "cancel"; row: AppointmentRow }
   | { kind: "info"; row: AppointmentRow }
   | { kind: "call"; row: AppointmentRow }
@@ -278,8 +275,6 @@ export default function AppointmentsClient() {
   const [dialog, setDialog] = useState<RowDialog | null>(null);
 
   const rev = useAppointmentsRevision();
-  // Local refresh trigger for the reload button (independent of the global bus).
-  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -298,7 +293,7 @@ export default function AppointmentsClient() {
     return () => {
       active = false;
     };
-  }, [timeframe, rev, reload]);
+  }, [timeframe, rev]);
 
   // Keep the raw item alongside its display row so edit can read the original.
   const allRows = useMemo(
@@ -322,14 +317,15 @@ export default function AppointmentsClient() {
     [],
   );
 
-  const sourceOptions = useMemo<FilterOption[]>(() => {
-    const map = new Map<string, string>();
-    for (const { item } of allRows) {
-      const raw = item.sourceOfEnquiry?.trim();
-      if (raw) map.set(raw.toUpperCase(), titleCase(raw));
-    }
-    return [...map].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
-  }, [allRows]);
+  // The Booking Channel filter offers the two fixed channels (Web / WhatsApp),
+  // matching the backend `bookingChannel` enum.
+  const channelOptions = useMemo<FilterOption[]>(
+    () => [
+      { value: "WEB", label: "Web" },
+      { value: "WHATSAPP", label: "WhatsApp" },
+    ],
+    [],
+  );
 
   // Search → facet filters → sort.
   const rows = useMemo(() => {
@@ -341,7 +337,7 @@ export default function AppointmentsClient() {
     );
     const doctorSet = new Set(filters.doctorIds);
     const consultationSet = new Set(filters.consultationTypes);
-    const sourceSet = new Set(filters.sources);
+    const channelSet = new Set(filters.channels);
 
     let out = allRows.filter(({ row }) => {
       // Pending (SCHEDULED) bookings arrive via WhatsApp and live only in the
@@ -357,7 +353,7 @@ export default function AppointmentsClient() {
       }
       if (doctorSet.size > 0 && !doctorSet.has(row.doctorId)) return false;
       if (consultationSet.size > 0 && !row.consultationTypes.some((c) => consultationSet.has(c))) return false;
-      if (sourceSet.size > 0 && !sourceSet.has(row.sourceRaw)) return false;
+      if (channelSet.size > 0 && !channelSet.has(row.bookingChannel)) return false;
       if (filters.statuses.length > 0 && !chipStatuses.has(row.rawStatus)) return false;
       return true;
     });
@@ -376,26 +372,17 @@ export default function AppointmentsClient() {
     return out;
   }, [allRows, query, filters]);
 
-  // Seed the cache-only DUMMY WhatsApp bookings once (for testing the popup's
-  // accept/reject flow without a backend). Guarded internally so it runs a single
-  // time per browser and an emptied popup doesn't silently refill.
-  useEffect(() => {
-    ensureWhatsAppDummiesSeeded();
-  }, []);
-  const dummyRev = useWhatsAppDummyRevision();
-
   // Pending (SCHEDULED) bookings for the "WhatsApp Appointments" popup — the
-  // rows deliberately excluded from the main table above. Cached dummy rows lead
-  // the list, then the real pending ones newest first.
-  const pendingRows = useMemo(() => {
-    const real = allRows
-      .filter(({ row }) => row.rawStatus === "SCHEDULED")
-      .map(({ row }) => row)
-      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-    // `dummyRev` is read so this recomputes whenever the dummy cache changes.
-    void dummyRev;
-    return [...readWhatsAppDummies(), ...real];
-  }, [allRows, dummyRev]);
+  // rows deliberately excluded from the main table above, straight from the
+  // backend (WhatsApp bookings arrive SCHEDULED). Newest first.
+  const pendingRows = useMemo(
+    () =>
+      allRows
+        .filter(({ row }) => row.rawStatus === "SCHEDULED")
+        .map(({ row }) => row)
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()),
+    [allRows],
+  );
 
   const total = rows.length;
   const pageCount = Math.max(1, Math.ceil(total / perPage));
@@ -455,7 +442,7 @@ export default function AppointmentsClient() {
         applied={filters}
         doctorOptions={doctorOptions}
         consultationOptions={consultationOptions}
-        sourceOptions={sourceOptions}
+        channelOptions={channelOptions}
         onApply={(f) => {
           setFilters(f);
           setPage(1);
@@ -520,20 +507,6 @@ export default function AppointmentsClient() {
             className="h-[54px] w-full rounded-[27px] border-[1.2px] border-[#c2c6d4] pl-[58px] pr-[20px] font-inter text-[16px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
           />
         </div>
-        <button
-          type="button"
-          aria-label="Clear search and refresh appointments"
-          onClick={() => {
-            // Reset the search back to "show everything": clear the query, jump
-            // to the first page, and refetch the latest data.
-            setQuery("");
-            setPage(1);
-            setReload((r) => r + 1);
-          }}
-          className="flex size-[54px] shrink-0 items-center justify-center rounded-full border-[1.4px] border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
-        >
-          <RefreshIcon className="size-6 text-[#1e1e24]" />
-        </button>
         <p className="shrink-0 font-inter text-[19px] leading-[28px] text-[#1e1e24]">
           Counts : <span className="font-bold">{loading ? "—" : total}</span>
         </p>
@@ -641,10 +614,10 @@ export default function AppointmentsClient() {
           rows={pendingRows}
           onClose={() => setWhatsappOpen(false)}
           onAccept={(row) =>
-            setDialog({ kind: "confirm", variant: "accept", row: row as AppointmentRow, dummy: isDummyId(row.id) })
+            setDialog({ kind: "confirm", variant: "accept", row: row as AppointmentRow })
           }
           onReject={(row) =>
-            setDialog({ kind: "confirm", variant: "reject", row: row as AppointmentRow, dummy: isDummyId(row.id) })
+            setDialog({ kind: "confirm", variant: "reject", row: row as AppointmentRow })
           }
         />
       )}
@@ -654,10 +627,7 @@ export default function AppointmentsClient() {
           variant={dialog.variant}
           appointmentId={dialog.row.id}
           patientName={dialog.row.patientName}
-          patientCode={dialog.row.code}
-          // A cache-only dummy has no backend row — accept/reject just clears it
-          // from the cache so it disappears from the popup.
-          localAction={dialog.dummy ? () => removeWhatsAppDummy(dialog.row.id) : undefined}
+          appointmentCode={dialog.row.code}
           onClose={() => setDialog(null)}
           onDone={() => {
             setDialog(null);
@@ -803,11 +773,10 @@ function AppointmentRowView({
   const pending = row.rawStatus === "SCHEDULED";
   // Payment status glyph: shown once a payment has been added for this
   // appointment — an amber hourglass (pending) that becomes a green tick once
-  // "Mark as complete" is ticked in the Payment Management dialog. Cached in
-  // localStorage, so it survives reloads until a payments backend exists.
-  // Subscribing re-renders the row on any payment change; the read is cheap.
-  usePaymentsRevision();
-  const payment = getPaymentRecord(row.id);
+  // "Mark as complete" is ticked in the Payment Management dialog. Driven by the
+  // per-row summary from the appointments list (paymentCount / paymentComplete).
+  const hasPayment = row.paymentCount > 0;
+  const paymentComplete = row.paymentComplete;
 
   return (
     <div className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0`}>
@@ -853,11 +822,11 @@ function AppointmentRowView({
             identical with or without a payment — the icon never shifts the
             other columns; only its visibility toggles. */}
         <span className="group relative flex size-[34px] shrink-0 items-center justify-center">
-          {payment.payments.length > 0 && (
+          {hasPayment && (
             <>
               <Image
-                src={payment.complete ? "/dashboard/payment_complete.svg" : "/dashboard/payment_pending.svg"}
-                alt={payment.complete ? "Payment complete" : "Payment pending"}
+                src={paymentComplete ? "/dashboard/payment_complete.svg" : "/dashboard/payment_pending.svg"}
+                alt={paymentComplete ? "Payment complete" : "Payment pending"}
                 width={24}
                 height={24}
                 className="size-6"
@@ -866,7 +835,7 @@ function AppointmentRowView({
                 role="tooltip"
                 className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-[130] -translate-x-1/2 whitespace-nowrap rounded-[8px] bg-[#1e1e24] px-[10px] py-[6px] font-inter text-[12px] font-medium leading-[16px] text-white opacity-0 shadow-[0px_4px_12px_rgba(0,0,0,0.15)] transition-opacity duration-150 group-hover:opacity-100"
               >
-                {payment.complete ? "Payment Complete" : "Payment Pending"}
+                {paymentComplete ? "Payment Complete" : "Payment Pending"}
               </span>
             </>
           )}
@@ -1217,15 +1186,6 @@ function PageArrow({
     >
       <Image src="/dashboard/chevron_dark.svg" alt="" width={20} height={20} className={`size-5 ${flip ? "" : "rotate-180"}`} />
     </button>
-  );
-}
-
-function RefreshIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-      <path d="M21 3v6h-6" />
-    </svg>
   );
 }
 

@@ -33,9 +33,10 @@ function fmt12(d: Date): string {
   return `${String(h).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} ${period}`;
 }
 
-/** Map the backend appointment status straight onto a calendar status — no
- *  time-of-day logic, so an entry shows exactly the status it was given.
- *  CONFIRMED reads as in-progress → "Ongoing"; SCHEDULED stays "Upcoming". */
+/** Map the backend appointment status onto a calendar status. An active
+ *  (CONFIRMED) booking reads as "Upcoming" — matching the rest of the app —
+ *  and only shows "Ongoing" when it's actually in progress right now (a real,
+ *  timed slot whose window spans the current moment). */
 export function computeCalStatus(item: AppointmentListItem): CalStatus {
   switch (item.status) {
     case "CANCELLED":
@@ -43,8 +44,14 @@ export function computeCalStatus(item: AppointmentListItem): CalStatus {
       return "Cancelled";
     case "COMPLETED":
       return "Completed";
-    case "CONFIRMED":
-      return "Ongoing";
+    case "CONFIRMED": {
+      const start = new Date(item.startTime).getTime();
+      const end = new Date(item.endTime).getTime();
+      const now = Date.now();
+      // Zero-duration (start == end) = no time picked, so never "Ongoing".
+      const timed = item.startTime !== item.endTime;
+      return timed && now >= start && now <= end ? "Ongoing" : "Upcoming";
+    }
     default:
       return "Upcoming";
   }

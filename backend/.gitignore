@@ -17,6 +17,9 @@ build/
 .env.*
 !.env.example
 
+# Uploaded patient documents (local file storage; bytes only, metadata in DB).
+uploads/
+
 # Logs
 *.log
 npm-debug.log*

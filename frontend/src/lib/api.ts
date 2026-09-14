@@ -34,6 +34,33 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+/**
+ * Multipart upload (e.g. patient-record documents). Same auth/branch/clinic
+ * handling and one-shot 401 refresh as {@link apiFetch}, but sends a `FormData`
+ * body — the browser sets the `multipart/form-data` boundary, so we must NOT set
+ * `Content-Type` ourselves (hence the separate path from the JSON `rawFetch`).
+ */
+export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  const send = () =>
+    fetch(`/api${path.startsWith("/") ? path : `/${path}`}`, {
+      method: "POST",
+      body: form,
+      credentials: "include",
+      headers: {
+        ...(currentBranchCode() ? { "X-Branch-Code": currentBranchCode()! } : {}),
+        ...(activeClinicId() ? { "X-Clinic-Id": activeClinicId()! } : {}),
+      },
+    });
+  let res = await send();
+  if (res.status === 401) {
+    const renewed = await refreshSession();
+    if (renewed) res = await send();
+  }
+  if (!res.ok) throw await toApiError(res);
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
+
 /** The underlying request: prefixes `/api`, sends cookies + the branch header. */
 function rawFetch(path: string, init?: RequestInit): Promise<Response> {
   const branchCode = currentBranchCode();
@@ -348,6 +375,13 @@ export type AppointmentStatus =
   | "NO_SHOW";
 
 /**
+ * How a booking came in. `WEB` = created by staff in the app; `WHATSAPP` = booked
+ * by the patient over WhatsApp. Durable across accept/reject (unlike status), so
+ * the appointment form can always show the true booking channel.
+ */
+export type BookingChannel = "WEB" | "WHATSAPP";
+
+/**
  * A row from `GET /api/appointments` — the appointment with its patient and
  * doctor joined (names resolved) for the dashboard table / calendar.
  */
@@ -358,6 +392,12 @@ export interface AppointmentListItem {
   startTime: string;
   endTime: string;
   status: AppointmentStatus;
+  /** How the booking came in — "WEB" (staff) or "WHATSAPP" (patient over chat). */
+  bookingChannel: BookingChannel;
+  /** Number of payment entries recorded for this appointment (drives the row glyph). */
+  paymentCount: number;
+  /** Whether staff marked this appointment's payments settled. */
+  paymentComplete: boolean;
   /** Structured consultation type (e.g. "Teeth Whitening"); null if unset. */
   consultationType: string | null;
   /** Where the enquiry came from (e.g. "Google Search"); null if unset. */

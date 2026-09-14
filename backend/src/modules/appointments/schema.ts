@@ -8,6 +8,9 @@ export const appointmentStatuses = [
   'NO_SHOW',
 ] as const;
 
+// How the booking came in. Mirrors the Prisma `BookingChannel` enum.
+export const bookingChannels = ['WEB', 'WHATSAPP'] as const;
+
 const appointmentBase = z.object({
   patientId: z.string().min(1),
   // Optional: WhatsApp bookings and the date-&-time flow may leave the doctor
@@ -16,6 +19,9 @@ const appointmentBase = z.object({
   startTime: z.coerce.date(),
   endTime: z.coerce.date(),
   status: z.enum(appointmentStatuses).optional(),
+  // Defaults to WEB in the DB; the create flow can set WHATSAPP explicitly (the
+  // inbound webhook does). Never changed by an edit — the channel is immutable.
+  bookingChannel: z.enum(bookingChannels).optional(),
   consultationType: z.string().optional(),
   sourceOfEnquiry: z.string().optional(),
   notes: z.string().optional(),
@@ -70,9 +76,36 @@ export const listAppointmentsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 
+/**
+ * Inbound WhatsApp booking (from a patient's WhatsApp message). This is the seam
+ * the real Meta WhatsApp Cloud API webhook will feed: for now the frontend/tests
+ * post a normalised booking here, but the shape is deliberately what we'd derive
+ * from a Meta message (the sender's `phone` + a parsed request), so swapping in
+ * the Meta payload parser later doesn't change the appointment-creation path.
+ *
+ * The booking always lands SCHEDULED ("Pending") with no doctor and no time slot
+ * (the patient can't choose either over chat) — staff triage it in the "WhatsApp
+ * Appointments" popup. The patient is matched by `phone` within the clinic, and
+ * created on the fly when they're new.
+ */
+export const whatsappInboundSchema = z.object({
+  // The patient's WhatsApp number (E.164-ish, e.g. "+919999999999"). Required —
+  // it's how we match/create the patient.
+  phone: z.string().min(3),
+  // Best-effort display name from the WhatsApp profile; falls back when a new
+  // patient must be created and none is known.
+  name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  // What the patient asked for, if parseable from the message.
+  consultationType: z.string().optional(),
+  // The raw patient message / any extra note.
+  notes: z.string().optional(),
+});
+
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 /** The stored appointment fields (create input minus the `nonMandatory` flag). */
 export type CreateAppointmentData = Omit<CreateAppointmentInput, 'nonMandatory'>;
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
+export type WhatsAppInboundInput = z.infer<typeof whatsappInboundSchema>;

@@ -1,16 +1,21 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   addDocument,
   addMedHistory,
   addToothEntry,
+  clearObservationDraft,
+  documentDownloadUrl,
+  getObservationDraft,
   getPatientRecord,
+  loadPatientRecord,
   removeDocument,
   removeMedHistory,
   removeToothEntry,
+  saveObservationDraft,
   setObservation,
   updateMedHistory,
   updateToothEntry,
@@ -22,9 +27,9 @@ import {
 } from "@/lib/patientRecordsStore";
 
 import { exportMedHistoryXls, exportObservationPdf, exportPerioXls } from "@/lib/recordsExport";
-import { deleteDocFile, getDocFile, putDocFile } from "@/lib/documentFiles";
 
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
+import { PERIO_TEETH, PERIO_VIEWBOX } from "./perioChartData";
 
 /**
  * "Patient Records" view (Figma "Appts8 - Records1…7"), reached from an
@@ -37,13 +42,12 @@ import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
  *  - Perio-dental chart — a clinical chart image beside a "Tooth-wise Remarks"
  *    form that appends rows to a table (each editable / deletable).
  *
- * There's no records backend yet, so everything persists per-patient in
- * localStorage via `lib/patientRecordsStore`. Export is a placeholder.
+ * Everything persists per-patient on the backend via `lib/patientRecordsStore`
+ * (`/api/patients/:patientId/records/...`). Export is a placeholder.
  */
 
 const CARD = "rounded-[8px] border border-[#c2c6d4] bg-white/50";
 const LABEL = "font-inter text-[12px] font-medium uppercase tracking-[0.6px] text-[#1e1e24]";
-const MAX_TOOTH = 32;
 
 export default function PatientRecordsView({
   patientName,
@@ -59,13 +63,44 @@ export default function PatientRecordsView({
   const rev = useRecordsRevision();
   const record = useMemo(() => getPatientRecord(patientId), [patientId, rev]);
 
+  // Hydrate this patient's records from the backend on open (the writers reload
+  // it themselves after each change).
+  useEffect(() => {
+    loadPatientRecord(patientId).catch(() => {});
+  }, [patientId]);
+
+  // Guard leaving with an uncommitted observation note. The draft is persisted
+  // (so it's restorable next time) but we still confirm to avoid surprise.
+  const [hasUnsavedObs, setHasUnsavedObs] = useState(false);
+  const guardedClose = useCallback(() => {
+    if (
+      hasUnsavedObs &&
+      !window.confirm(
+        "Your observation note isn't saved to the record yet. Leave anyway? Your draft will be restored next time.",
+      )
+    )
+      return;
+    onClose();
+  }, [hasUnsavedObs, onClose]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") guardedClose();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [guardedClose]);
+
+  // Warn on full page close / reload while a note is uncommitted.
+  useEffect(() => {
+    if (!hasUnsavedObs) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasUnsavedObs]);
 
   return (
     <div className="flex flex-1 flex-col gap-[48px]">
@@ -74,7 +109,7 @@ export default function PatientRecordsView({
         <div className="flex items-center gap-[15px]">
           <button
             type="button"
-            onClick={onClose}
+            onClick={guardedClose}
             aria-label="Back to appointments"
             className="flex size-[44px] items-center justify-center rounded-full text-[#1e1e24] transition-colors hover:bg-[#f1f5f9]"
           >
@@ -108,10 +143,13 @@ export default function PatientRecordsView({
       </div>
 
       <ObservationsCard
+        patientId={patientId}
         patientName={patientName}
         patientCode={patientCode}
         value={record.observation}
+        updatedAt={record.observationUpdatedAt}
         onSave={(text) => setObservation(patientId, text)}
+        onDirtyChange={setHasUnsavedObs}
       />
 
       <PerioSection
@@ -158,22 +196,51 @@ export default function PatientRecordsView({
 /* ------------------------------------------------ Doctor/Clinic Observations */
 
 function ObservationsCard({
+  patientId,
   patientName,
   patientCode,
   value,
+  updatedAt,
   onSave,
+  onDirtyChange,
 }: {
+  patientId: string;
   patientName: string;
   patientCode: string;
   value: string;
+  updatedAt?: string;
   onSave: (text: string) => void;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
-  const [draft, setDraft] = useState(value);
-  // Re-sync when the persisted value changes (e.g. another tab).
-  useEffect(() => setDraft(value), [value]);
+  // Start from any persisted in-progress draft (survives reload / accidental
+  // close), falling back to the committed note.
+  const [draft, setDraft] = useState(() => getObservationDraft(patientId) ?? value);
+  // Track the value we last synced from, so an external change (another tab)
+  // only adopts the new value when the doctor hasn't got unsaved edits — never
+  // clobbering an in-progress draft.
+  const lastValueRef = useRef(value);
+  useEffect(() => {
+    if (lastValueRef.current === value) return;
+    setDraft((d) => (d === lastValueRef.current ? value : d));
+    lastValueRef.current = value;
+  }, [value]);
 
   const dirty = draft !== value;
   const saved = !dirty && value.trim().length > 0;
+
+  // Surface dirtiness to the parent's unsaved-changes guard.
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+
+  // Persist the in-progress draft (debounced); clear it once it matches the
+  // committed note (clean) so we don't keep a stale draft around.
+  useEffect(() => {
+    if (draft === value) {
+      clearObservationDraft(patientId);
+      return;
+    }
+    const t = setTimeout(() => saveObservationDraft(patientId, draft), 400);
+    return () => clearTimeout(t);
+  }, [draft, value, patientId]);
 
   return (
     <section className={`${CARD} flex flex-col gap-[17px] p-[26px]`}>
@@ -202,6 +269,9 @@ function ObservationsCard({
           placeholder="Enter your observation"
           className="h-[136px] w-full resize-none rounded-[8px] border border-b-2 border-[#1e1e24] bg-white px-[18px] pb-[44px] pt-[18px] font-inter text-[15px] leading-[21px] text-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none placeholder:text-[#c2c6d4]"
         />
+        <span className="pointer-events-none absolute bottom-[18px] left-[18px] font-inter text-[12px] leading-[16px] text-[#8a90a2]">
+          {dirty ? "Unsaved draft" : updatedAt ? `Last saved ${updatedAt}` : ""}
+        </span>
         <div className="absolute bottom-[14px] right-[14px] flex items-center gap-[8px]">
           <button
             type="button"
@@ -230,6 +300,102 @@ function ObservationsCard({
 
 /* -------------------------------------------------------- Perio-dental chart */
 
+// The chart backdrop is public/dashboard/perio_chart.svg (already FDI-numbered).
+// PERIO_TEETH holds one exact closed outline path per tooth (in the SVG's own
+// viewBox), split out of the SVG's two compound arch paths — see perioChartData.ts.
+const VALID_FDI = new Set(PERIO_TEETH.map((t) => t.n));
+
+/** Longest remark text shown in a tooth's hover tooltip before it's ellipsised —
+ *  keeps the native title readable rather than dumping a long paragraph. */
+const TOOTH_TIP_MAX = 120;
+function truncateTip(s: string, max = TOOTH_TIP_MAX): string {
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}
+
+/** Interactive FDI odontogram. The chart SVG renders as the backdrop; an overlay
+ *  SVG in the same coordinate system draws one exact, clickable path per tooth
+ *  that fills blue when selected (a fainter fill when it carries remarks).
+ *  Clicking a tooth calls `onSelect`. */
+function PerioChart({
+  teeth,
+  selected,
+  onSelect,
+}: {
+  teeth: ToothEntry[];
+  selected: string;
+  onSelect: (n: string) => void;
+}) {
+  const withRemarks = useMemo(() => new Set(teeth.map((t) => t.toothNo)), [teeth]);
+  // All remarks for a tooth, joined — shown in the hover tooltip. A tooth can
+  // carry several entries, so they're combined with "; ".
+  const remarksByTooth = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const t of teeth) {
+      const r = t.remarks?.trim();
+      if (!r) continue;
+      const list = map.get(t.toothNo);
+      if (list) list.push(r);
+      else map.set(t.toothNo, [r]);
+    }
+    return map;
+  }, [teeth]);
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-[8px] border border-[#1e1e24] bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+      style={{ aspectRatio: "2588.91 / 3847.59" }}
+    >
+      {/* Chart line-art (already FDI-numbered). */}
+      <Image
+        src="/dashboard/perio_chart.svg"
+        alt="Perio-dental chart"
+        fill
+        unoptimized
+        sizes="(max-width: 1024px) 100vw, 50vw"
+        className="object-contain"
+      />
+
+      {/* One exact, clickable path per tooth, aligned to the backdrop. The
+          selected tooth fills solid; teeth carrying remarks get a fainter fill.
+          Styles are inline (not Tailwind arbitrary classes) so state can't bleed
+          between teeth. */}
+      <svg viewBox={PERIO_VIEWBOX} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full">
+        {PERIO_TEETH.map((t) => {
+          const sel = selected === t.n;
+          const rem = withRemarks.has(t.n);
+          // Hover tooltip: the tooth number, plus its remarks (truncated) when any.
+          const rems = remarksByTooth.get(t.n);
+          const tip = rems?.length
+            ? `Tooth ${t.n}: ${truncateTip(rems.join("; "))}`
+            : `Tooth ${t.n}`;
+          return (
+            <path
+              key={t.n}
+              d={t.d}
+              onClick={() => onSelect(t.n)}
+              onMouseEnter={() => setHovered(t.n)}
+              onMouseLeave={() => setHovered((h) => (h === t.n ? null : h))}
+              role="button"
+              aria-label={`Tooth ${t.n}${rem ? ", has remarks" : ""}`}
+              aria-pressed={sel}
+              style={{
+                fill: "#0077c0",
+                fillOpacity: sel ? 0.45 : rem ? 0.22 : hovered === t.n ? 0.16 : 0,
+                pointerEvents: "fill",
+                cursor: "pointer",
+                transition: "fill-opacity 150ms",
+              }}
+            >
+              <title>{tip}</title>
+            </path>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function PerioSection({
   patientId,
   patientName,
@@ -246,13 +412,12 @@ function PerioSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<ToothEntry | null>(null);
 
-  const canAdd = remarks.trim().length > 0 && tooth.trim().length > 0;
+  const canAdd = remarks.trim().length > 0 && VALID_FDI.has(tooth);
 
   function submit() {
     if (!canAdd) return;
-    const num = String(Math.min(MAX_TOOTH, Math.max(0, Number(tooth) || 0))).padStart(2, "0");
-    if (editingId) updateToothEntry(patientId, editingId, num, remarks.trim());
-    else addToothEntry(patientId, num, remarks.trim());
+    if (editingId) updateToothEntry(patientId, editingId, tooth, remarks.trim());
+    else addToothEntry(patientId, tooth, remarks.trim());
     setRemarks("");
     setTooth("");
     setEditingId(null);
@@ -263,11 +428,7 @@ function PerioSection({
     if (!entry) return;
     setEditingId(id);
     setRemarks(entry.remarks);
-    setTooth(String(Number(entry.toothNo)));
-  }
-
-  function step(delta: number) {
-    setTooth((t) => String(Math.min(MAX_TOOTH, Math.max(0, (Number(t) || 0) + delta))));
+    setTooth(entry.toothNo);
   }
 
   return (
@@ -288,16 +449,8 @@ function PerioSection({
       </div>
 
       <div className="grid grid-cols-1 items-start gap-[32px] lg:grid-cols-2">
-        {/* Left: clinical chart image */}
-        <div className="relative aspect-[2959/4096] w-full overflow-hidden rounded-[8px] border border-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
-          <Image
-            src="/dashboard/perio_chart.jpg"
-            alt="Perio-dental chart"
-            fill
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-cover"
-          />
-        </div>
+        {/* Left: interactive FDI odontogram over the reference chart image. */}
+        <PerioChart teeth={teeth} selected={tooth} onSelect={setTooth} />
 
         {/* Right: tooth-wise remarks form + table */}
         <div className="flex flex-col gap-[32px]">
@@ -310,7 +463,7 @@ function PerioSection({
                 </h3>
               </div>
               <p className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
-                Select a tooth to record its remarks.
+                Select a tooth on the chart, then record its remarks.
               </p>
             </div>
 
@@ -326,36 +479,12 @@ function PerioSection({
               </div>
               <div className="flex w-[129px] flex-col gap-[8px]">
                 <span className={LABEL}>Tooth Number</span>
-                <div className="flex h-[40px] items-stretch overflow-hidden rounded-[8px] border border-[#1e1e24]">
-                  <input
-                    value={tooth}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
-                      setTooth(digits);
-                    }}
-                    onBlur={() => tooth && setTooth(String(Math.min(MAX_TOOTH, Number(tooth))))}
-                    inputMode="numeric"
-                    placeholder="00"
-                    className="min-w-0 flex-1 px-[13px] font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4]"
-                  />
-                  <div className="flex flex-col border-l border-[#1e1e24]">
-                    <button
-                      type="button"
-                      aria-label="Increase tooth number"
-                      onClick={() => step(1)}
-                      className="flex flex-1 items-center justify-center border-b border-[#1e1e24] px-[6px] transition-colors hover:bg-[#f1f5f9]"
-                    >
-                      <Image src="/dashboard/chevron_dark.svg" alt="" width={14} height={14} className="size-[13px] rotate-90" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Decrease tooth number"
-                      onClick={() => step(-1)}
-                      className="flex flex-1 items-center justify-center px-[6px] transition-colors hover:bg-[#f1f5f9]"
-                    >
-                      <Image src="/dashboard/chevron_dark.svg" alt="" width={14} height={14} className="size-[13px] -rotate-90" />
-                    </button>
-                  </div>
+                <div
+                  className={`flex h-[40px] items-center justify-center rounded-[8px] border font-inter text-[16px] font-semibold ${
+                    tooth ? "border-[#0077c0] text-[#0077c0]" : "border-[#1e1e24] text-[#c2c6d4]"
+                  }`}
+                >
+                  {tooth || "Select"}
                 </div>
               </div>
             </div>
@@ -693,9 +822,8 @@ function DocumentUploadSection({
         rejected += 1;
         continue;
       }
-      const id = addDocument(patientId, category, file.name, file.size, file.type || "application/octet-stream");
-      // Persist the bytes so the file can be downloaded later (survives reloads).
-      void putDocFile(id, file);
+      // Uploads to the backend; the store reloads the record on success.
+      void addDocument(patientId, category, file);
     }
     setError(
       rejected > 0
@@ -704,18 +832,9 @@ function DocumentUploadSection({
     );
   }
 
-  async function handleDownload(d: DocEntry) {
-    const blob = await getDocFile(d.id);
-    if (!blob) {
-      setError(`"${d.name}" is no longer available to download.`);
-      return;
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = d.name;
-    a.click();
-    URL.revokeObjectURL(url);
+  function handleDownload(d: DocEntry) {
+    // Same-origin GET; cookies authorise it. Opens inline (PDF/image) in a new tab.
+    window.open(documentDownloadUrl(patientId, d.id), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -840,8 +959,7 @@ function DocumentUploadSection({
           confirmLabel="Delete"
           onClose={() => setPendingDelete(null)}
           onConfirm={() => {
-            void deleteDocFile(pendingDelete.id);
-            removeDocument(patientId, pendingDelete.id);
+            void removeDocument(patientId, pendingDelete.id);
             setPendingDelete(null);
           }}
         />

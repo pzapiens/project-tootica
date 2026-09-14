@@ -15,7 +15,6 @@
  * confirmed / completed / cancelled history is left untouched. Refuses to run
  * when NODE_ENV=production.
  */
-import { nextAppointmentCode } from '../src/common/utils/codes';
 import { prisma } from '../src/common/db/prisma';
 
 // How many pending WhatsApp bookings each clinic should end up with.
@@ -85,14 +84,16 @@ async function main(): Promise<void> {
       await prisma.appointment.create({
         data: {
           clinicId: clinic.id,
-          code: await nextAppointmentCode(clinic.id),
+          // No code yet — a pending WhatsApp booking claims its sequential code
+          // only when staff accept it (matches the inbound-webhook behaviour).
           patientId: pick(patients, i).id,
           doctorId: null,
           startTime: day,
           endTime: day,
           status: 'SCHEDULED',
-          consultationType: pick(CONSULTATION_TYPES, i),
+          bookingChannel: 'WHATSAPP',
           sourceOfEnquiry: 'WHATSAPP',
+          consultationType: pick(CONSULTATION_TYPES, i),
           notes: pick(NOTES, i),
           createdAt: today,
         },

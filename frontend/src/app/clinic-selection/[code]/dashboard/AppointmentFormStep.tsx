@@ -95,6 +95,9 @@ export const CONSULTATION_TYPES = [
   "OTHER LASER TREATMENTS",
   "OTHERS",
 ];
+// Source of enquiry — the marketing lead source (how the patient heard of the
+// clinic). Distinct from the booking channel (Web / WhatsApp), which is how the
+// booking was actually made.
 const LEAD_SOURCES = [
   "INSTAGRAM",
   "FACEBOOK",

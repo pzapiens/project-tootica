@@ -10,5 +10,8 @@ appointmentRoutes.get('/', asyncHandler(appointmentController.list));
 appointmentRoutes.get('/availability', asyncHandler(appointmentController.availability));
 appointmentRoutes.get('/:id', asyncHandler(appointmentController.get));
 appointmentRoutes.post('/', asyncHandler(appointmentController.create));
+// Inbound WhatsApp booking (the seam the Meta Cloud API webhook will feed).
+// Creates a pending WHATSAPP-channel appointment for staff to triage.
+appointmentRoutes.post('/whatsapp/inbound', asyncHandler(appointmentController.whatsappInbound));
 appointmentRoutes.patch('/:id', asyncHandler(appointmentController.update));
 appointmentRoutes.delete('/:id', asyncHandler(appointmentController.remove));

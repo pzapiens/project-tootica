@@ -86,7 +86,11 @@ export default function FullCalendarView() {
     });
     apiFetch<AppointmentListItem[]>(`/appointments?${params.toString()}`)
       .then((list) => {
-        if (active) setMonthAppts(groupByDay(list));
+        // Exclude pending (SCHEDULED) bookings — same rule as the appointments
+        // table: a WhatsApp booking lives only in the "WhatsApp Appointments"
+        // popup until it's accepted. It also has no code yet, so it couldn't be
+        // opened via "View Appointment" (which filters the list by that ID).
+        if (active) setMonthAppts(groupByDay(list.filter((a) => a.status !== "SCHEDULED")));
       })
       .catch(() => {
         if (active) setMonthAppts({});
@@ -523,7 +527,9 @@ function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; 
             </DetailRow>
             <div className="h-px w-full bg-[#c2c6d4]/30" />
             <DetailRow icon="/dashboard/oral_disease_dark.svg" labelUp="Assigned Doctor">
-              <span className="font-inter text-[15px] leading-[23px] text-[#1e1e24]">{appt.doctor}</span>
+              <span className="font-inter text-[15px] leading-[23px] text-[#1e1e24]">
+                {appt.doctor === "Unassigned" ? "--" : appt.doctor}
+              </span>
             </DetailRow>
           </div>
         </div>

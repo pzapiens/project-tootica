@@ -1,83 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 
 /**
- * Client-only cache for an appointment's payments, kept in `localStorage` until
- * a real payments backend exists. The Payment Management dialog reads/writes a
- * record per appointment; the appointments table reads the same record to show
- * the payment-status glyph (pending hourglass / complete tick).
+ * Backend-backed payments for an appointment (Payment Management dialog).
+ * Each appointment has zero or more payment entries plus a "settled" flag; the
+ * appointments list carries a per-row summary (`paymentCount` / `paymentComplete`)
+ * for the status glyph, so this module is only used by the dialog itself.
  *
- * Mirrors {@link ../lib/appointmentsBus}: writers persist + dispatch an event,
- * readers subscribe with {@link usePaymentsRevision} and add the revision to
- * their deps so they re-read on any change (including from another tab).
+ * Endpoints (nested under the appointment):
+ *   GET    /appointments/:id/payments                  → { payments }
+ *   POST   /appointments/:id/payments                  → PaymentEntry
+ *   PATCH  /appointments/:id/payments/:paymentId/paid  → { paid }
+ *   DELETE /appointments/:id/payments/:paymentId       → 204
  */
 
-export interface Payment {
+export interface PaymentEntry {
   id: string;
   description: string;
-  /** dd/mm/yyyy, stamped when the payment was added. */
-  date: string;
   amount: number;
+  /** Whether this entry has been paid (per-entry checkbox). */
+  paid: boolean;
+  /** ISO timestamp the entry was created. */
+  createdAt: string;
 }
 
-export interface PaymentRecord {
-  payments: Payment[];
-  /** Whether the clinic marked this appointment's payments complete. */
-  complete: boolean;
+export interface PaymentsBundle {
+  payments: PaymentEntry[];
 }
 
-const KEY = "tootica.appointmentPayments.v1";
-const EVENT = "tootica:payments-changed";
-const EMPTY: PaymentRecord = { payments: [], complete: false };
-
-function readAll(): Record<string, PaymentRecord> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Record<string, PaymentRecord>) : {};
-  } catch {
-    return {};
-  }
+/** All payments for an appointment plus its settled flag. */
+export function fetchPayments(appointmentId: string): Promise<PaymentsBundle> {
+  return apiFetch<PaymentsBundle>(`/appointments/${appointmentId}/payments`);
 }
 
-function writeAll(all: Record<string, PaymentRecord>): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(all));
-  } catch {
-    // Storage full / disabled — the in-memory dialog state still works.
-  }
-  window.dispatchEvent(new Event(EVENT));
+/** Add a payment entry; resolves to the created row. */
+export function addPayment(
+  appointmentId: string,
+  description: string,
+  amount: number,
+): Promise<PaymentEntry> {
+  return apiFetch<PaymentEntry>(`/appointments/${appointmentId}/payments`, {
+    method: "POST",
+    body: JSON.stringify({ description, amount }),
+  });
 }
 
-/** The cached record for an appointment (empty record when none stored). */
-export function getPaymentRecord(appointmentId: string): PaymentRecord {
-  return readAll()[appointmentId] ?? EMPTY;
+/** Remove a payment entry. */
+export function removePayment(appointmentId: string, paymentId: string): Promise<void> {
+  return apiFetch(`/appointments/${appointmentId}/payments/${paymentId}`, { method: "DELETE" });
 }
 
-/** Persist (or clear, when empty) an appointment's payment record. */
-export function setPaymentRecord(appointmentId: string, record: PaymentRecord): void {
-  const all = readAll();
-  if (record.payments.length === 0 && !record.complete) {
-    delete all[appointmentId];
-  } else {
-    all[appointmentId] = record;
-  }
-  writeAll(all);
-}
-
-/** Re-render signal: bumps on any payment change (this tab or another). */
-export function usePaymentsRevision(): number {
-  const [rev, setRev] = useState(0);
-  useEffect(() => {
-    const handler = () => setRev((r) => r + 1);
-    window.addEventListener(EVENT, handler);
-    window.addEventListener("storage", handler);
-    return () => {
-      window.removeEventListener(EVENT, handler);
-      window.removeEventListener("storage", handler);
-    };
-  }, []);
-  return rev;
+/** Mark a single payment entry paid / unpaid. */
+export function setPaymentPaid(
+  appointmentId: string,
+  paymentId: string,
+  paid: boolean,
+): Promise<void> {
+  return apiFetch(`/appointments/${appointmentId}/payments/${paymentId}/paid`, {
+    method: "PATCH",
+    body: JSON.stringify({ paid }),
+  });
 }

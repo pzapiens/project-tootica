@@ -147,11 +147,17 @@ have set them yet).
   "startTime": "2026-09-01T09:00:00.000Z",
   "endTime": "2026-09-01T09:30:00.000Z",
   "status": "SCHEDULED",
+  "bookingChannel": "WEB",
   "notes": "Routine visit",
   "createdAt": "2026-08-18T03:49:38.000Z",
   "updatedAt": "2026-08-18T03:49:38.000Z"
 }
 ```
+
+`bookingChannel` is `WEB` | `WHATSAPP` — how the booking came in. It's durable
+across accept/reject (which only change `status`), so an accepted WhatsApp
+booking still reads `WHATSAPP`. Defaults to `WEB`; the inbound WhatsApp webhook
+sets `WHATSAPP`.
 
 ---
 
@@ -425,6 +431,22 @@ Request: any subset of the create fields. **200** → `Patient` · `404`.
 
 All: `401` (no session) · `403` (no clinic on account).
 
+### Patient records — `/api/patients/:patientId/records` (tenant)
+The "Patient Records" view (observation note, tooth-wise remarks, medical history,
+documents). All scoped to the caller's clinic; `404` when the patient isn't in it.
+
+- `GET /:patientId/records` → the full bundle:
+  `{ observation, observationUpdatedAt, teeth[], medHistory[], documents[] }`
+  (`teeth[i]` = `{ id, toothNo, remarks, createdAt }`; `medHistory[i]` = `{ id, text, createdAt }`;
+  `documents[i]` = `{ id, category, name, size, mimeType, createdAt }`).
+- `PUT /:patientId/records/observation` — `{ "text": "…" }` (empty clears it). **200** → `{ observation, observationUpdatedAt }`.
+- `POST /:patientId/records/teeth` — `{ "toothNo", "remarks" }`. **201** → tooth entry.
+- `PATCH /:patientId/records/teeth/:entryId` — partial. **200** · `DELETE …/:entryId` → **204**.
+- `POST /:patientId/records/medical-history` — `{ "text" }`. **201**. `PATCH`/`DELETE …/:entryId` as above.
+- `POST /:patientId/records/documents` — **multipart** (`category` field + `file`, ≤25 MB). **201** → document.
+- `GET /:patientId/records/documents/:documentId/download` — streams the file inline.
+- `DELETE /:patientId/records/documents/:documentId` → **204**.
+
 ---
 
 ## Doctors ✅ — `/api/doctors` (tenant)
@@ -510,8 +532,53 @@ Request (`endTime` must be after `startTime`; `status` defaults to `SCHEDULED`):
 ### `PATCH /api/appointments/:id`
 Request: any subset of the create fields (e.g. `{ "status": "CONFIRMED" }`). **200** → `Appointment` · `404`.
 
+Accepting a pending WhatsApp booking is a `PATCH` to `status: "CONFIRMED"`. If the
+appointment is still code-less (WhatsApp bookings arrive without a code), moving
+it out of `SCHEDULED` mints its sequential `code` in the response.
+
 ### `DELETE /api/appointments/:id`
 **204** · `404`.
+
+### `POST /api/appointments/whatsapp/inbound`
+Ingests a WhatsApp booking. The patient is matched by `phone` within the clinic
+(digits-only match) and created on the fly when new. The appointment is stored
+`SCHEDULED`, doctor-less and time-less (start == end), stamped
+`bookingChannel: "WHATSAPP"` — so it surfaces in the "WhatsApp Appointments"
+popup for staff to accept/reject.
+
+This is the seam the real **Meta WhatsApp Cloud API** webhook will feed: it will
+parse Meta's payload into this shape and call this endpoint server-side, so the
+appointment-creation path is already final.
+
+Request (`phone` required; everything else optional):
+
+```json
+{
+  "phone": "+919999999999",
+  "name": "Aarav Sharma",
+  "consultationType": "TEETH WHITENING",
+  "notes": "Requested appointment this week"
+}
+```
+
+**201** → `Appointment` (with `bookingChannel: "WHATSAPP"` and `code: null` — a
+pending WhatsApp booking claims its sequential code only when accepted, so a
+rejected request never burns a number).
+
+> The `GET /api/appointments` list rows also carry a payment summary —
+> `paymentCount` (number of entries) and `paymentComplete` (true when there's at
+> least one entry and **every** entry is paid) — used for the row's payment-status
+> glyph (sand while any entry is unpaid, green when all are paid).
+
+### Payments — `/api/appointments/:appointmentId/payments` (tenant)
+Per-appointment payment entries (Payment Management dialog). Each entry is
+individually marked paid / unpaid. All scoped to the caller's clinic through the
+appointment; `404` when it isn't in the clinic.
+
+- `GET /:appointmentId/payments` → `{ payments: [{ id, description, amount, paid, createdAt }] }`.
+- `POST /:appointmentId/payments` — `{ "description", "amount" }` (`amount` > 0). **201** → the created entry (`paid: false`).
+- `PATCH /:appointmentId/payments/:paymentId/paid` — `{ "paid": true|false }`. **200** → `{ paid }`.
+- `DELETE /:appointmentId/payments/:paymentId` → **204** · `404`.
 
 ---
 

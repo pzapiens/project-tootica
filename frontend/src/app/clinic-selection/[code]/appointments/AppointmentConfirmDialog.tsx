@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { apiFetch, ApiError } from "@/lib/api";
-import { markWhatsAppBooking } from "@/lib/bookingChannelStore";
 
 /**
  * Shared confirm dialog for the appointment row actions that need a yes/no
@@ -12,6 +11,10 @@ import { markWhatsAppBooking } from "@/lib/bookingChannelStore";
  * share the common dialog shell; each variant swaps the icon, tone colour and
  * wording. Accept PATCHes the status to CONFIRMED; reject and delete both DELETE
  * the appointment (a rejected WhatsApp booking is discarded, not kept).
+ *
+ * Accepting keeps the appointment's `bookingChannel` (WHATSAPP) untouched — the
+ * backend is the source of truth for the channel, so no client-side marker is
+ * needed to remember it came in via WhatsApp.
  */
 
 export type ConfirmVariant = "accept" | "reject" | "delete";
@@ -60,22 +63,23 @@ export default function AppointmentConfirmDialog({
   variant,
   appointmentId,
   patientName,
-  patientCode,
-  localAction,
+  appointmentCode,
   onClose,
   onDone,
 }: {
   variant: ConfirmVariant;
   appointmentId: string;
   patientName: string;
-  patientCode: string;
-  /** When set, run this instead of the API call — used for cache-only dummy
-   *  bookings that have no backend row (accept/reject just clears the cache). */
-  localAction?: () => void | Promise<void>;
+  /** The appointment's code, or "—"/null for a code-less pending WhatsApp
+   *  booking (its code is assigned only on accept). */
+  appointmentCode?: string | null;
   onClose: () => void;
   onDone: () => void;
 }) {
   const v = VARIANTS[variant];
+  // A pending WhatsApp booking has no code yet, so don't try to show one.
+  const codeLabel = appointmentCode && appointmentCode !== "—" ? appointmentCode : null;
+  const patient = <span className="font-semibold text-[#0077c0]">{patientName}</span>;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -91,22 +95,17 @@ export default function AppointmentConfirmDialog({
     setBusy(true);
     setError("");
     try {
-      if (localAction) {
-        // Cache-only dummy booking — no backend row to mutate; just run the
-        // local update (remove it from the cache) so the popup drops the row.
-        await localAction();
-      } else if (variant === "delete" || variant === "reject") {
+      if (variant === "delete" || variant === "reject") {
         // Reject discards the WhatsApp booking entirely — it isn't kept as a
         // cancelled row, same as an outright delete.
         await apiFetch(`/appointments/${appointmentId}`, { method: "DELETE" });
       } else {
-        // Accept confirms the appointment (→ "Upcoming") and remembers it came
-        // in via WhatsApp so the form's Booking Channel reads "WhatsApp".
+        // Accept confirms the appointment (→ "Upcoming"). Its bookingChannel is
+        // left as-is on the backend, so the form still shows "WhatsApp".
         await apiFetch(`/appointments/${appointmentId}`, {
           method: "PATCH",
           body: JSON.stringify({ status: "CONFIRMED" }),
         });
-        markWhatsAppBooking(appointmentId);
       }
       onDone();
     } catch (err) {
@@ -142,13 +141,38 @@ export default function AppointmentConfirmDialog({
           </h2>
         </div>
 
-        {/* Body */}
+        {/* Body — a short question lead-in plus what happens next. Accept/Reject
+            act on a pending WhatsApp booking (no code yet); Delete names the
+            appointment's code when present. */}
         <p className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
-          Are you sure you want to {v.verb} the appointment for{" "}
-          <span className="font-bold text-[#0077c0]">
-            {patientName} ({patientCode})
-          </span>
-          ? This action cannot be undone.
+          {variant === "accept" && (
+            <>
+              Confirm this WhatsApp booking from {patient}? It’ll be added to your
+              appointments as <span className="font-semibold">Upcoming</span> and
+              given its own appointment ID.
+            </>
+          )}
+          {variant === "reject" && (
+            <>
+              Reject this WhatsApp booking from {patient}? The request will be
+              removed and won’t appear in your appointments.
+            </>
+          )}
+          {variant === "delete" && (
+            <>
+              Delete{" "}
+              {codeLabel ? (
+                <>
+                  appointment{" "}
+                  <span className="font-semibold text-[#0077c0]">{codeLabel}</span>{" "}
+                  for {patient}
+                </>
+              ) : (
+                <>{patient}’s appointment</>
+              )}
+              ? This permanently removes it and can’t be undone.
+            </>
+          )}
         </p>
 
         {error && (

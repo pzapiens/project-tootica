@@ -3,7 +3,15 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
-import { getPaymentRecord, setPaymentRecord, type Payment } from "@/lib/paymentsStore";
+import { ApiError } from "@/lib/api";
+import { notifyAppointmentsChanged } from "@/lib/appointmentsBus";
+import {
+  addPayment as apiAddPayment,
+  fetchPayments,
+  removePayment as apiRemovePayment,
+  setPaymentPaid as apiSetPaid,
+  type PaymentEntry,
+} from "@/lib/paymentsStore";
 import { Tip } from "@/components/HoverTip";
 
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
@@ -16,14 +24,14 @@ import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
  *
  * The management modal lists the appointment's payments (SI No / Description /
  * Date / Amount / delete), a "Mark as complete" toggle and a running total; the
- * New Payment form captures a description + amount. There is no payments backend
- * yet, so the record is cached in `localStorage` (see {@link @/lib/paymentsStore})
- * so it survives closing the dialog and reloads, and drives the row status glyph.
+ * New Payment form captures a description + amount. Payments are stored on the
+ * backend (`/appointments/:id/payments`); every change refreshes the appointments
+ * list so the row's payment-status glyph stays in sync.
  */
 
-/** dd/mm/yyyy for today, used to stamp a newly-added payment. */
-function todayDmy(): string {
-  const d = new Date();
+/** ISO date → dd/mm/yyyy for the Date column. */
+function fmtDate(iso: string): string {
+  const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
@@ -44,12 +52,32 @@ export default function PaymentManagementDialog({
   patientName: string;
   onClose: () => void;
 }) {
-  // Seed from the cached record so payments persist across opens / reloads.
-  const [payments, setPayments] = useState<Payment[]>(() => getPaymentRecord(appointmentId).payments);
-  const [complete, setComplete] = useState(() => getPaymentRecord(appointmentId).complete);
+  const [payments, setPayments] = useState<PaymentEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
   // The payment row awaiting delete confirmation (null = no prompt open).
-  const [pendingDelete, setPendingDelete] = useState<Payment | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PaymentEntry | null>(null);
+
+  // Load the appointment's payments on open (loading starts true).
+  useEffect(() => {
+    let active = true;
+    fetchPayments(appointmentId)
+      .then((b) => {
+        if (!active) return;
+        setPayments(b.payments);
+      })
+      .catch((e) => {
+        if (active) setError(e instanceof ApiError ? e.message : "Couldn't load payments.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [appointmentId]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -62,23 +90,45 @@ export default function PaymentManagementDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [adding, onClose]);
 
-  // Persist every change back to the cache (also refreshes the row glyph).
-  useEffect(() => {
-    setPaymentRecord(appointmentId, { payments, complete });
-  }, [appointmentId, payments, complete]);
-
   const total = payments.reduce((sum, p) => sum + p.amount, 0);
 
+  /** Run a payment mutation, then refresh the appointments list (row glyph). */
+  async function run(fn: () => Promise<void>) {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      notifyAppointmentsChanged();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function addPayment(description: string, amount: number) {
-    setPayments((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), description, amount, date: todayDmy() },
-    ]);
-    setAdding(false);
+    void run(async () => {
+      const created = await apiAddPayment(appointmentId, description, amount);
+      setPayments((prev) => [...prev, created]);
+      setAdding(false);
+    });
   }
 
   function removePayment(id: string) {
-    setPayments((prev) => prev.filter((p) => p.id !== id));
+    void run(async () => {
+      await apiRemovePayment(appointmentId, id);
+      setPayments((prev) => prev.filter((p) => p.id !== id));
+    });
+  }
+
+  function togglePaid(p: PaymentEntry) {
+    const next = !p.paid;
+    // Optimistic — reflect the tick immediately, then persist.
+    setPayments((prev) => prev.map((x) => (x.id === p.id ? { ...x, paid: next } : x)));
+    void run(async () => {
+      await apiSetPaid(appointmentId, p.id, next);
+    });
   }
 
   return (
@@ -109,12 +159,13 @@ export default function PaymentManagementDialog({
           </button>
         </div>
 
-        {/* Toolbar: mark-as-complete + add new */}
+        {/* Toolbar: paid summary + add new */}
         <div className="flex items-center justify-between px-[30px] py-[20px]">
-          <label className="flex cursor-pointer items-center gap-[10px] select-none">
-            <CheckBox checked={complete} onChange={() => setComplete((v) => !v)} />
-            <span className="font-inter text-[15px] text-[#1e1e24]">Mark as complete</span>
-          </label>
+          <span className="font-inter text-[15px] text-[#1e1e24]">
+            {payments.length === 0
+              ? "No payments yet"
+              : `${payments.filter((p) => p.paid).length} of ${payments.length} paid`}
+          </span>
           <button
             type="button"
             onClick={() => setAdding(true)}
@@ -124,6 +175,12 @@ export default function PaymentManagementDialog({
           </button>
         </div>
 
+        {error && (
+          <p role="alert" className="px-[30px] pb-[8px] font-inter text-[13px] text-[#ba1a1a]">
+            {error}
+          </p>
+        )}
+
         {/* Table */}
         <div className="mx-[30px] mb-[30px] overflow-hidden rounded-[12px] border border-[#c2c6d4]">
           {/* Header row */}
@@ -132,6 +189,7 @@ export default function PaymentManagementDialog({
             <span className={HEAD}>Description</span>
             <span className={HEAD}>Date</span>
             <span className={`${HEAD} text-right`}>Amount</span>
+            <span className={`${HEAD} text-center`}>Paid</span>
             <span className={`${HEAD} text-right`}>Actions</span>
           </div>
 
@@ -140,8 +198,15 @@ export default function PaymentManagementDialog({
             <div key={p.id} className={`${COLS} px-[16px] py-[19px]`}>
               <span className="font-inter text-[14px] text-[#1e1e24]">#{i + 1}</span>
               <span className="truncate font-inter text-[14px] text-[#1e1e24]">{p.description}</span>
-              <span className="font-inter text-[14px] text-[#1e1e24]">{p.date}</span>
+              <span className="font-inter text-[14px] text-[#1e1e24]">{fmtDate(p.createdAt)}</span>
               <span className="text-right font-inter text-[14px] text-[#1e1e24]">{formatAmount(p.amount)}</span>
+              <span className="flex justify-center">
+                <CheckBox
+                  checked={p.paid}
+                  onChange={() => togglePaid(p)}
+                  label={`Mark ${p.description} ${p.paid ? "unpaid" : "paid"}`}
+                />
+              </span>
               <span className="flex justify-end">
                 <button
                   type="button"
@@ -155,6 +220,12 @@ export default function PaymentManagementDialog({
               </span>
             </div>
           ))}
+
+          {(loading || payments.length === 0) && (
+            <p className="px-[16px] py-[24px] text-center font-inter text-[14px] text-[#94a3b8]">
+              {loading ? "Loading payments…" : "No payments recorded yet."}
+            </p>
+          )}
 
           {/* Total */}
           <div className="flex items-center justify-between border-t border-[#c2c6d4] px-[24px] py-[16px]">
@@ -260,7 +331,7 @@ function NewPaymentDialog({
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter payment description here"
+              placeholder="e.g. Consultation fee, Scaling, Root canal"
               aria-label={`Payment description for ${patientName}`}
               className="w-full border-b border-[rgba(194,198,212,0.6)] pb-[10px] pt-[9px] font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4] focus:border-[#0077c0]"
             />
@@ -278,7 +349,7 @@ function NewPaymentDialog({
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                placeholder="000.00"
+                placeholder="e.g. 1500"
                 className="min-w-0 flex-1 border-b border-[rgba(194,198,212,0.6)] pb-[10px] pt-[9px] font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4] focus:border-[#0077c0]"
               />
             </div>
@@ -310,16 +381,26 @@ function NewPaymentDialog({
 
 /* ------------------------------------------------------------- primitives */
 
-/** Shared 5-column grid for the payments table header + rows. */
-const COLS = "grid grid-cols-[56px_minmax(0,1fr)_120px_110px_64px] items-center gap-[8px]";
+/** Shared column grid for the payments table header + rows (SI No / Description /
+ *  Date / Amount / Paid / Actions). */
+const COLS = "grid grid-cols-[52px_minmax(0,1fr)_110px_100px_64px_64px] items-center gap-[8px]";
 /** Column-header cell styling. */
 const HEAD = "font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24]";
 
-function CheckBox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+function CheckBox({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label?: string;
+}) {
   return (
     <span
       role="checkbox"
       aria-checked={checked}
+      aria-label={label}
       tabIndex={0}
       onClick={onChange}
       onKeyDown={(e) => {

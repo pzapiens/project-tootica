@@ -3,10 +3,15 @@
 import Image from "next/image";
 import { useEffect } from "react";
 
+import { openWhatsAppChat } from "@/lib/whatsapp";
+
 /**
  * "Proceed to Chat?" dialog (Figma "PTC"). Opened from the row overflow menu's
  * **Chat** action: reminds the user to be logged into WhatsApp Web on this PC,
  * then opens WhatsApp for the patient's number on "Proceed to WhatsApp".
+ *
+ * The link is built by the shared {@link openWhatsAppChat} helper — the single
+ * place that changes when the Meta Cloud API integration replaces wa.me links.
  */
 export default function AppointmentChatDialog({
   patientName,
@@ -31,7 +36,7 @@ export default function AppointmentChatDialog({
   const digits = phone.replace(/\D/g, "");
 
   function proceed() {
-    if (digits) window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
+    openWhatsAppChat(phone);
     onClose();
   }
 

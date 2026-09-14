@@ -1,3 +1,4 @@
+import { nextAppointmentCode } from '../../common/utils/codes';
 import { HttpError } from '../../common/utils/httpError';
 import { appointmentRepository } from './repository';
 import type {
@@ -5,6 +6,7 @@ import type {
   CreateAppointmentInput,
   ListAppointmentsQuery,
   UpdateAppointmentInput,
+  WhatsAppInboundInput,
 } from './schema';
 
 // Clinic business hours, in minutes-from-midnight (09:00–18:00, local time).
@@ -58,6 +60,11 @@ function toListItem(row: ListRow) {
     startTime: row.startTime,
     endTime: row.endTime,
     status: row.status,
+    bookingChannel: row.bookingChannel,
+    // Payment summary for the row's status glyph: shown once there's any entry,
+    // green ("complete") only when every entry is marked paid.
+    paymentCount: row.payments.length,
+    paymentComplete: row.payments.length > 0 && row.payments.every((p) => p.paid),
     consultationType: row.consultationType,
     sourceOfEnquiry: row.sourceOfEnquiry,
     notes: row.notes,
@@ -207,7 +214,18 @@ export const appointmentService = {
   },
 
   update: async (clinicId: string, id: string, data: UpdateAppointmentInput) => {
-    const { count } = await appointmentRepository.update(clinicId, id, data);
+    // Codes are claimed on accept, not on arrival: a pending WhatsApp booking is
+    // code-less until confirmed. When this update moves a still-code-less
+    // appointment out of the pending (SCHEDULED) state — i.e. staff accept it —
+    // mint its sequential code now, so rejected requests never burn a number.
+    let patch: UpdateAppointmentInput & { code?: string } = data;
+    if (data.status && data.status !== 'SCHEDULED') {
+      const existing = await appointmentRepository.findById(clinicId, id);
+      if (existing && !existing.code) {
+        patch = { ...data, code: await nextAppointmentCode(clinicId) };
+      }
+    }
+    const { count } = await appointmentRepository.update(clinicId, id, patch);
     if (count === 0) {
       throw new HttpError(404, 'Appointment not found');
     }
@@ -219,5 +237,42 @@ export const appointmentService = {
     if (count === 0) {
       throw new HttpError(404, 'Appointment not found');
     }
+  },
+
+  /**
+   * Ingest a WhatsApp booking (see {@link WhatsAppInboundInput}). Matches/creates
+   * the patient by phone, then stores a SCHEDULED, doctor-less, time-less
+   * appointment stamped `bookingChannel: WHATSAPP` — exactly what the "WhatsApp
+   * Appointments" popup lists for staff to accept or reject. The zero-duration
+   * (start == end) time is the app's "no time yet" convention (rendered "--").
+   *
+   * This is the single place a WhatsApp booking becomes an appointment; the real
+   * Meta Cloud API webhook will parse its payload into a {@link WhatsAppInboundInput}
+   * and call straight through here.
+   */
+  whatsappInbound: async (clinicId: string, input: WhatsAppInboundInput) => {
+    const patientId = await appointmentRepository.findOrCreatePatientByPhone(
+      clinicId,
+      input.phone,
+      { name: input.name, email: input.email },
+    );
+    // No slot chosen over chat: park it at midnight today, zero-duration.
+    const now = new Date();
+    const slot = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    return appointmentRepository.create(
+      clinicId,
+      {
+        patientId,
+        startTime: slot,
+        endTime: slot,
+        status: 'SCHEDULED',
+        bookingChannel: 'WHATSAPP',
+        sourceOfEnquiry: 'WHATSAPP',
+        consultationType: input.consultationType,
+        notes: input.notes,
+      },
+      // No code yet — a pending WhatsApp booking claims its code only on accept.
+      { assignCode: false },
+    );
   },
 };

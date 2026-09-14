@@ -16,6 +16,8 @@ import { authRoutes } from './modules/auth/routes';
 import { branchRoutes } from './modules/branches/routes';
 import { doctorRoutes } from './modules/doctors/routes';
 import { patientRoutes } from './modules/patients/routes';
+import { paymentRoutes } from './modules/payments/routes';
+import { recordsRoutes } from './modules/records/routes';
 import { superAdminRoutes } from './modules/super-admin/routes';
 
 function healthCheck(_req: Request, res: Response): void {
@@ -49,9 +51,14 @@ export function createApp(): express.Express {
   // (X-Branch-Code) so their lists/counts are partitioned per branch. Patients
   // stay clinic-wide (shared across a clinic's branches).
   app.use('/api/patients', authenticate, requireTenant, patientRoutes);
+  // Patient records (observation, tooth remarks, medical history, documents) —
+  // nested under /api/patients/:patientId/records, clinic-wide like patients.
+  app.use('/api/patients', authenticate, requireTenant, recordsRoutes);
   app.use('/api/branches', authenticate, requireTenant, branchRoutes);
   app.use('/api/doctors', authenticate, requireTenant, resolveBranch, doctorRoutes);
   app.use('/api/appointments', authenticate, requireTenant, resolveBranch, appointmentRoutes);
+  // Per-appointment payments — nested under /api/appointments/:appointmentId/payments.
+  app.use('/api/appointments', authenticate, requireTenant, resolveBranch, paymentRoutes);
   app.use('/api/analytics', authenticate, requireTenant, resolveBranch, analyticsRoutes);
 
   // Clinic admins manage their own clinic's doctors + receptionists.

@@ -1,10 +1,13 @@
 import { prisma } from '../../common/db/prisma';
-import { nextAppointmentCode } from '../../common/utils/codes';
+import { nextAppointmentCode, nextPatientCode } from '../../common/utils/codes';
 import type {
   CreateAppointmentData,
   ListAppointmentsQuery,
   UpdateAppointmentInput,
 } from './schema';
+
+/** Digits-only form of a phone number, for tolerant matching (ignores +, spaces). */
+const digitsOf = (phone: string): string => phone.replace(/\D/g, '');
 
 // Bookings that occupy a slot — cancellations and no-shows free it up.
 const BLOCKING_STATUSES = ['SCHEDULED', 'CONFIRMED', 'COMPLETED'] as const;
@@ -22,11 +25,18 @@ const listInclude = {
       user: { select: { firstName: true, lastName: true } },
     },
   },
+  // Each payment's paid flag — the list derives the row's payment-status glyph
+  // (any payments? all paid?) from these without a separate query.
+  payments: { select: { paid: true } },
 } as const;
 
 export const appointmentRepository = {
   // `branchId` partitions the list to one branch: appointments have no branch
-  // column, so we scope them through their doctor's branch.
+  // column, so we scope them through their doctor's branch. Doctor-less
+  // appointments (pending WhatsApp bookings, and the date-&-time flow's
+  // unassigned bookings) belong to no branch, so they surface in every branch's
+  // view — otherwise the branch-scoped appointments page (and its "WhatsApp
+  // Appointments" popup) would never see a pending WhatsApp booking to triage.
   findMany: (clinicId: string, query: ListAppointmentsQuery = {}, branchId?: string) => {
     const startTime =
       query.from || query.to ? { gte: query.from, lte: query.to } : undefined;
@@ -41,7 +51,7 @@ export const appointmentRepository = {
         clinicId,
         startTime,
         status: statusList ? { in: statusList } : undefined,
-        ...(branchId ? { doctor: { branchId } } : {}),
+        ...(branchId ? { OR: [{ doctor: { branchId } }, { doctorId: null }] } : {}),
       },
       orderBy: { startTime: 'desc' },
       take: query.limit ?? 100,
@@ -52,10 +62,17 @@ export const appointmentRepository = {
   findById: (clinicId: string, id: string) =>
     prisma.appointment.findFirst({ where: { id, clinicId } }),
 
-  create: async (clinicId: string, data: CreateAppointmentData) =>
-    prisma.appointment.create({
-      data: { ...data, clinicId, code: await nextAppointmentCode(clinicId) },
-    }),
+  // `assignCode: false` creates a code-less appointment — used for pending
+  // WhatsApp bookings, which only claim a sequential code when accepted (so a
+  // rejected request never burns a number). Defaults to assigning one.
+  create: async (
+    clinicId: string,
+    data: CreateAppointmentData,
+    opts: { assignCode?: boolean } = {},
+  ) => {
+    const code = opts.assignCode === false ? null : await nextAppointmentCode(clinicId);
+    return prisma.appointment.create({ data: { ...data, clinicId, code } });
+  },
 
   /** The clinic's doctors (optionally a single one / one branch), with names. */
   findClinicDoctors: (clinicId: string, doctorId?: string, branchId?: string) =>
@@ -111,9 +128,45 @@ export const appointmentRepository = {
       },
     }),
 
-  update: (clinicId: string, id: string, data: UpdateAppointmentInput) =>
+  // Accepts an optional `code` alongside the editable fields so the service can
+  // mint one when a pending WhatsApp booking is accepted (see service.update).
+  update: (clinicId: string, id: string, data: UpdateAppointmentInput & { code?: string }) =>
     prisma.appointment.updateMany({ where: { id, clinicId }, data }),
 
   remove: (clinicId: string, id: string) =>
     prisma.appointment.deleteMany({ where: { id, clinicId } }),
+
+  /**
+   * Find-or-create a patient by phone within a clinic — used by the inbound
+   * WhatsApp booking, where the sender is identified only by their number.
+   * Matching is digits-only so "+91 99999 99999" and "9999999999" resolve to the
+   * same patient. A new patient is created with a generated code when unmatched.
+   */
+  findOrCreatePatientByPhone: async (
+    clinicId: string,
+    phone: string,
+    fallback: { name?: string; email?: string },
+  ) => {
+    const digits = digitsOf(phone);
+    const candidates = await prisma.patient.findMany({
+      where: { clinicId, phone: { not: null } },
+      select: { id: true, phone: true },
+    });
+    const match = candidates.find((p) => p.phone && digitsOf(p.phone) === digits);
+    if (match) return match.id;
+
+    const created = await prisma.patient.create({
+      data: {
+        clinicId,
+        code: await nextPatientCode(clinicId),
+        // A WhatsApp lead we haven't met yet: label with the number until staff
+        // fill in the real name from the chat.
+        name: fallback.name?.trim() || `WhatsApp ${phone}`,
+        phone,
+        email: fallback.email,
+      },
+      select: { id: true },
+    });
+    return created.id;
+  },
 };

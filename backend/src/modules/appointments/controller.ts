@@ -6,6 +6,7 @@ import {
   createAppointmentSchema,
   listAppointmentsQuerySchema,
   updateAppointmentSchema,
+  whatsappInboundSchema,
 } from './schema';
 import { appointmentService } from './service';
 
@@ -31,6 +32,14 @@ export const appointmentController = {
     const clinicId = requireClinicId(req);
     const data = createAppointmentSchema.parse(req.body);
     res.status(201).json(await appointmentService.create(clinicId, data));
+  },
+
+  // Inbound WhatsApp booking. Today the app/tests post a normalised booking here;
+  // the real Meta Cloud API webhook will parse its own payload into this shape.
+  whatsappInbound: async (req: Request, res: Response) => {
+    const clinicId = requireClinicId(req);
+    const data = whatsappInboundSchema.parse(req.body);
+    res.status(201).json(await appointmentService.whatsappInbound(clinicId, data));
   },
 
   update: async (req: Request, res: Response) => {
