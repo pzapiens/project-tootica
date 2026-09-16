@@ -61,6 +61,14 @@ Seed scripts (all refuse to run with `NODE_ENV=production`):
   and the next 4 weeks** — so the dashboard's Today's Appointments, the stat
   cards and the full calendar all have data on first login. Deterministic (same
   result on every machine); same logins as `db:provision`.
+- **`npm run db:seed:minimal`** — the SAME structure as `db:seed:all` (super
+  admin + **2 clinics × 2 branches** with admins / doctors / receptionists and
+  weekly shifts), but a tiny, easy-to-eyeball dataset: **exactly 5 patients and
+  10 appointments TOTAL across all clinics** (a mix of past, today and upcoming),
+  plus **3 pending WhatsApp requests** in the "WhatsApp Appointments" popup — 1
+  from an existing patient and 2 from new leads (no patient row yet). Accepting a
+  new-lead request creates the patient record + finalises the appointment. Wipes
+  first; same logins as `db:seed:all`.
 - **`npm run db:provision`** — the documented, minimal dataset: **1 super admin +
   2 clinics, each with 2 branches**, and **per branch** 1 doctor + 1 receptionist
   (the receptionist is the branch's person-in-charge). Client admins are
@@ -132,6 +140,7 @@ Stop with `docker compose down` (add `-v` to also wipe the database volume).
 | `npm run db:migrate:deploy` | Apply pending migrations (non-interactive) |
 | `npm run db:seed`         | Seed the legacy richer dataset (3 clinics)   |
 | `npm run db:seed:all`     | **One-shot full seed**: accounts + branches + doctor shifts + patients + past/today/upcoming appointments — wipes first |
+| `npm run db:seed:minimal` | Full structure but a tiny dataset: exactly 5 patients + 10 appointments across all clinics — wipes first |
 | `npm run db:provision`    | Seed the documented dataset (2 clinics × 2 branches) — wipes first |
 | `npm run db:seed:appointments` | Add sample patients + appointments      |
 | `npm run db:seed:whatsapp` | Reset each clinic to 5 pending WhatsApp bookings |

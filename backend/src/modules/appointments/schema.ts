@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const appointmentStatuses = [
   'SCHEDULED',
   'CONFIRMED',
+  'ONGOING',
   'COMPLETED',
   'CANCELLED',
   'NO_SHOW',
@@ -96,6 +97,10 @@ export const whatsappInboundSchema = z.object({
   // patient must be created and none is known.
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
+  // Age/gender the lead shared over WhatsApp (no doctor is ever assigned here).
+  // Stored on the booking until the patient row is created on accept.
+  gender: z.string().optional(),
+  dob: z.coerce.date().optional(),
   // What the patient asked for, if parseable from the message.
   consultationType: z.string().optional(),
   // The raw patient message / any extra note.
@@ -115,6 +120,8 @@ export type AppointmentCreateData = Omit<CreateAppointmentData, 'patientId'> & {
   contactName?: string | null;
   contactPhone?: string | null;
   contactEmail?: string | null;
+  contactGender?: string | null;
+  contactDob?: Date | null;
 };
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;

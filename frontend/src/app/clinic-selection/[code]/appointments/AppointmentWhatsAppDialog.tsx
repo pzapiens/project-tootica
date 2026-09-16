@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useEffect } from "react";
 
+import { Tip } from "@/components/HoverTip";
+
 /**
  * "WhatsApp Appointments" popup (opened from the WhatsApp button on the
  * Appointments page). It lists the clinic's PENDING bookings — appointments that
@@ -167,18 +169,6 @@ function CircleGlyph({ kind, className }: { kind: "check" | "x"; className?: str
       <circle cx="12" cy="12" r="9" />
       {kind === "check" ? <path d="M8.5 12l2.5 2.5L15.5 9" /> : <path d="M9 9l6 6M15 9l-6 6" />}
     </svg>
-  );
-}
-
-/** Small dark hover tooltip shown above an action button (parent needs `group relative`). */
-function Tip({ label }: { label: string }) {
-  return (
-    <span
-      role="tooltip"
-      className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-[110] -translate-x-1/2 whitespace-nowrap rounded-[6px] bg-[#1e1e24] px-[8px] py-[4px] font-inter text-[12px] font-medium leading-[16px] text-white opacity-0 shadow-[0px_4px_12px_rgba(0,0,0,0.15)] transition-opacity duration-150 group-hover:opacity-100"
-    >
-      {label}
-    </span>
   );
 }
 

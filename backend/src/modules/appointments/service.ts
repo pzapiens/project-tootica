@@ -73,8 +73,10 @@ function toListItem(row: ListRow) {
         name: row.contactName || (row.contactPhone ? `WhatsApp ${row.contactPhone}` : 'WhatsApp booking'),
         phone: row.contactPhone,
         email: row.contactEmail,
-        dob: null,
-        gender: null,
+        // A new WhatsApp lead has no patient row yet — surface the age/gender it
+        // came in with (from the booking's contact fields) so the popup shows them.
+        dob: row.contactDob,
+        gender: row.contactGender,
       };
   return {
     id: row.id,
@@ -245,7 +247,12 @@ export const appointmentService = {
           extra.patientId = await appointmentRepository.findOrCreatePatientByPhone(
             clinicId,
             existing.contactPhone ?? '',
-            { name: existing.contactName ?? undefined, email: existing.contactEmail ?? undefined },
+            {
+              name: existing.contactName ?? undefined,
+              email: existing.contactEmail ?? undefined,
+              gender: existing.contactGender ?? undefined,
+              dob: existing.contactDob ?? undefined,
+            },
           );
         }
         if (Object.keys(extra).length > 0) {
@@ -301,6 +308,9 @@ export const appointmentService = {
         bookingChannel: 'WHATSAPP',
         // Leave sourceOfEnquiry unset — that's the marketing lead source (the
         // patient didn't pick one), separate from the WhatsApp booking channel.
+        // Age/gender the lead shared (no doctor is ever assigned over WhatsApp).
+        contactGender: input.gender ?? null,
+        contactDob: input.dob ?? null,
         consultationType: input.consultationType,
         notes: input.notes,
       },

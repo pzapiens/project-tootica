@@ -28,7 +28,9 @@ export const doctorRepository = {
   findMany: (clinicId: string, branchId?: string) =>
     prisma.doctor.findMany({
       where: { clinicId, ...(branchId ? { branchId } : {}) },
-      orderBy: { createdAt: 'desc' },
+      // Highest display code (ID) first — codes are per-clinic and zero-padded,
+      // so a string sort matches the numeric order (…D000009, …D000008).
+      orderBy: { code: 'desc' },
       include: withUser,
     }),
 

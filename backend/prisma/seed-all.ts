@@ -582,8 +582,10 @@ async function main(): Promise<void> {
           startTime: day,
           endTime: day,
           status: 'SCHEDULED',
+          // Booking came in over WhatsApp; the marketing lead source is left
+          // unset (default) — the channel already records how it arrived.
+          bookingChannel: 'WHATSAPP',
           consultationType: pick(CONSULTATION_TYPES),
-          sourceOfEnquiry: 'WHATSAPP',
           notes: pick(APPOINTMENT_NOTES.SCHEDULED),
           createdAt: today,
         },

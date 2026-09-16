@@ -116,7 +116,7 @@ const LEAD_SOURCES = [
 // STATUS_TO_BACKEND in NewAppointmentModal. "Upcoming" is the single active
 // state; there's no separate "Confirmed" — a booked appointment is "Upcoming"
 // until it's Completed / No Show / Cancelled.)
-const STATUS_OPTIONS = ["Upcoming", "Completed", "No Show", "Cancelled"];
+const STATUS_OPTIONS = ["Upcoming", "On going", "Completed", "No Show", "Cancelled"];
 // Clinic working hours (for the fast client-side time-range check): 9 AM – 6 PM.
 // The backend is authoritative — it re-checks hours + real doctor conflicts.
 const OPEN_MIN = 9 * 60;

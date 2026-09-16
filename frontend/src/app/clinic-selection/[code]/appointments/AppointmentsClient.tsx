@@ -11,6 +11,7 @@ import { useAppointmentsRevision, notifyAppointmentsChanged } from "@/lib/appoin
 import { bookingChannelLabel } from "@/lib/whatsapp";
 import { statusBadgeClass } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
+import { Tip } from "@/components/HoverTip";
 
 import NewAppointmentModal, { type EditAppointment } from "../dashboard/NewAppointmentModal";
 import { CONSULTATION_TYPES, type Time } from "../dashboard/AppointmentFormStep";
@@ -103,6 +104,7 @@ function parseTime(s: string): Time {
 const STATUS_LABEL: Record<AppointmentStatus, string> = {
   SCHEDULED: "Pending",
   CONFIRMED: "Upcoming",
+  ONGOING: "On going",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
   NO_SHOW: "No Show",
@@ -114,6 +116,7 @@ const STATUS_LABEL: Record<AppointmentStatus, string> = {
 const FORM_STATUS: Record<AppointmentStatus, string> = {
   SCHEDULED: "Upcoming",
   CONFIRMED: "Upcoming",
+  ONGOING: "On going",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
   NO_SHOW: "No Show",
@@ -123,7 +126,7 @@ const FORM_STATUS: Record<AppointmentStatus, string> = {
 const CHIP_STATUSES: Record<string, AppointmentStatus[]> = {
   Pending: ["SCHEDULED"],
   Upcoming: ["CONFIRMED"],
-  "On going": [],
+  "On going": ["ONGOING"],
   Completed: ["COMPLETED"],
   Cancelled: ["CANCELLED"],
   "No Show": ["NO_SHOW"],
@@ -401,13 +404,14 @@ export default function AppointmentsClient() {
 
   // Pending (SCHEDULED) bookings for the "WhatsApp Appointments" popup — the
   // rows deliberately excluded from the main table above, straight from the
-  // backend (WhatsApp bookings arrive SCHEDULED). Newest first.
+  // backend (WhatsApp bookings arrive SCHEDULED). Highest appointment code
+  // first (newest booking), matching the main list's ordering.
   const pendingRows = useMemo(
     () =>
       allRows
         .filter(({ row }) => row.rawStatus === "SCHEDULED")
         .map(({ row }) => row)
-        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()),
+        .sort((a, b) => codeNum(b.code) - codeNum(a.code)),
     [allRows],
   );
 
@@ -773,21 +777,6 @@ function IconButton({
       )}
       <Tip label={tip ?? label} below />
     </button>
-  );
-}
-
-/** Small dark hover tooltip shown above (or below) an icon button; the parent
- *  button needs `group relative`. */
-function Tip({ label, below }: { label: string; below?: boolean }) {
-  return (
-    <span
-      role="tooltip"
-      className={`pointer-events-none absolute left-1/2 z-[120] -translate-x-1/2 whitespace-nowrap rounded-[6px] bg-[#1e1e24] px-[8px] py-[4px] font-inter text-[12px] font-medium leading-[16px] text-white opacity-0 shadow-[0px_4px_12px_rgba(0,0,0,0.15)] transition-opacity duration-150 group-hover:opacity-100 ${
-        below ? "top-[calc(100%+6px)]" : "bottom-[calc(100%+6px)]"
-      }`}
-    >
-      {label}
-    </span>
   );
 }
 

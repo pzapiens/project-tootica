@@ -24,6 +24,7 @@ import {
 } from "@/lib/patientRecordsStore";
 
 import { exportMedHistoryXls, exportObservationPdf, exportPerioXls } from "@/lib/recordsExport";
+import { Tip } from "@/components/HoverTip";
 
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
 import { PERIO_TEETH, PERIO_VIEWBOX } from "./perioChartData";
@@ -947,19 +948,6 @@ function DocumentUploadSection({
         />
       )}
     </section>
-  );
-}
-
-/** A small dark hover tooltip shown above an icon button (its parent needs
- *  `group relative`). Sized to sit neatly over the icon. */
-function Tip({ label }: { label: string }) {
-  return (
-    <span
-      role="tooltip"
-      className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-[60] -translate-x-1/2 whitespace-nowrap rounded-[6px] bg-[#1e1e24] px-[8px] py-[4px] font-inter text-[12px] font-medium leading-[16px] text-white opacity-0 shadow-[0px_4px_12px_rgba(0,0,0,0.15)] transition-opacity duration-150 group-hover:opacity-100"
-    >
-      {label}
-    </span>
   );
 }
 

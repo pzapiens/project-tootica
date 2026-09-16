@@ -10,7 +10,7 @@ import type {
 const digitsOf = (phone: string): string => phone.replace(/\D/g, '');
 
 // Bookings that occupy a slot — cancellations and no-shows free it up.
-const BLOCKING_STATUSES = ['SCHEDULED', 'CONFIRMED', 'COMPLETED'] as const;
+const BLOCKING_STATUSES = ['SCHEDULED', 'CONFIRMED', 'ONGOING', 'COMPLETED'] as const;
 
 // Join the patient + doctor (with the doctor's user name) so the list can show
 // human-readable rows without extra round-trips.
@@ -53,7 +53,10 @@ export const appointmentRepository = {
         status: statusList ? { in: statusList } : undefined,
         ...(branchId ? { OR: [{ doctor: { branchId } }, { doctorId: null }] } : {}),
       },
-      orderBy: { startTime: 'desc' },
+      // Ordered by the appointment display code, highest-first. Codes are
+      // per-clinic, zero-padded and share a constant clinic prefix, so a string
+      // sort matches the numeric order (…A000041, A000040, A000039…).
+      orderBy: { code: 'desc' },
       take: query.limit ?? 100,
       include: listInclude,
     });
@@ -158,7 +161,7 @@ export const appointmentRepository = {
   findOrCreatePatientByPhone: async (
     clinicId: string,
     phone: string,
-    fallback: { name?: string; email?: string },
+    fallback: { name?: string; email?: string; gender?: string; dob?: Date },
   ) => {
     const digits = digitsOf(phone);
     const candidates = await prisma.patient.findMany({
@@ -173,10 +176,13 @@ export const appointmentRepository = {
         clinicId,
         code: await nextPatientCode(clinicId),
         // A WhatsApp lead we haven't met yet: label with the number until staff
-        // fill in the real name from the chat.
+        // fill in the real name from the chat. Carry over any age/gender the lead
+        // shared over WhatsApp so the new patient record starts populated.
         name: fallback.name?.trim() || `WhatsApp ${phone}`,
         phone,
         email: fallback.email,
+        gender: fallback.gender,
+        dob: fallback.dob,
       },
       select: { id: true },
     });

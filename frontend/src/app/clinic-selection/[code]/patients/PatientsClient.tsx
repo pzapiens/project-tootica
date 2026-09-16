@@ -178,7 +178,11 @@ export default function PatientsClient() {
         })
       : enriched;
 
-    if (sorts.length === 0) return filtered;
+    // Default order (no active sort criterion) is by ID (patient code), highest
+    // first.
+    if (sorts.length === 0) {
+      return [...filtered].sort((a, b) => (b.code ?? "").localeCompare(a.code ?? ""));
+    }
     // Multi-key sort: compare by each active criterion in priority order until
     // one breaks the tie. Missing ages sort last (treated as +∞).
     return [...filtered].sort((a, b) => {

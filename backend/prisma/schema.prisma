@@ -50,6 +50,7 @@ enum ClinicPlan {
 enum AppointmentStatus {
   SCHEDULED
   CONFIRMED
+  ONGOING
   COMPLETED
   CANCELLED
   NO_SHOW
@@ -314,6 +315,10 @@ model Appointment {
   contactName      String?           @map("contact_name")
   contactPhone     String?           @map("contact_phone")
   contactEmail     String?           @map("contact_email")
+  // A WhatsApp lead can also carry age/gender (no doctor is ever assigned over
+  // WhatsApp). Stored here until the patient row is created on accept.
+  contactGender    String?           @map("contact_gender")
+  contactDob       DateTime?         @map("contact_dob") @db.Date
   notes            String?
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")

@@ -6,7 +6,9 @@ import type { CreatePatientInput, UpdatePatientInput } from './schema';
 // another tenant's rows.
 export const patientRepository = {
   findMany: (clinicId: string) =>
-    prisma.patient.findMany({ where: { clinicId }, orderBy: { createdAt: 'desc' } }),
+    // Highest display code (ID) first — codes are per-clinic and zero-padded, so
+    // a string sort matches the numeric order (…P000009, …P000008).
+    prisma.patient.findMany({ where: { clinicId }, orderBy: { code: 'desc' } }),
 
   findById: (clinicId: string, id: string) =>
     prisma.patient.findFirst({ where: { id, clinicId } }),

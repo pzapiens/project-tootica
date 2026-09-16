@@ -112,12 +112,13 @@ export default function DoctorsClient() {
       out = out.filter((d) => d.specialization && set.has(d.specialization.toLowerCase()));
     }
 
-    if (filters.sort) {
-      out = [...out].sort((a, b) => {
-        const cmp = (a.code ?? "").localeCompare(b.code ?? "");
-        return filters.sort === "desc" ? -cmp : cmp;
-      });
-    }
+    // Default order is by ID (code), highest first; the ID sort filter can flip
+    // the direction to ascending.
+    const dir = filters.sort ?? "desc";
+    out = [...out].sort((a, b) => {
+      const cmp = (a.code ?? "").localeCompare(b.code ?? "");
+      return dir === "desc" ? -cmp : cmp;
+    });
 
     return out;
   }, [doctors, query, filters]);

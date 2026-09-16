@@ -60,9 +60,10 @@ function fmtDateLabel(dmy: string): string {
 const STATUS_MAP: Record<AppointmentListItem["status"], AppointmentStatus> = {
   SCHEDULED: "Upcoming",
   CONFIRMED: "Upcoming",
+  ONGOING: "On going",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
-  NO_SHOW: "Cancelled",
+  NO_SHOW: "No Show",
 };
 
 /**
@@ -79,12 +80,15 @@ function backendStatusesFor(
       return "all";
     case "Upcoming":
       return ["SCHEDULED", "CONFIRMED"];
+    case "On going":
+      return ["ONGOING"];
     case "Completed":
       return ["COMPLETED"];
     case "Cancelled":
-      return ["CANCELLED", "NO_SHOW"];
+      return ["CANCELLED"];
+    case "No Show":
+      return ["NO_SHOW"];
     default:
-      // "On going" / "Rescheduled" aren't modelled in the backend.
       return "none";
   }
 }
@@ -266,12 +270,14 @@ export default function AppointmentsTable({
     };
   }, [status, todayRange, rev]);
 
-  // Order by start time, newest first. Then map to the display shape and apply
-  // the client-side search.
+  // Order by the appointment display code, highest-first (matches the server's
+  // `orderBy: { code: 'desc' }`). Codes are per-clinic and zero-padded, so a
+  // string compare gives the numeric order; code-less rows sort last. Then map
+  // to the display shape and apply the client-side search.
   const rows = useMemo(() => {
     if (isNoneFilter) return [];
-    const ordered = [...items].sort(
-      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+    const ordered = [...items].sort((a, b) =>
+      (b.code ?? "").localeCompare(a.code ?? ""),
     );
     const q = query.trim().toLowerCase();
     return ordered

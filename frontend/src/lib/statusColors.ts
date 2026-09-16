@@ -8,7 +8,6 @@
  *   - Upcoming    → blue    (confirmed & scheduled ahead — informational)
  *   - On going    → solid blue (happening right now — active)
  *   - Completed   → green   (finished successfully — done)
- *   - Rescheduled → purple  (moved to a new time — changed)
  *   - Cancelled   → red     (called off)
  *   - No Show     → slate    (patient didn't attend — inactive/absent)
  *
@@ -32,7 +31,6 @@ export const STATUS_COLORS: Record<string, StatusColor> = {
   Upcoming: { bg: "bg-[#e6f2fb]", text: "text-[#0077c0]", accent: "#0077c0" },
   "On going": { bg: "bg-[#0077c0]", text: "text-white", accent: "#0077c0", solid: true },
   Completed: { bg: "bg-[#f0fdf4]", text: "text-[#15803d]", accent: "#16a34a" },
-  Rescheduled: { bg: "bg-[#f5f3ff]", text: "text-[#7c3aed]", accent: "#7c3aed" },
   Cancelled: { bg: "bg-[#f9f1f1]", text: "text-[#ab2222]", accent: "#ab2222" },
   "No Show": { bg: "bg-[#f1f5f9]", text: "text-[#475569]", accent: "#64748b" },
 };

@@ -9,8 +9,8 @@ export type AppointmentStatus =
   | "Upcoming"
   | "On going"
   | "Completed"
-  | "Rescheduled"
-  | "Cancelled";
+  | "Cancelled"
+  | "No Show";
 
 export interface DashboardAppointment {
   id: string;
@@ -103,6 +103,6 @@ export const STATUS_FILTER_OPTIONS = [
   "Upcoming",
   "On going",
   "Completed",
-  "Rescheduled",
   "Cancelled",
+  "No Show",
 ] as const;

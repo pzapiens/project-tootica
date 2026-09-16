@@ -43,9 +43,9 @@ const NOTES = [
 // these pending bookings have NO patient until accepted — exercising the
 // create-on-accept / nothing-on-reject flow.
 const LEADS = [
-  { name: 'Aarav Mehta', phone: '+91 90000 10001', email: 'aarav.mehta@example.com' },
-  { name: 'Diya Kapoor', phone: '+91 90000 10002' },
-  { name: 'Vivaan Reddy', phone: '+91 90000 10003' },
+  { name: 'Aarav Mehta', phone: '+91 90000 10001', email: 'aarav.mehta@example.com', gender: 'M', dob: new Date(Date.UTC(1990, 5, 18)) },
+  { name: 'Diya Kapoor', phone: '+91 90000 10002', gender: 'F', dob: new Date(Date.UTC(1996, 1, 27)) },
+  { name: 'Vivaan Reddy', phone: '+91 90000 10003', gender: 'M', dob: new Date(Date.UTC(1983, 10, 9)) },
 ];
 
 const pick = <T>(arr: T[], i: number): T => arr[i % arr.length];
@@ -85,6 +85,7 @@ async function main(): Promise<void> {
     for (let i = 0; i < WHATSAPP_TARGET; i += 1) {
       // Future-dated, no doctor, zero-duration (no time slot).
       const day = new Date(
+        
         today.getFullYear(),
         today.getMonth(),
         today.getDate() + 1 + i * 2,
@@ -100,10 +101,13 @@ async function main(): Promise<void> {
           // No code yet — a pending WhatsApp booking claims its sequential code
           // only when staff accept it (matches the inbound-webhook behaviour).
           patientId: linkExisting ? pick(patients, i).id : null,
-          // Unknown lead: keep the contact on the appointment until accepted.
+          // Unknown lead: keep the contact on the appointment until accepted,
+          // including the age/gender they shared over WhatsApp.
           contactName: linkExisting ? null : lead.name,
           contactPhone: linkExisting ? null : lead.phone,
           contactEmail: linkExisting ? null : (lead.email ?? null),
+          contactGender: linkExisting ? null : lead.gender,
+          contactDob: linkExisting ? null : lead.dob,
           doctorId: null,
           startTime: day,
           endTime: day,

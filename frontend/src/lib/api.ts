@@ -372,6 +372,7 @@ export interface AnalyticsSummary {
 export type AppointmentStatus =
   | "SCHEDULED"
   | "CONFIRMED"
+  | "ONGOING"
   | "COMPLETED"
   | "CANCELLED"
   | "NO_SHOW";

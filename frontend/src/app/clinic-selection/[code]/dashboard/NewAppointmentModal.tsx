@@ -84,6 +84,7 @@ function toFound(p: Patient): FoundPatient {
  */
 const STATUS_TO_BACKEND: Record<string, AppointmentStatus> = {
   Upcoming: "CONFIRMED",
+  "On going": "ONGOING",
   Completed: "COMPLETED",
   Cancelled: "CANCELLED",
   "No Show": "NO_SHOW",
