@@ -8,6 +8,7 @@ export const branchRepository = {
       orderBy: { createdAt: 'asc' },
       include: {
         pic: { select: { firstName: true, lastName: true, phone: true } },
+        clinic: { select: { name: true } },
       },
     }),
 };

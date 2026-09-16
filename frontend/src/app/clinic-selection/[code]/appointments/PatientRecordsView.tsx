@@ -7,15 +7,12 @@ import {
   addDocument,
   addMedHistory,
   addToothEntry,
-  clearObservationDraft,
   documentDownloadUrl,
-  getObservationDraft,
   getPatientRecord,
   loadPatientRecord,
   removeDocument,
   removeMedHistory,
   removeToothEntry,
-  saveObservationDraft,
   setObservation,
   updateMedHistory,
   updateToothEntry,
@@ -69,15 +66,13 @@ export default function PatientRecordsView({
     loadPatientRecord(patientId).catch(() => {});
   }, [patientId]);
 
-  // Guard leaving with an uncommitted observation note. The draft is persisted
-  // (so it's restorable next time) but we still confirm to avoid surprise.
+  // Guard leaving with unsaved edits to the observation note (nothing is kept —
+  // unsaved changes are simply discarded on leave).
   const [hasUnsavedObs, setHasUnsavedObs] = useState(false);
   const guardedClose = useCallback(() => {
     if (
       hasUnsavedObs &&
-      !window.confirm(
-        "Your observation note isn't saved to the record yet. Leave anyway? Your draft will be restored next time.",
-      )
+      !window.confirm("You have unsaved changes to the observation note. Leave without saving?")
     )
       return;
     onClose();
@@ -143,7 +138,6 @@ export default function PatientRecordsView({
       </div>
 
       <ObservationsCard
-        patientId={patientId}
         patientName={patientName}
         patientCode={patientCode}
         value={record.observation}
@@ -196,7 +190,6 @@ export default function PatientRecordsView({
 /* ------------------------------------------------ Doctor/Clinic Observations */
 
 function ObservationsCard({
-  patientId,
   patientName,
   patientCode,
   value,
@@ -204,7 +197,6 @@ function ObservationsCard({
   onSave,
   onDirtyChange,
 }: {
-  patientId: string;
   patientName: string;
   patientCode: string;
   value: string;
@@ -212,12 +204,11 @@ function ObservationsCard({
   onSave: (text: string) => void;
   onDirtyChange: (dirty: boolean) => void;
 }) {
-  // Start from any persisted in-progress draft (survives reload / accidental
-  // close), falling back to the committed note.
-  const [draft, setDraft] = useState(() => getObservationDraft(patientId) ?? value);
-  // Track the value we last synced from, so an external change (another tab)
-  // only adopts the new value when the doctor hasn't got unsaved edits — never
-  // clobbering an in-progress draft.
+  // Local edit buffer, seeded from the saved note (no drafts — nothing is
+  // persisted until Save).
+  const [draft, setDraft] = useState(value);
+  // Adopt the saved value when it changes externally (e.g. the initial backend
+  // load, or another tab) — but only while the doctor has no unsaved edits.
   const lastValueRef = useRef(value);
   useEffect(() => {
     if (lastValueRef.current === value) return;
@@ -230,17 +221,6 @@ function ObservationsCard({
 
   // Surface dirtiness to the parent's unsaved-changes guard.
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
-
-  // Persist the in-progress draft (debounced); clear it once it matches the
-  // committed note (clean) so we don't keep a stale draft around.
-  useEffect(() => {
-    if (draft === value) {
-      clearObservationDraft(patientId);
-      return;
-    }
-    const t = setTimeout(() => saveObservationDraft(patientId, draft), 400);
-    return () => clearTimeout(t);
-  }, [draft, value, patientId]);
 
   return (
     <section className={`${CARD} flex flex-col gap-[17px] p-[26px]`}>
@@ -270,7 +250,7 @@ function ObservationsCard({
           className="h-[136px] w-full resize-none rounded-[8px] border border-b-2 border-[#1e1e24] bg-white px-[18px] pb-[44px] pt-[18px] font-inter text-[15px] leading-[21px] text-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none placeholder:text-[#c2c6d4]"
         />
         <span className="pointer-events-none absolute bottom-[18px] left-[18px] font-inter text-[12px] leading-[16px] text-[#8a90a2]">
-          {dirty ? "Unsaved draft" : updatedAt ? `Last saved ${updatedAt}` : ""}
+          {!dirty && updatedAt ? `Last saved ${updatedAt}` : ""}
         </span>
         <div className="absolute bottom-[14px] right-[14px] flex items-center gap-[8px]">
           <button
@@ -305,13 +285,6 @@ function ObservationsCard({
 // viewBox), split out of the SVG's two compound arch paths — see perioChartData.ts.
 const VALID_FDI = new Set(PERIO_TEETH.map((t) => t.n));
 
-/** Longest remark text shown in a tooth's hover tooltip before it's ellipsised —
- *  keeps the native title readable rather than dumping a long paragraph. */
-const TOOTH_TIP_MAX = 120;
-function truncateTip(s: string, max = TOOTH_TIP_MAX): string {
-  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
-}
-
 /** Interactive FDI odontogram. The chart SVG renders as the backdrop; an overlay
  *  SVG in the same coordinate system draws one exact, clickable path per tooth
  *  that fills blue when selected (a fainter fill when it carries remarks).
@@ -326,19 +299,6 @@ function PerioChart({
   onSelect: (n: string) => void;
 }) {
   const withRemarks = useMemo(() => new Set(teeth.map((t) => t.toothNo)), [teeth]);
-  // All remarks for a tooth, joined — shown in the hover tooltip. A tooth can
-  // carry several entries, so they're combined with "; ".
-  const remarksByTooth = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const t of teeth) {
-      const r = t.remarks?.trim();
-      if (!r) continue;
-      const list = map.get(t.toothNo);
-      if (list) list.push(r);
-      else map.set(t.toothNo, [r]);
-    }
-    return map;
-  }, [teeth]);
   const [hovered, setHovered] = useState<string | null>(null);
 
   return (
@@ -364,11 +324,6 @@ function PerioChart({
         {PERIO_TEETH.map((t) => {
           const sel = selected === t.n;
           const rem = withRemarks.has(t.n);
-          // Hover tooltip: the tooth number, plus its remarks (truncated) when any.
-          const rems = remarksByTooth.get(t.n);
-          const tip = rems?.length
-            ? `Tooth ${t.n}: ${truncateTip(rems.join("; "))}`
-            : `Tooth ${t.n}`;
           return (
             <path
               key={t.n}
@@ -386,9 +341,7 @@ function PerioChart({
                 cursor: "pointer",
                 transition: "fill-opacity 150ms",
               }}
-            >
-              <title>{tip}</title>
-            </path>
+            />
           );
         })}
       </svg>
@@ -413,6 +366,10 @@ function PerioSection({
   const [pendingDelete, setPendingDelete] = useState<ToothEntry | null>(null);
 
   const canAdd = remarks.trim().length > 0 && VALID_FDI.has(tooth);
+
+  // When a tooth is selected on the chart, the table shows only that tooth's
+  // remarks; with none selected it lists them all.
+  const visibleTeeth = tooth ? teeth.filter((t) => t.toothNo === tooth) : teeth;
 
   function submit() {
     if (!canAdd) return;
@@ -505,6 +462,28 @@ function PerioSection({
             </div>
           </div>
 
+          {/* Table title + table, grouped tightly. The title reflects the
+              current tooth filter, with a Show-all toggle when one is selected. */}
+          <div className="flex flex-col gap-[12px]">
+          <div className="flex items-center justify-between">
+            <span className="font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#727783]">
+              {tooth ? `Remarks — Tooth ${tooth}` : "All tooth-wise remarks"}
+            </span>
+            {tooth && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTooth("");
+                  setRemarks("");
+                  setEditingId(null);
+                }}
+                className="font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#0077c0] transition-opacity hover:opacity-80"
+              >
+                Show all
+              </button>
+            )}
+          </div>
+
           {/* Tooth-wise table */}
           <div className="overflow-hidden rounded-[11px] border border-[#c2c6d4] bg-white">
             <div className="grid grid-cols-[minmax(0,80fr)_minmax(0,200fr)_minmax(0,150fr)] items-center border-b border-[#c2c6d4] px-[16px]">
@@ -514,12 +493,14 @@ function PerioSection({
                 </span>
               ))}
             </div>
-            {teeth.length === 0 ? (
+            {visibleTeeth.length === 0 ? (
               <p className="px-[16px] py-[28px] text-center font-inter text-[14px] text-[#94a3b8]">
-                No tooth-wise remarks yet. Add one above.
+                {tooth
+                  ? `No remarks for tooth ${tooth} yet. Add one above.`
+                  : "No tooth-wise remarks yet. Add one above."}
               </p>
             ) : (
-              teeth.map((t) => (
+              visibleTeeth.map((t) => (
                 <div
                   key={t.id}
                   className="grid grid-cols-[minmax(0,80fr)_minmax(0,200fr)_minmax(0,150fr)] items-center border-b border-[#c2c6d4] px-[16px] last:border-b-0"
@@ -552,6 +533,7 @@ function PerioSection({
                 </div>
               ))
             )}
+          </div>
           </div>
         </div>
       </div>

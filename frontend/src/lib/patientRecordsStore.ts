@@ -13,8 +13,8 @@ import { apiFetch, apiUpload } from "@/lib/api";
  * The view reads synchronously from an in-memory cache and re-renders on a
  * revision bump (see {@link useRecordsRevision}); {@link loadPatientRecord}
  * hydrates the cache from the backend, and every writer reloads it afterwards so
- * the view always reflects the server. In-progress observation drafts stay in
- * `localStorage` (purely client-side, so a reload doesn't lose typing).
+ * the view always reflects the server. Nothing is drafted — the observation note
+ * only persists when Saved.
  */
 
 export interface ToothEntry {
@@ -134,7 +134,6 @@ async function mutate(patientId: string, write: () => Promise<unknown>): Promise
 
 /** Persist the doctor/clinic observation note (empty clears it). */
 export async function setObservation(patientId: string, observation: string): Promise<void> {
-  clearObservationDraft(patientId);
   await mutate(patientId, () =>
     apiFetch(`/patients/${patientId}/records/observation`, {
       method: "PUT",
@@ -220,50 +219,6 @@ export function removeDocument(patientId: string, id: string): Promise<void> {
 /** Same-origin URL to open/download a document (cookies authorise the GET). */
 export function documentDownloadUrl(patientId: string, id: string): string {
   return `/api/patients/${patientId}/records/documents/${id}/download`;
-}
-
-/* ----------------------------------------- in-progress observation drafts (local) */
-
-const DRAFT_KEY = "tootica.patientRecords.draft.v1";
-
-function readAllDrafts(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(DRAFT_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeAllDrafts(all: Record<string, string>): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(all));
-  } catch {
-    // Storage full / disabled — the in-memory draft still works this session.
-  }
-}
-
-/** The saved in-progress observation draft for a patient, if any. */
-export function getObservationDraft(patientId: string): string | undefined {
-  return readAllDrafts()[patientId];
-}
-
-/** Persist an in-progress observation draft (debounced by the caller). */
-export function saveObservationDraft(patientId: string, text: string): void {
-  const all = readAllDrafts();
-  all[patientId] = text;
-  writeAllDrafts(all);
-}
-
-/** Drop a patient's in-progress observation draft (on Save or Discard). */
-export function clearObservationDraft(patientId: string): void {
-  const all = readAllDrafts();
-  if (patientId in all) {
-    delete all[patientId];
-    writeAllDrafts(all);
-  }
 }
 
 /** Re-render signal: bumps on any records change (this tab). */

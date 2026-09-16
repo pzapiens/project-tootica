@@ -105,6 +105,17 @@ export const whatsappInboundSchema = z.object({
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 /** The stored appointment fields (create input minus the `nonMandatory` flag). */
 export type CreateAppointmentData = Omit<CreateAppointmentInput, 'nonMandatory'>;
+/**
+ * What the repository's `create` accepts: the web-create fields, but with an
+ * optional/nullable patient plus the pending WhatsApp lead's contact info (a new
+ * lead has no patient row until it's accepted).
+ */
+export type AppointmentCreateData = Omit<CreateAppointmentData, 'patientId'> & {
+  patientId?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+};
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;

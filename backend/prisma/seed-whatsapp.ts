@@ -39,6 +39,15 @@ const NOTES = [
   'Toothache — needs a slot this week',
 ];
 
+// Unknown-lead contacts (numbers deliberately don't match seeded patients), so
+// these pending bookings have NO patient until accepted — exercising the
+// create-on-accept / nothing-on-reject flow.
+const LEADS = [
+  { name: 'Aarav Mehta', phone: '+91 90000 10001', email: 'aarav.mehta@example.com' },
+  { name: 'Diya Kapoor', phone: '+91 90000 10002' },
+  { name: 'Vivaan Reddy', phone: '+91 90000 10003' },
+];
+
 const pick = <T>(arr: T[], i: number): T => arr[i % arr.length];
 
 async function main(): Promise<void> {
@@ -81,18 +90,27 @@ async function main(): Promise<void> {
         today.getDate() + 1 + i * 2,
         0, 0, 0, 0,
       );
+      // First two link an EXISTING patient (patient books via WhatsApp); the
+      // rest are NEW leads with no patient row yet (contact details only).
+      const linkExisting = i < 2 && i < patients.length;
+      const lead = pick(LEADS, i - 2);
       await prisma.appointment.create({
         data: {
           clinicId: clinic.id,
           // No code yet — a pending WhatsApp booking claims its sequential code
           // only when staff accept it (matches the inbound-webhook behaviour).
-          patientId: pick(patients, i).id,
+          patientId: linkExisting ? pick(patients, i).id : null,
+          // Unknown lead: keep the contact on the appointment until accepted.
+          contactName: linkExisting ? null : lead.name,
+          contactPhone: linkExisting ? null : lead.phone,
+          contactEmail: linkExisting ? null : (lead.email ?? null),
           doctorId: null,
           startTime: day,
           endTime: day,
           status: 'SCHEDULED',
           bookingChannel: 'WHATSAPP',
-          sourceOfEnquiry: 'WHATSAPP',
+          // No sourceOfEnquiry — the marketing lead source stays unset (the
+          // booking channel already records that it came via WhatsApp).
           consultationType: pick(CONSULTATION_TYPES, i),
           notes: pick(NOTES, i),
           createdAt: today,

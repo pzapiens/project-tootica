@@ -540,11 +540,19 @@ it out of `SCHEDULED` mints its sequential `code` in the response.
 **204** · `404`.
 
 ### `POST /api/appointments/whatsapp/inbound`
-Ingests a WhatsApp booking. The patient is matched by `phone` within the clinic
-(digits-only match) and created on the fly when new. The appointment is stored
-`SCHEDULED`, doctor-less and time-less (start == end), stamped
-`bookingChannel: "WHATSAPP"` — so it surfaces in the "WhatsApp Appointments"
-popup for staff to accept/reject.
+Ingests a WhatsApp booking. The `phone` is matched (digits-only) against the
+clinic's patients:
+- **Existing patient** → the booking links to them (`patientId` set).
+- **New lead** → **no patient is created**. The lead's `name`/`phone`/`email`
+  are stored on the appointment's `contactName`/`contactPhone`/`contactEmail`
+  fields, and `patientId` stays `null`. The patient is created **only when the
+  booking is accepted** (so a rejected request never creates a patient).
+
+The appointment is stored `SCHEDULED`, doctor-less and time-less (start == end),
+stamped `bookingChannel: "WHATSAPP"`, and surfaces in the "WhatsApp Appointments"
+popup for staff to accept/reject. In the `GET /api/appointments` list, a
+patient-less lead's `patient` object is filled from the contact fields with
+`patient.id: null`.
 
 This is the seam the real **Meta WhatsApp Cloud API** webhook will feed: it will
 parse Meta's payload into this shape and call this endpoint server-side, so the
@@ -561,9 +569,10 @@ Request (`phone` required; everything else optional):
 }
 ```
 
-**201** → `Appointment` (with `bookingChannel: "WHATSAPP"` and `code: null` — a
-pending WhatsApp booking claims its sequential code only when accepted, so a
-rejected request never burns a number).
+**201** → `Appointment` (`bookingChannel: "WHATSAPP"`, `code: null`, and
+`patientId: null` for a new lead). On accept (`PATCH status: CONFIRMED`) the code
+is minted and, for a new lead, the patient is created from the contact fields and
+linked.
 
 > The `GET /api/appointments` list rows also carry a payment summary —
 > `paymentCount` (number of entries) and `paymentComplete` (true when there's at

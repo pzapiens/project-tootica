@@ -54,6 +54,28 @@ function toListItem(row: ListRow) {
   const doctorName = row.doctor
     ? [row.doctor.user.firstName, row.doctor.user.lastName].filter(Boolean).join(' ').trim()
     : '';
+  // A pending WhatsApp lead has no patient row yet — surface its contact details
+  // (name/phone/email from the appointment) so the popup can still show + act on it.
+  const p = row.patient;
+  const patient = p
+    ? {
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        phone: p.phone,
+        email: p.email,
+        dob: p.dob,
+        gender: p.gender,
+      }
+    : {
+        id: null,
+        code: null,
+        name: row.contactName || (row.contactPhone ? `WhatsApp ${row.contactPhone}` : 'WhatsApp booking'),
+        phone: row.contactPhone,
+        email: row.contactEmail,
+        dob: null,
+        gender: null,
+      };
   return {
     id: row.id,
     code: row.code,
@@ -68,15 +90,7 @@ function toListItem(row: ListRow) {
     consultationType: row.consultationType,
     sourceOfEnquiry: row.sourceOfEnquiry,
     notes: row.notes,
-    patient: {
-      id: row.patient.id,
-      code: row.patient.code,
-      name: row.patient.name,
-      phone: row.patient.phone,
-      email: row.patient.email,
-      dob: row.patient.dob,
-      gender: row.patient.gender,
-    },
+    patient,
     doctor: {
       id: row.doctor?.id ?? null,
       name: doctorName || null,
@@ -143,7 +157,8 @@ export const appointmentService = {
           .map((a) => ({
             start: hhmm(a.startTime),
             end: hhmm(a.endTime),
-            patientName: a.patient.name,
+            // Day bookings are all doctor-assigned, so a patient is always present.
+            patientName: a.patient?.name ?? '',
           }));
         let available: boolean | null = null;
         let reason: 'outside-hours' | 'conflict' | 'break' | null = null;
@@ -214,15 +229,28 @@ export const appointmentService = {
   },
 
   update: async (clinicId: string, id: string, data: UpdateAppointmentInput) => {
-    // Codes are claimed on accept, not on arrival: a pending WhatsApp booking is
-    // code-less until confirmed. When this update moves a still-code-less
-    // appointment out of the pending (SCHEDULED) state — i.e. staff accept it —
-    // mint its sequential code now, so rejected requests never burn a number.
-    let patch: UpdateAppointmentInput & { code?: string } = data;
+    // Accepting a pending WhatsApp booking (status leaves SCHEDULED) does two
+    // things a plain edit doesn't: it mints the code (claimed on accept, so a
+    // rejected request never burns a number) and — for a new lead with no
+    // patient yet — creates/links the patient now from the stored contact info.
+    let patch: UpdateAppointmentInput & { code?: string; patientId?: string } = data;
     if (data.status && data.status !== 'SCHEDULED') {
       const existing = await appointmentRepository.findById(clinicId, id);
-      if (existing && !existing.code) {
-        patch = { ...data, code: await nextAppointmentCode(clinicId) };
+      if (existing) {
+        const extra: { code?: string; patientId?: string } = {};
+        if (!existing.code) {
+          extra.code = await nextAppointmentCode(clinicId);
+        }
+        if (!existing.patientId) {
+          extra.patientId = await appointmentRepository.findOrCreatePatientByPhone(
+            clinicId,
+            existing.contactPhone ?? '',
+            { name: existing.contactName ?? undefined, email: existing.contactEmail ?? undefined },
+          );
+        }
+        if (Object.keys(extra).length > 0) {
+          patch = { ...data, ...extra };
+        }
       }
     }
     const { count } = await appointmentRepository.update(clinicId, id, patch);
@@ -251,23 +279,28 @@ export const appointmentService = {
    * and call straight through here.
    */
   whatsappInbound: async (clinicId: string, input: WhatsAppInboundInput) => {
-    const patientId = await appointmentRepository.findOrCreatePatientByPhone(
-      clinicId,
-      input.phone,
-      { name: input.name, email: input.email },
-    );
+    // Only LINK to a patient that already exists — a brand-new lead gets no
+    // patient row until the booking is accepted (so a rejected request never
+    // creates one). Their details ride on the appointment's contact* fields
+    // until then.
+    const existingPatientId = await appointmentRepository.findPatientByPhone(clinicId, input.phone);
     // No slot chosen over chat: park it at midnight today, zero-duration.
     const now = new Date();
     const slot = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     return appointmentRepository.create(
       clinicId,
       {
-        patientId,
+        patientId: existingPatientId,
+        // Carry the lead's details only when there's no patient yet.
+        contactName: existingPatientId ? null : (input.name ?? null),
+        contactPhone: existingPatientId ? null : input.phone,
+        contactEmail: existingPatientId ? null : (input.email ?? null),
         startTime: slot,
         endTime: slot,
         status: 'SCHEDULED',
         bookingChannel: 'WHATSAPP',
-        sourceOfEnquiry: 'WHATSAPP',
+        // Leave sourceOfEnquiry unset — that's the marketing lead source (the
+        // patient didn't pick one), separate from the WhatsApp booking channel.
         consultationType: input.consultationType,
         notes: input.notes,
       },

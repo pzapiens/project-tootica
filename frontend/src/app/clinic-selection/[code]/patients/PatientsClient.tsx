@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { apiFetch, type AppointmentListItem, type Patient } from "@/lib/api";
@@ -70,11 +71,14 @@ function lastVisitsByPatient(
   const latest: Record<string, string> = {};
   const out: Record<string, { date: string; time: string }> = {};
   for (const a of appts) {
+    // Pending WhatsApp leads have no patient yet — skip them.
+    const pid = a.patient.id;
+    if (!pid) continue;
     const start = new Date(a.startTime).getTime();
     if (start > now) continue; // not a past visit
-    if (!latest[a.patient.id] || start > new Date(latest[a.patient.id]).getTime()) {
-      latest[a.patient.id] = a.startTime;
-      out[a.patient.id] = {
+    if (!latest[pid] || start > new Date(latest[pid]).getTime()) {
+      latest[pid] = a.startTime;
+      out[pid] = {
         date: fmtShortDate(a.startTime),
         time: `${fmtClock(a.startTime)}- ${fmtClock(a.endTime)}`,
       };
@@ -102,6 +106,8 @@ function csvCell(v: string): string {
 }
 
 export default function PatientsClient() {
+  const router = useRouter();
+  const { code } = useParams<{ code: string }>();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [visits, setVisits] = useState<Record<string, { date: string; time: string }>>({});
   const [loading, setLoading] = useState(true);
@@ -328,6 +334,11 @@ export default function PatientsClient() {
                 patient={p}
                 onEdit={() => setEditing(p)}
                 onDelete={() => setDeleting(p)}
+                onAppointments={() =>
+                  // Deep-link to the appointments page filtered to exactly this
+                  // patient (by id).
+                  router.push(`/clinic-selection/${code}/appointments?patientId=${p.id}`)
+                }
               />
             ))
           )}
@@ -431,10 +442,12 @@ function PatientRowView({
   patient,
   onEdit,
   onDelete,
+  onAppointments,
 }: {
   patient: PatientRow;
   onEdit: () => void;
   onDelete: () => void;
+  onAppointments: () => void;
 }) {
   return (
     <div className="grid grid-cols-[minmax(0,104fr)_minmax(0,198fr)_minmax(0,150fr)_minmax(0,212fr)_minmax(0,94fr)_minmax(0,204fr)_minmax(160px,164fr)] items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0">
@@ -477,7 +490,8 @@ function PatientRowView({
         </button>
         <button
           type="button"
-          aria-label={`Book appointment for ${patient.name}`}
+          onClick={onAppointments}
+          aria-label={`View ${patient.name}'s appointments`}
           className="group relative flex size-[34px] items-center justify-center opacity-90"
         >
           <Image src="/dashboard/book_appointment.svg" alt="" width={24} height={24} className="size-6" />

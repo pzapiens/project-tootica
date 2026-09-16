@@ -1,7 +1,7 @@
 import { prisma } from '../../common/db/prisma';
 import { nextAppointmentCode, nextPatientCode } from '../../common/utils/codes';
 import type {
-  CreateAppointmentData,
+  AppointmentCreateData,
   ListAppointmentsQuery,
   UpdateAppointmentInput,
 } from './schema';
@@ -67,7 +67,7 @@ export const appointmentRepository = {
   // rejected request never burns a number). Defaults to assigning one.
   create: async (
     clinicId: string,
-    data: CreateAppointmentData,
+    data: AppointmentCreateData,
     opts: { assignCode?: boolean } = {},
   ) => {
     const code = opts.assignCode === false ? null : await nextAppointmentCode(clinicId);
@@ -136,11 +136,24 @@ export const appointmentRepository = {
   remove: (clinicId: string, id: string) =>
     prisma.appointment.deleteMany({ where: { id, clinicId } }),
 
+  /** Match an existing patient by phone within a clinic (digits-only); returns
+   *  the id, or null when there's no match. Never creates — used at WhatsApp
+   *  intake so a new lead doesn't create a patient until it's accepted. */
+  findPatientByPhone: async (clinicId: string, phone: string): Promise<string | null> => {
+    const digits = digitsOf(phone);
+    const candidates = await prisma.patient.findMany({
+      where: { clinicId, phone: { not: null } },
+      select: { id: true, phone: true },
+    });
+    const match = candidates.find((p) => p.phone && digitsOf(p.phone) === digits);
+    return match?.id ?? null;
+  },
+
   /**
-   * Find-or-create a patient by phone within a clinic — used by the inbound
-   * WhatsApp booking, where the sender is identified only by their number.
-   * Matching is digits-only so "+91 99999 99999" and "9999999999" resolve to the
-   * same patient. A new patient is created with a generated code when unmatched.
+   * Find-or-create a patient by phone within a clinic — used when ACCEPTING a
+   * pending WhatsApp lead (creating the patient at that point). Matching is
+   * digits-only so "+91 99999 99999" and "9999999999" resolve to the same
+   * patient. A new patient is created with a generated code when unmatched.
    */
   findOrCreatePatientByPhone: async (
     clinicId: string,

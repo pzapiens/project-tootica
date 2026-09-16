@@ -12,6 +12,7 @@ function toPublicBranch(branch: BranchRecord) {
   return {
     id: branch.id,
     clinicId: branch.clinicId,
+    clinicName: branch.clinic.name,
     code: branch.code,
     name: branch.name,
     picName: branch.picName ?? picUserName,

@@ -78,6 +78,7 @@ export default function DashboardShell({
   const pathname = usePathname();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [branchName, setBranchName] = useState<string | null>(null);
+  const [clinicName, setClinicName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReset, setShowReset] = useState(false);
 
@@ -118,11 +119,15 @@ export default function DashboardShell({
     apiFetch<BranchSummary[]>("/branches")
       .then((branches) => {
         if (!active) return;
+        // `[code]` is a branch code for clinic staff/admins, or a clinic code for
+        // a super admin viewing clinic-wide (no branch match). Either way the
+        // clinic name is on the branch rows (all share the tenant's clinic).
         const match = branches.find((b) => b.code === code);
         setBranchName(match?.name ?? null);
+        setClinicName(match?.clinicName ?? branches[0]?.clinicName ?? null);
       })
       .catch(() => {
-        // No branch access (e.g. super admin) → just omit the branch line.
+        // No branch access → just omit the identifier line.
       });
     return () => {
       active = false;
@@ -142,7 +147,7 @@ export default function DashboardShell({
 
   return (
     <div className="flex h-dvh overflow-hidden bg-[#1e1e24]">
-      <Sidebar code={code} items={items} pathname={pathname} me={me} branchName={branchName} />
+      <Sidebar code={code} items={items} pathname={pathname} me={me} branchName={branchName} clinicName={clinicName} />
       <main className="min-w-0 flex-1 p-[19px]">
         {/* Fixed white panel; only the inner region scrolls. */}
         <div className="h-full overflow-hidden rounded-[28px] bg-white">
@@ -170,12 +175,14 @@ function Sidebar({
   pathname,
   me,
   branchName,
+  clinicName,
 }: {
   code: string;
   items: NavItem[];
   pathname: string;
   me: MeResponse;
   branchName: string | null;
+  clinicName: string | null;
 }) {
   // zoom 0.9 shrinks the sidebar width + all contents by 10%; the height is
   // pre-divided by 0.9 so it still fills the viewport after the zoom.
@@ -233,7 +240,7 @@ function Sidebar({
       </nav>
 
       {/* User chip + footer */}
-      <UserChip me={me} branchName={branchName} />
+      <UserChip me={me} branchName={branchName} clinicName={clinicName} />
       <div className="pt-[16px]">
         <p className="font-inter text-[16px] font-medium leading-[24px] text-[#94a3b8]">
           © 2026 Tootica.
@@ -245,7 +252,15 @@ function Sidebar({
   );
 }
 
-function UserChip({ me, branchName }: { me: MeResponse; branchName: string | null }) {
+function UserChip({
+  me,
+  branchName,
+  clinicName,
+}: {
+  me: MeResponse;
+  branchName: string | null;
+  clinicName: string | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useExclusiveDropdown();
   const [active, setActive] = useState<"profile" | "accounts" | "switch" | null>(null);
@@ -266,7 +281,10 @@ function UserChip({ me, branchName }: { me: MeResponse; branchName: string | nul
   const label = me.user.firstName?.trim() || displayName(me.user).split(" ")[0];
 
   // Clinic + branch shown small beneath the name (e.g. "Bright Smiles · Downtown").
-  const subLabel = [me.clinic?.name, branchName].filter(Boolean).join(" · ");
+  // Prefer the currently-viewed clinic (resolved from the branch list) so a super
+  // admin — who has no clinic of their own (me.clinic is null) — still sees the
+  // clinic they've drilled into.
+  const subLabel = [clinicName ?? me.clinic?.name, branchName].filter(Boolean).join(" · ");
 
   async function logout() {
     try {

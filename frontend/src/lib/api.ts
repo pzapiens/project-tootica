@@ -244,6 +244,8 @@ export interface MeResponse {
 export interface BranchSummary {
   id: string;
   clinicId: string;
+  /** The owning clinic's name (for the sidebar "Clinic · Branch" identifier). */
+  clinicName: string;
   code: string;
   name: string;
   picName: string | null;
@@ -404,7 +406,8 @@ export interface AppointmentListItem {
   sourceOfEnquiry: string | null;
   notes: string | null;
   patient: {
-    id: string;
+    /** Null for a pending WhatsApp lead with no patient row yet (created on accept). */
+    id: string | null;
     code: string | null;
     name: string;
     phone: string | null;

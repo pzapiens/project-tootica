@@ -70,7 +70,8 @@ export function toCalAppointment(item: AppointmentListItem): CalAppointment {
   return {
     id: item.id,
     apptId: item.code ?? item.id,
-    patientId: item.patient.code ?? item.patient.id,
+    // The calendar excludes pending bookings, so a patient is always present.
+    patientId: item.patient.code ?? item.patient.id ?? item.id,
     patientName: firstName,
     shortName: firstName,
     consultationType: item.consultationType?.trim() || item.notes?.trim() || "Consultation",

@@ -290,7 +290,10 @@ model Appointment {
   // claimed on accept, so rejected requests never burn a sequence number.
   code             String?           @unique @map("appointment_code")
   clinicId         String            @map("clinic_id") @db.Uuid
-  patientId        String            @map("patient_id") @db.Uuid
+  // Optional: a pending WhatsApp booking from a NEW lead has no patient yet — the
+  // patient is created only when staff accept it (so a rejected request never
+  // creates one). Until then the lead's details live in the `contact*` fields.
+  patientId        String?           @map("patient_id") @db.Uuid
   // Optional: WhatsApp bookings arrive with no doctor assigned, and the
   // date-&-time flow lets staff create/edit an appointment without one.
   doctorId         String?           @map("doctor_id") @db.Uuid
@@ -305,12 +308,18 @@ model Appointment {
   consultationType String?           @map("consultation_type")
   // Where the enquiry came from (e.g. "Google Search", "Referral").
   sourceOfEnquiry  String?           @map("source_of_enquiry")
+  // Prospective patient's details for a pending WhatsApp lead with no patient
+  // row yet (unused once a patient is linked, i.e. on accept or when the number
+  // already matched an existing patient).
+  contactName      String?           @map("contact_name")
+  contactPhone     String?           @map("contact_phone")
+  contactEmail     String?           @map("contact_email")
   notes            String?
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
   clinic   Clinic    @relation(fields: [clinicId], references: [id])
-  patient  Patient   @relation(fields: [patientId], references: [id])
+  patient  Patient?  @relation(fields: [patientId], references: [id])
   doctor   Doctor?   @relation(fields: [doctorId], references: [id])
   payments Payment[]
 

@@ -84,16 +84,18 @@ interface ClinicDef {
   code: string;
   plan: ClinicPlan;
   adminEmail: string;
-  /** Client-admin account name (shown in the sidebar). */
+  /** Client-admin account name (shown in the sidebar) + honorific title. */
   adminName: [string, string];
-  /** Receptionist account name (shown in the sidebar). */
+  adminTitle: string;
+  /** Receptionist account name (shown in the sidebar) + honorific title. */
   receptionName: [string, string];
+  receptionTitle: string;
 }
 
 const CLINICS: ClinicDef[] = [
-  { slug: 'brightsmile', name: 'Bright Smile Dental', code: 'BSD001', plan: 'PRO', adminEmail: 'admin@tootica.local', adminName: ['Sanjay', 'Kapoor'], receptionName: ['Riya', 'Sharma'] },
-  { slug: 'gentlecare', name: 'Gentle Care Dentistry', code: 'GCD001', plan: 'BASIC', adminEmail: 'admin@gentlecare.test', adminName: ['Maya', 'Iyer'], receptionName: ['Neha', 'Verma'] },
-  { slug: 'sunrise', name: 'Sunrise Family Dental', code: 'SFD001', plan: 'FREE', adminEmail: 'admin@sunrise.test', adminName: ['Arjun', 'Rao'], receptionName: ['Pooja', 'Menon'] },
+  { slug: 'brightsmile', name: 'Bright Smile Dental', code: 'BSD001', plan: 'PRO', adminEmail: 'admin@tootica.local', adminName: ['Sanjay', 'Kapoor'], adminTitle: 'Mr', receptionName: ['Riya', 'Sharma'], receptionTitle: 'Ms' },
+  { slug: 'gentlecare', name: 'Gentle Care Dentistry', code: 'GCD001', plan: 'BASIC', adminEmail: 'admin@gentlecare.test', adminName: ['Maya', 'Iyer'], adminTitle: 'Ms', receptionName: ['Neha', 'Verma'], receptionTitle: 'Ms' },
+  { slug: 'sunrise', name: 'Sunrise Family Dental', code: 'SFD001', plan: 'FREE', adminEmail: 'admin@sunrise.test', adminName: ['Arjun', 'Rao'], adminTitle: 'Mr', receptionName: ['Pooja', 'Menon'], receptionTitle: 'Ms' },
 ];
 
 // --- helpers ----------------------------------------------------------------
@@ -128,13 +130,23 @@ function dob(year: number, month: number, day: number): Date {
 }
 
 async function wipe(): Promise<void> {
-  // FK-safe order.
+  // FK-safe order. Payments cascade from appointments, and tooth remarks /
+  // medical history / documents cascade from patients, so deleting those parents
+  // clears them. Branch.picUserId → User and User.branchId → Branch form a cycle,
+  // so first null out every branch's PIC to break it, then delete users/doctors
+  // (which reference branches) before the branches themselves. This seed does not
+  // create branches, but a prior `db:seed:all` run may have — so wipe them too.
   await prisma.appointment.deleteMany();
+  await prisma.doctorBlock.deleteMany();
   await prisma.doctorShift.deleteMany();
   await prisma.doctor.deleteMany();
   await prisma.patient.deleteMany();
+  await prisma.branch.updateMany({ data: { picUserId: null } });
   await prisma.user.deleteMany();
+  await prisma.branch.deleteMany();
   await prisma.clinic.deleteMany();
+  // Reset the display-code counters so a fresh seed starts at CL-000001 etc.
+  await prisma.counter.deleteMany();
 }
 
 async function main(): Promise<void> {
@@ -176,6 +188,7 @@ async function main(): Promise<void> {
         role: 'CLIENT_ADMIN',
         status: 'ACTIVE',
         clinicId: clinic.id,
+        title: def.adminTitle,
         firstName: def.adminName[0],
         lastName: def.adminName[1],
         ...onboarded,
@@ -190,6 +203,7 @@ async function main(): Promise<void> {
         role: 'RECEPTIONIST',
         status: 'ACTIVE',
         clinicId: clinic.id,
+        title: def.receptionTitle,
         firstName: def.receptionName[0],
         lastName: def.receptionName[1],
         ...onboarded,

@@ -234,14 +234,19 @@ async function main(): Promise<void> {
         data: {
           clinicId: clinic.id,
           // No code yet — a pending WhatsApp booking claims its code on accept.
-          patientId: pick(patients).id,
+          // New lead → no patient row yet; the contact details ride on the
+          // appointment until staff accept it (created then) or reject (never).
+          patientId: null,
+          contactName: `WhatsApp Lead ${i + 1}`,
+          contactPhone: `+91 90000 2${String(i + 1).padStart(4, '0')}`,
           doctorId: null,
           startTime: day,
           endTime: day,
           status: 'SCHEDULED',
           bookingChannel: 'WHATSAPP',
+          // No sourceOfEnquiry — that marketing lead source stays unset for a
+          // WhatsApp booking (the channel already records how it came in).
           consultationType: pick(CONSULTATION_TYPES),
-          sourceOfEnquiry: 'WHATSAPP',
           notes: pick(APPOINTMENT_NOTES.SCHEDULED),
           createdAt: today,
         },

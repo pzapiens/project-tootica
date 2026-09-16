@@ -81,6 +81,13 @@ function titleCase(s: string): string {
   return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** The numeric sequence in an appointment code, e.g. "BSD001-A000019" → 19.
+ *  Code-less rows (shown as "—") sort last. Used to order the table by ID. */
+function codeNum(code: string): number {
+  const m = code.match(/(\d+)(?!.*\d)/);
+  return m ? Number(m[1]) : -1;
+}
+
 /** "09:00 AM" → { h, m, p } for the appointment form. */
 function parseTime(s: string): Time {
   const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(s.trim());
@@ -249,7 +256,8 @@ type RowDialog =
 
 export default function AppointmentsClient() {
   // Deep-link params: `?q=` pre-fills the search, `?status=` auto-applies a status
-  // filter (from the dashboard stat cards, calendar "View Appointment", patients).
+  // filter, `?patientId=` pins the list to one patient (from the patients page's
+  // Appointments action).
   const searchParams = useSearchParams();
 
   const [items, setItems] = useState<AppointmentListItem[]>([]);
@@ -257,6 +265,9 @@ export default function AppointmentsClient() {
 
   const [timeframe, setTimeframe] = useState<Timeframe>({ kind: "all" });
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  // Exact single-patient filter (by id) from the patients page; cleared via the
+  // banner's ✕.
+  const [patientFilterId, setPatientFilterId] = useState(() => searchParams.get("patientId") ?? "");
   const [filters, setFilters] = useState<AppointmentFilters>(() => {
     const status = searchParams.get("status");
     return status && (STATUS_CHIPS as readonly string[]).includes(status)
@@ -339,11 +350,13 @@ export default function AppointmentsClient() {
     const consultationSet = new Set(filters.consultationTypes);
     const channelSet = new Set(filters.channels);
 
-    let out = allRows.filter(({ row }) => {
+    let out = allRows.filter(({ item, row }) => {
       // Pending (SCHEDULED) bookings arrive via WhatsApp and live only in the
       // "WhatsApp Appointments" popup until they're accepted — never the main
       // table. Accepting flips them to CONFIRMED, at which point they appear here.
       if (row.rawStatus === "SCHEDULED") return false;
+      // Exact single-patient filter (from the patients page).
+      if (patientFilterId && item.patient.id !== patientFilterId) return false;
       if (q) {
         const phoneHit = qDigits.length > 0 && row.phone.replace(/\D/g, "").includes(qDigits);
         const textHit = [row.code, row.patientName, row.doctor, row.consultationType].some((f) =>
@@ -358,19 +371,33 @@ export default function AppointmentsClient() {
       return true;
     });
 
-    // Default order: newest start time first. Filters can override.
+    // Default order: highest appointment ID first (newest sequence number). The
+    // ID Sorting filter overrides the direction; the Date & Time filter sorts by
+    // start time instead.
     out = [...out].sort((a, b) => {
-      if (filters.idSort) {
-        const cmp = a.row.code.localeCompare(b.row.code);
-        return filters.idSort === "desc" ? -cmp : cmp;
+      if (filters.dateSort) {
+        const cmp = new Date(a.row.startTime).getTime() - new Date(b.row.startTime).getTime();
+        // dateSort "oldest" = ascending; "newest" = descending.
+        return filters.dateSort === "oldest" ? cmp : -cmp;
       }
-      const cmp = new Date(a.row.startTime).getTime() - new Date(b.row.startTime).getTime();
-      // dateSort "oldest" = ascending; default + "newest" = descending.
-      return filters.dateSort === "oldest" ? cmp : -cmp;
+      // Compare by the code's numeric sequence (e.g. "BSD001-A000019" → 19).
+      const cmp = codeNum(a.row.code) - codeNum(b.row.code);
+      // Default + "desc" = highest first; "asc" = lowest first.
+      return filters.idSort === "asc" ? cmp : -cmp;
     });
 
     return out;
-  }, [allRows, query, filters]);
+  }, [allRows, query, filters, patientFilterId]);
+
+  // Name of the patient the list is pinned to (for the filter banner), resolved
+  // from the loaded rows. Empty when no filter (or the patient has no rows).
+  const patientFilterName = useMemo(
+    () =>
+      patientFilterId
+        ? allRows.find(({ item }) => item.patient.id === patientFilterId)?.row.patientName ?? ""
+        : "",
+    [allRows, patientFilterId],
+  );
 
   // Pending (SCHEDULED) bookings for the "WhatsApp Appointments" popup — the
   // rows deliberately excluded from the main table above, straight from the
@@ -512,6 +539,29 @@ export default function AppointmentsClient() {
         </p>
       </div>
 
+      {/* Single-patient filter banner (from the patients page's Appointments action). */}
+      {patientFilterId && (
+        <div className="flex shrink-0 items-center gap-[10px] self-start rounded-full bg-[#e6f2fb] py-[8px] pl-[16px] pr-[10px]">
+          <span className="font-inter text-[14px] text-[#0077c0]">
+            Showing appointments for{" "}
+            <span className="font-semibold">{patientFilterName || "this patient"}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setPatientFilterId("");
+              setPage(1);
+            }}
+            aria-label="Clear patient filter"
+            className="flex size-[22px] items-center justify-center rounded-full text-[#0077c0] transition-colors hover:bg-[#0077c0]/10"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="flex flex-col overflow-hidden rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white">
         {/* Header row */}
@@ -549,7 +599,9 @@ export default function AppointmentsClient() {
                 row={row}
                 onEdit={() => setEditing(item)}
                 onRecords={() =>
-                  setRecords({ name: row.patientName, code: item.patient.code ?? "—", id: item.patient.id })
+                  // Records is only reachable for non-pending rows, which always
+                  // have a real patient; the ?? "" just satisfies the type.
+                  setRecords({ name: row.patientName, code: item.patient.code ?? "—", id: item.patient.id ?? "" })
                 }
                 onAccept={() => setDialog({ kind: "confirm", variant: "accept", row })}
                 onReject={() => setDialog({ kind: "confirm", variant: "reject", row })}
@@ -771,11 +823,8 @@ function AppointmentRowView({
   // A newly-booked (Pending) appointment awaits accept/reject; every other
   // status offers the edit + overflow-menu actions.
   const pending = row.rawStatus === "SCHEDULED";
-  // Payment status glyph: shown once a payment has been added for this
-  // appointment — an amber hourglass (pending) that becomes a green tick once
-  // "Mark as complete" is ticked in the Payment Management dialog. Driven by the
-  // per-row summary from the appointments list (paymentCount / paymentComplete).
-  const hasPayment = row.paymentCount > 0;
+  // The Payments action turns green once the appointment's payments are settled
+  // (every entry paid); otherwise — pending entries or none — it stays black.
   const paymentComplete = row.paymentComplete;
 
   return (
@@ -815,31 +864,9 @@ function AppointmentRowView({
       <span className={`px-[20px] py-[22px] font-inter text-[14px] font-medium leading-[20px] ${textColor}`}>
         {row.age === null ? "--" : row.age} / {row.gender || "--"}
       </span>
-      {/* Actions — Pending shows Accept/Reject; otherwise Edit + overflow menu.
-          A payment-status glyph leads the group once a payment exists. */}
+      {/* Actions — Pending shows Accept/Reject; otherwise Records, Payments,
+          Edit + an overflow menu for the rest. */}
       <div className="flex items-center justify-start gap-[8px] px-[16px] py-[22px]">
-        {/* The glyph slot is always reserved (fixed size) so the row layout is
-            identical with or without a payment — the icon never shifts the
-            other columns; only its visibility toggles. */}
-        <span className="group relative flex size-[34px] shrink-0 items-center justify-center">
-          {hasPayment && (
-            <>
-              <Image
-                src={paymentComplete ? "/dashboard/payment_complete.svg" : "/dashboard/payment_pending.svg"}
-                alt={paymentComplete ? "Payment complete" : "Payment pending"}
-                width={24}
-                height={24}
-                className="size-6"
-              />
-              <span
-                role="tooltip"
-                className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-[130] -translate-x-1/2 whitespace-nowrap rounded-[8px] bg-[#1e1e24] px-[10px] py-[6px] font-inter text-[12px] font-medium leading-[16px] text-white opacity-0 shadow-[0px_4px_12px_rgba(0,0,0,0.15)] transition-opacity duration-150 group-hover:opacity-100"
-              >
-                {paymentComplete ? "Payment Complete" : "Payment Pending"}
-              </span>
-            </>
-          )}
-        </span>
         {pending ? (
           <>
             <button
@@ -861,20 +888,31 @@ function AppointmentRowView({
           </>
         ) : (
           <>
+            <button type="button" onClick={onRecords} aria-label={`View ${row.patientName}'s records`} className="group relative flex size-[34px] items-center justify-center">
+              <RecordsIcon className="size-6 text-[#1e1e24]" />
+              <Tip label="Records" />
+            </button>
+            <button
+              type="button"
+              onClick={onPayments}
+              aria-label={`Manage ${row.patientName}'s payments${paymentComplete ? " (paid)" : ""}`}
+              className="group relative flex size-[34px] items-center justify-center"
+            >
+              <PaymentsIcon className={`size-6 ${paymentComplete ? "text-[#16a34a]" : "text-[#1e1e24]"}`} />
+              <Tip label={paymentComplete ? "Payments (paid)" : "Payments"} />
+            </button>
             <button type="button" onClick={onEdit} aria-label={`Edit ${row.patientName}'s appointment`} className="group relative flex size-[34px] items-center justify-center">
               <Image src="/dashboard/edit_square.svg" alt="" width={24} height={24} className="size-6" />
               <Tip label="Edit" />
             </button>
             <MoreMenu
               row={row}
-              onRecords={onRecords}
               onInfo={onInfo}
               onCancel={onCancel}
               onDelete={onDelete}
               onCall={onCall}
               onChat={onChat}
               onNotify={onNotify}
-              onPayments={onPayments}
             />
           </>
         )}
@@ -884,35 +922,29 @@ function AppointmentRowView({
 }
 
 /**
- * Row overflow ("⋮") menu (Figma "Appts More Dropdown"): Records, Payments, Call,
- * Chat, Notify, Info, Cancel and Delete. Payments / Info / Cancel / Delete / Call /
- * Chat / Notify open their dialogs (Payments → the "Payment Management" flow, Figma
- * "Appts15/16 - Payments"; Call → "Proceed to Call?", Figma "Appts - Call"; Chat →
- * "Proceed to Chat?", Figma "PTC" — opens the patient's WhatsApp; Notify → "Notify
- * the Patient", Figma "NTP" — the send is a placeholder until the notification
- * backend lands). Records opens the full "Patient Records" view (Figma "Appts8 -
- * Records") in place of the table.
+ * Row overflow ("⋮") menu (Figma "Appts More Dropdown"): Call, Chat, Notify, Info,
+ * Cancel and Delete. (Records and Payments are now standalone row buttons.) Each
+ * opens its dialog — Call → "Proceed to Call?" (Figma "Appts - Call"); Chat →
+ * "Proceed to Chat?" (Figma "PTC" — opens the patient's WhatsApp); Notify → "Notify
+ * the Patient" (Figma "NTP" — the send is a placeholder until the notification
+ * backend lands); Info / Cancel / Delete their respective dialogs.
  */
 function MoreMenu({
   row,
-  onRecords,
   onInfo,
   onCancel,
   onDelete,
   onCall,
   onChat,
   onNotify,
-  onPayments,
 }: {
   row: AppointmentRow;
-  onRecords: () => void;
   onInfo: () => void;
   onCancel: () => void;
   onDelete: () => void;
   onCall: () => void;
   onChat: () => void;
   onNotify: () => void;
-  onPayments: () => void;
 }) {
   const [open, setOpen] = useExclusiveDropdown();
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -921,9 +953,9 @@ function MoreMenu({
   // table body's scroll/overflow clipping; `pos` is computed on open.
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Menu footprint: 8 pills (py-10 + 20px line = 40px), 7×5px gaps, 2×17 padding.
+  // Menu footprint: 6 pills (py-10 + 20px line = 40px), 5×5px gaps, 2×17 padding.
   const MENU_WIDTH = 220;
-  const MENU_HEIGHT = 8 * 40 + 7 * 5 + 2 * 17;
+  const MENU_HEIGHT = 6 * 40 + 5 * 5 + 2 * 17;
 
   /** Place the menu above or below the trigger based on available space. */
   function place() {
@@ -997,8 +1029,6 @@ function MoreMenu({
             style={{ position: "fixed", top: pos.top, left: pos.left, width: MENU_WIDTH }}
             className="z-[120] flex flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
           >
-            <MenuItem label="Records" onClick={() => run(onRecords)} />
-            <MenuItem label="Payments" onClick={() => run(onPayments)} />
             <MenuItem
               label="Call"
               disabled={!phoneDigits}
@@ -1195,6 +1225,26 @@ function MoreIcon({ className }: { className?: string }) {
       <circle cx="12" cy="5" r="1.6" />
       <circle cx="12" cy="12" r="1.6" />
       <circle cx="12" cy="19" r="1.6" />
+    </svg>
+  );
+}
+
+/** Records action icon (Material "clinical_notes"), inlined so it takes the row's
+ *  text colour. */
+function RecordsIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 52 52" fill="currentColor" className={className} aria-hidden>
+      <path d="M32.2292 32.7708C30.9653 31.5069 30.3333 29.9722 30.3333 28.1667C30.3333 26.3611 30.9653 24.8264 32.2292 23.5625C33.4931 22.2986 35.0278 21.6667 36.8333 21.6667C38.6389 21.6667 40.1736 22.2986 41.4375 23.5625C42.7014 24.8264 43.3333 26.3611 43.3333 28.1667C43.3333 29.9722 42.7014 31.5069 41.4375 32.7708C40.1736 34.0347 38.6389 34.6667 36.8333 34.6667C35.0278 34.6667 33.4931 34.0347 32.2292 32.7708ZM38.3771 29.7104C38.7924 29.2951 39 28.7806 39 28.1667C39 27.5528 38.7924 27.0382 38.3771 26.6229C37.9618 26.2076 37.4472 26 36.8333 26C36.2194 26 35.7049 26.2076 35.2896 26.6229C34.8743 27.0382 34.6667 27.5528 34.6667 28.1667C34.6667 28.7806 34.8743 29.2951 35.2896 29.7104C35.7049 30.1257 36.2194 30.3333 36.8333 30.3333C37.4472 30.3333 37.9618 30.1257 38.3771 29.7104ZM23.8333 49.8333V43.55C23.8333 42.7917 24.0139 42.0785 24.375 41.4104C24.7361 40.7424 25.2417 40.2097 25.8917 39.8125C27.0472 39.1264 28.266 38.5576 29.5479 38.1062C30.8299 37.6549 32.1389 37.3208 33.475 37.1042L36.8333 41.1667L40.1917 37.1042C41.5278 37.3208 42.8278 37.6549 44.0917 38.1062C45.3556 38.5576 46.5653 39.1264 47.7208 39.8125C48.3708 40.2097 48.8854 40.7424 49.2646 41.4104C49.6437 42.0785 49.8333 42.7917 49.8333 43.55V49.8333H23.8333ZM28.1125 45.5H34.775L31.85 41.925C31.2 42.1056 30.5681 42.3403 29.9542 42.6292C29.3403 42.9181 28.7264 43.225 28.1125 43.55V45.5ZM38.8917 45.5H45.5V43.55C44.9222 43.1889 44.3264 42.8729 43.7125 42.6021C43.0986 42.3312 42.4667 42.1056 41.8167 41.925L38.8917 45.5ZM10.8333 45.5C9.64167 45.5 8.62153 45.0757 7.77292 44.2271C6.92431 43.3785 6.5 42.3583 6.5 41.1667V10.8333C6.5 9.64167 6.92431 8.62153 7.77292 7.77292C8.62153 6.92431 9.64167 6.5 10.8333 6.5H41.1667C42.3583 6.5 43.3785 6.92431 44.2271 7.77292C45.0757 8.62153 45.5 9.64167 45.5 10.8333V21.6667C44.9222 20.9444 44.2903 20.2583 43.6042 19.6083C42.9181 18.9583 42.1056 18.525 41.1667 18.3083V10.8333H10.8333V41.1667H19.825C19.7167 41.5639 19.6354 41.9611 19.5812 42.3583C19.5271 42.7556 19.5 43.1528 19.5 43.55V45.5H10.8333ZM15.1667 19.5H30.3333C31.2722 18.7778 32.3014 18.2361 33.4208 17.875C34.5403 17.5139 35.6778 17.3333 36.8333 17.3333V15.1667H15.1667V19.5ZM15.1667 28.1667H26C26 27.4083 26.0812 26.6681 26.2437 25.9458C26.4062 25.2236 26.6319 24.5194 26.9208 23.8333H15.1667V28.1667ZM15.1667 36.8333H22.6417C23.0389 36.5083 23.4632 36.2194 23.9146 35.9667C24.366 35.7139 24.8264 35.4792 25.2958 35.2625V32.5H15.1667V36.8333ZM10.8333 41.1667V10.8333V18.2542V17.3333V41.1667Z" />
+    </svg>
+  );
+}
+
+/** Payments action icon (Material "account_balance_wallet"), inlined so it can
+ *  switch colour: black by default, green once all payments are settled. */
+function PaymentsIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M5 21C4.45 21 3.97917 20.8042 3.5875 20.4125C3.19583 20.0208 3 19.55 3 19V5C3 4.45 3.19583 3.97917 3.5875 3.5875C3.97917 3.19583 4.45 3 5 3H19C19.55 3 20.0208 3.19583 20.4125 3.5875C20.8042 3.97917 21 4.45 21 5V7.5H19V5H5V19H19V16.5H21V19C21 19.55 20.8042 20.0208 20.4125 20.4125C20.0208 20.8042 19.55 21 19 21H5ZM13 17C12.45 17 11.9792 16.8042 11.5875 16.4125C11.1958 16.0208 11 15.55 11 15V9C11 8.45 11.1958 7.97917 11.5875 7.5875C11.9792 7.19583 12.45 7 13 7H20C20.55 7 21.0208 7.19583 21.4125 7.5875C21.8042 7.97917 22 8.45 22 9V15C22 15.55 21.8042 16.0208 21.4125 16.4125C21.0208 16.8042 20.55 17 20 17H13ZM20 15V9H13V15H20ZM17.0625 13.0625C17.3542 12.7708 17.5 12.4167 17.5 12C17.5 11.5833 17.3542 11.2292 17.0625 10.9375C16.7708 10.6458 16.4167 10.5 16 10.5C15.5833 10.5 15.2292 10.6458 14.9375 10.9375C14.6458 11.2292 14.5 11.5833 14.5 12C14.5 12.4167 14.6458 12.7708 14.9375 13.0625C15.2292 13.3542 15.5833 13.5 16 13.5C16.4167 13.5 16.7708 13.3542 17.0625 13.0625Z" />
     </svg>
   );
 }

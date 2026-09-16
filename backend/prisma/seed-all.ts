@@ -74,6 +74,7 @@ interface PersonDef {
   lastName: string;
   email: string;
   phone: string;
+  title?: string; // honorific (Mr/Mrs/Ms) — admins & receptionists; doctors derive "Dr" from role
   specialization?: string; // doctor-only
 }
 interface BranchDef {
@@ -107,6 +108,7 @@ const CLINICS: ClinicDef[] = [
       lastName: 'Kapoor',
       email: 'admin@brightsmile.com',
       phone: '+919000000010',
+      title: 'Mr',
     },
     branches: [
       {
@@ -123,6 +125,7 @@ const CLINICS: ClinicDef[] = [
           lastName: 'Sharma',
           email: 'reception.downtown@brightsmile.com',
           phone: '+919000000012',
+          title: 'Ms',
         },
       },
       {
@@ -139,6 +142,7 @@ const CLINICS: ClinicDef[] = [
           lastName: 'Verma',
           email: 'reception.uptown@brightsmile.com',
           phone: '+919000000014',
+          title: 'Ms',
         },
       },
     ],
@@ -152,6 +156,7 @@ const CLINICS: ClinicDef[] = [
       lastName: 'Iyer',
       email: 'admin@gentlecare.com',
       phone: '+919000000020',
+      title: 'Ms',
     },
     branches: [
       {
@@ -168,6 +173,7 @@ const CLINICS: ClinicDef[] = [
           lastName: 'Menon',
           email: 'reception.central@gentlecare.com',
           phone: '+919000000022',
+          title: 'Ms',
         },
       },
       {
@@ -184,6 +190,7 @@ const CLINICS: ClinicDef[] = [
           lastName: 'Rao',
           email: 'reception.riverside@gentlecare.com',
           phone: '+919000000024',
+          title: 'Mr',
         },
       },
     ],
@@ -450,6 +457,7 @@ async function main(): Promise<void> {
         role: 'CLIENT_ADMIN',
         status: 'ACTIVE',
         clinicId: clinic.id,
+        title: clinicDef.admin.title ?? null,
         firstName: clinicDef.admin.firstName,
         lastName: clinicDef.admin.lastName,
         phone: clinicDef.admin.phone,
@@ -501,6 +509,7 @@ async function main(): Promise<void> {
           status: 'ACTIVE',
           clinicId: clinic.id,
           branchId: branch.id,
+          title: branchDef.receptionist.title ?? null,
           firstName: branchDef.receptionist.firstName,
           lastName: branchDef.receptionist.lastName,
           phone: branchDef.receptionist.phone,
