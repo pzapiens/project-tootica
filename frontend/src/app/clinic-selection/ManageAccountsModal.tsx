@@ -316,18 +316,19 @@ function AccountRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <IconButton label={`Edit ${accountName(account)}`} onClick={onEdit} tone="brand">
+        <IconButton label={`Edit ${accountName(account)}`} tooltip="Edit" onClick={onEdit} tone="brand">
           <EditIcon />
         </IconButton>
         <IconButton
           label={suspended ? `Activate ${accountName(account)}` : `Suspend ${accountName(account)}`}
+          tooltip={suspended ? "Activate" : "Suspend"}
           onClick={onToggleStatus}
           tone={suspended ? "green" : "amber"}
           disabled={busy}
         >
           {suspended ? <PlayIcon /> : <PauseIcon />}
         </IconButton>
-        <IconButton label={`Delete ${accountName(account)}`} onClick={onDelete} tone="red">
+        <IconButton label={`Delete ${accountName(account)}`} tooltip="Delete" onClick={onDelete} tone="red">
           <DeleteIcon />
         </IconButton>
       </div>
@@ -510,12 +511,16 @@ function accountName(account: ClinicAccount): string {
 
 function IconButton({
   label,
+  tooltip,
   onClick,
   disabled,
   tone,
   children,
 }: {
+  /** Full, descriptive label for screen readers (e.g. "Edit Dr. Sanjay Kapoor"). */
   label: string;
+  /** Short hover tooltip — the action name only (e.g. "Edit"). Falls back to label. */
+  tooltip?: string;
   onClick: () => void;
   disabled?: boolean;
   tone: "brand" | "amber" | "green" | "red";
@@ -533,7 +538,7 @@ function IconButton({
     <button
       type="button"
       aria-label={label}
-      title={label}
+      title={tooltip ?? label}
       onClick={onClick}
       disabled={disabled}
       className={`flex size-9 items-center justify-center rounded-full border border-field-border text-ink/70 transition-colors disabled:opacity-40 ${hover}`}

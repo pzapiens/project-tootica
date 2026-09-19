@@ -210,13 +210,31 @@ Errors: `400 { "error": "Invalid or expired code" }` ·
 
 ### 2. `GET /api/auth/me` — cookie
 **200** — the caller plus their clinic (`clinic` is `null` for a SUPER_ADMIN,
-who has no single clinic):
+who has no single clinic) and their doctor `specialization` (`null` for
+non-doctors):
 
 ```json
-{ "user": { "...": "PublicUser" }, "clinic": { "...": "Clinic" } | null }
+{ "user": { "...": "PublicUser" }, "clinic": { "...": "Clinic" } | null, "specialization": "General Dentistry" | null }
 ```
 
 `401` if no/invalid session.
+
+### 2a. `PATCH /api/auth/profile` — cookie
+Self-service profile edit (Profile Settings page). Body — all fields optional;
+only those sent are updated (`specialization` applies to the caller's doctor
+profile, ignored for non-doctors):
+
+```json
+{ "firstName": "Aadhinath", "lastName": "", "phone": "+15550198234", "email": "a@x.com", "specialization": "General Dentistry" }
+```
+
+**200** → the fresh `me` payload · `409` if the email/phone is already in use.
+
+### 2b. `DELETE /api/auth/account` — cookie
+Deletes the caller's own account (detaches appointments from and removes their
+doctor profile, clears any branch PIC link) and clears the session cookies.
+**204** · `403` for a super admin · `409` if the caller is the clinic's only
+active admin.
 
 ### 3. `POST /api/auth/refresh` — cookie (refresh)
 Reads the `refresh_token` cookie; rotates both cookies.
@@ -432,20 +450,42 @@ Request: any subset of the create fields. **200** → `Patient` · `404`.
 All: `401` (no session) · `403` (no clinic on account).
 
 ### Patient records — `/api/patients/:patientId/records` (tenant)
-The "Patient Records" view (observation note, tooth-wise remarks, medical history,
+The "Patient Records" view (observations, tooth-wise remarks, medical history,
 documents). All scoped to the caller's clinic; `404` when the patient isn't in it.
 
 - `GET /:patientId/records` → the full bundle:
-  `{ observation, observationUpdatedAt, teeth[], medHistory[], documents[] }`
-  (`teeth[i]` = `{ id, toothNo, remarks, createdAt }`; `medHistory[i]` = `{ id, text, createdAt }`;
-  `documents[i]` = `{ id, category, name, size, mimeType, createdAt }`).
-- `PUT /:patientId/records/observation` — `{ "text": "…" }` (empty clears it). **200** → `{ observation, observationUpdatedAt }`.
+  `{ teeth[], medHistory[], observations[], documents[] }`
+  (`teeth[i]` = `{ id, toothNo, remarks, createdById, createdAt }`;
+  `medHistory[i]` = `{ id, text, createdById, createdAt }`;
+  `observations[i]` = `{ id, text, createdById, createdAt }`;
+  `documents[i]` = `{ id, category, name, size, mimeType, createdByName, createdAt }` —
+  `createdByName` is the uploader, shown on the card).
+- **Creator-only edits:** for the three text tables (observations / teeth /
+  medical-history), `PATCH` and `DELETE` are allowed **only for the user who created
+  the entry** — anyone else gets **403**. **Exception:** CLIENT_ADMIN and SUPER_ADMIN
+  may edit/delete **any** entry regardless of creator. Legacy rows with no recorded
+  creator (`createdById: null`) stay editable by anyone.
+- `POST /:patientId/records/observations` — `{ "text" }`. **201** → observation entry.
+  `PATCH`/`DELETE …/:entryId` as below (creator-only).
 - `POST /:patientId/records/teeth` — `{ "toothNo", "remarks" }`. **201** → tooth entry.
-- `PATCH /:patientId/records/teeth/:entryId` — partial. **200** · `DELETE …/:entryId` → **204**.
-- `POST /:patientId/records/medical-history` — `{ "text" }`. **201**. `PATCH`/`DELETE …/:entryId` as above.
+- `PATCH /:patientId/records/teeth/:entryId` — partial. **200** · `DELETE …/:entryId` → **204** (creator-only).
+- `POST /:patientId/records/medical-history` — `{ "text" }`. **201**. `PATCH`/`DELETE …/:entryId` as above (creator-only).
 - `POST /:patientId/records/documents` — **multipart** (`category` field + `file`, ≤25 MB). **201** → document.
 - `GET /:patientId/records/documents/:documentId/download` — streams the file inline.
 - `DELETE /:patientId/records/documents/:documentId` → **204**.
+- `GET /:patientId/records/logs` — **admins only** (CLIENT_ADMIN / SUPER_ADMIN; `403`
+  otherwise) → the create/edit/delete audit log for every records section, newest first:
+  `[{ id, table, action, entryId, previous, updated, userName, createdAt }]`
+  (`table` = `"observation" | "tooth" | "medical-history" | "consent" | "xray" | "other"`
+  — the three document sections log under their upload category; text tables use
+  `action` = `"CREATE" | "UPDATE" | "DELETE"` while document sections use
+  `"UPLOAD" | "DOWNLOAD" | "DELETE"`; `previous`/`updated` are human-readable row
+  snapshots — `previous` is `null` for a create/upload/download, `updated` is `null`
+  for a delete, and the document file name is carried in whichever snapshot the
+  action set; `userName` is the acting user, denormalized). A log row is written
+  automatically on every create (`POST`), edit (`PATCH`) and delete (`DELETE`) of the
+  observation, tooth-remark and medical-history entries, and on document **upload**
+  (`POST`), **download** (`GET …/download`) and **delete**.
 
 ---
 
@@ -602,6 +642,32 @@ from now).
 
 ```json
 { "patients": 5, "doctors": 3, "appointments": 6, "upcomingAppointments": 2 }
+```
+
+---
+
+## Revenue ✅ — `/api/revenue` (tenant)
+
+Clinic-wide revenue, aggregated from the clinic's payments. The client derives the
+summary totals (generated = paid, pending = unpaid) and does the search / filter /
+timeframe over the returned list.
+
+### `GET /api/revenue/transactions`
+**200** — one row per payment entry, newest-code last (oldest first), each with a
+stable per-clinic transaction code:
+
+```json
+[
+  {
+    "id": "cmsx...",
+    "code": "BSD001-TT000001",
+    "patientName": "James Carter",
+    "consultationType": "GENERAL CONSULTATION / XRAY",
+    "amount": 1250,
+    "paid": true,
+    "date": "2026-10-24T04:00:00.000Z"
+  }
+]
 ```
 
 ---

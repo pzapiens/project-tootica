@@ -58,6 +58,20 @@ export const changePasswordSchema = z.object({
 });
 
 /**
+ * Self-service profile edit (Profile Settings page). All fields optional — only
+ * the ones sent are updated. `specialization` applies to the caller's doctor
+ * profile (ignored for non-doctors). `phone`/`specialization` may be cleared
+ * with an empty string.
+ */
+export const updateProfileSchema = z.object({
+  firstName: z.string().trim().max(100).optional(),
+  lastName: z.string().trim().max(100).optional(),
+  phone: z.string().trim().max(30).optional(),
+  email: z.string().trim().email().optional(),
+  specialization: z.string().trim().max(120).optional(),
+});
+
+/**
  * Forced first-login reset: a new password plus explicit Terms & Conditions
  * acceptance. `acceptTerms` must be literally `true` — an unchecked box is
  * rejected server-side, not just disabled in the UI.
@@ -77,4 +91,5 @@ export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>;

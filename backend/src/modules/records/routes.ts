@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 
 import { asyncHandler } from '../../common/middleware/asyncHandler';
+import { requireRole } from '../../common/middleware/auth.middleware';
 import { recordsController } from './controller';
 
 // Patient-records routes, nested under `/api/patients/:patientId/records`. The
@@ -14,7 +15,22 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 
 
 recordsRoutes.get('/:patientId/records', asyncHandler(recordsController.bundle));
 
-recordsRoutes.put('/:patientId/records/observation', asyncHandler(recordsController.setObservation));
+// Records edit/delete audit log — admins only (CLIENT_ADMIN + SUPER_ADMIN).
+recordsRoutes.get(
+  '/:patientId/records/logs',
+  requireRole('CLIENT_ADMIN', 'SUPER_ADMIN'),
+  asyncHandler(recordsController.logs),
+);
+
+recordsRoutes.post('/:patientId/records/observations', asyncHandler(recordsController.addObservation));
+recordsRoutes.patch(
+  '/:patientId/records/observations/:entryId',
+  asyncHandler(recordsController.updateObservation),
+);
+recordsRoutes.delete(
+  '/:patientId/records/observations/:entryId',
+  asyncHandler(recordsController.removeObservation),
+);
 
 recordsRoutes.post('/:patientId/records/teeth', asyncHandler(recordsController.addTooth));
 recordsRoutes.patch('/:patientId/records/teeth/:entryId', asyncHandler(recordsController.updateTooth));

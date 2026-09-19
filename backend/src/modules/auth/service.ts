@@ -3,6 +3,7 @@ import { smsProvider } from '../../common/sms/smsProvider';
 import { hashPassword, verifyPassword } from '../../common/utils/password.util';
 import { looksLikeEmail, normalizePhone } from '../../common/utils/phone.util';
 import { HttpError } from '../../common/utils/httpError';
+import { rethrowUserUniqueViolation } from '../../common/utils/prismaErrors';
 import { env } from '../../config/env';
 import { authRepository } from './repository';
 import {
@@ -14,7 +15,7 @@ import {
 } from './jwt.util';
 import { generateOtp } from './otp.util';
 import { otpStore } from './otpStore';
-import type { LoginInput } from './schema';
+import type { LoginInput, UpdateProfileInput } from './schema';
 
 type UserRecord = NonNullable<Awaited<ReturnType<typeof authRepository.findById>>>;
 
@@ -201,7 +202,59 @@ export const authService = {
     if (!user) {
       throw new HttpError(401, 'Authentication required');
     }
-    return { user: toPublicUser(user), clinic: toPublicClinic(user) };
+    return {
+      user: toPublicUser(user),
+      clinic: toPublicClinic(user),
+      // Doctor's specialization (Profile page "Specialized Field"); null otherwise.
+      specialization: user.doctor?.specialization ?? null,
+    };
+  },
+
+  /**
+   * Self-service profile update (Profile Settings page). Updates only the
+   * provided user fields; `specialization` (when sent) is applied to the caller's
+   * doctor profile. Returns the fresh `me` payload. Duplicate email/phone surface
+   * as a 409.
+   */
+  updateProfile: async (userId: string, data: UpdateProfileInput) => {
+    if (data.specialization !== undefined) {
+      await authRepository.updateDoctorSpecialization(userId, data.specialization);
+    }
+    const userData: { firstName?: string; lastName?: string; phone?: string | null; email?: string } = {};
+    if (data.firstName !== undefined) userData.firstName = data.firstName;
+    if (data.lastName !== undefined) userData.lastName = data.lastName;
+    if (data.phone !== undefined) userData.phone = data.phone || null;
+    if (data.email !== undefined) userData.email = data.email;
+    if (Object.keys(userData).length > 0) {
+      try {
+        await authRepository.updateProfile(userId, userData);
+      } catch (err) {
+        rethrowUserUniqueViolation(err);
+      }
+    }
+    return authService.me(userId);
+  },
+
+  /**
+   * Delete the caller's own account (Profile page "Delete Account"). Super admins
+   * can't self-delete here, and a clinic's last active admin is blocked so a
+   * clinic is never left without an administrator.
+   */
+  deleteAccount: async (userId: string): Promise<void> => {
+    const user = await authRepository.findById(userId);
+    if (!user) {
+      throw new HttpError(401, 'Authentication required');
+    }
+    if (user.role === 'SUPER_ADMIN') {
+      throw new HttpError(403, 'Super admin accounts cannot be deleted here');
+    }
+    if (user.role === 'CLIENT_ADMIN' && user.clinicId) {
+      const admins = await authRepository.countActiveClinicAdmins(user.clinicId);
+      if (admins <= 1) {
+        throw new HttpError(409, "You're the clinic's only admin — assign another before deleting your account");
+      }
+    }
+    await authRepository.deleteAccount(userId);
   },
 
   refresh: async (refreshToken: string | undefined) => {

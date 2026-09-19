@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch, type AvailabilityResponse } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { fetchShifts, fetchBlocks, isSlotOnShift, isSlotBlocked } from "@/lib/shifts";
-import { statusColor } from "@/lib/statusColors";
+import { statusDropdownColor } from "@/lib/statusColors";
 
 import { DateInput, parseDmy } from "./DateInput";
 import DoctorAvailabilityModal from "./DoctorAvailabilityModal";
@@ -765,10 +765,11 @@ function StatusDropdown({
         {open && (
           <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex w-full flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
             {options.map((opt) => {
-              // Pull the light-badge colours from the app's single status palette
-              // (statusColors.ts) so an option reads the same colour here as its
-              // badge does in the tables and calendar.
-              const c = statusColor(opt);
+              // Pull the light-badge colours from the app's shared dropdown
+              // palette (statusColors.ts) so an option reads the same colour here
+              // as its badge does in the appointments tables — including the Figma
+              // dropdown's No Show → amber deviation from the base palette.
+              const { bg, text } = statusDropdownColor(opt);
               const selected = opt === value;
               return (
                 <button
@@ -778,7 +779,7 @@ function StatusDropdown({
                     onChange(opt);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center justify-between rounded-[8px] px-[16px] py-[10px] ${c.bg} ${c.text}`}
+                  className={`flex w-full items-center justify-between rounded-[8px] px-[16px] py-[10px] ${bg} ${text}`}
                 >
                   <span className="font-manrope text-[14px] font-semibold leading-[20px]">{opt}</span>
                   {selected && <CheckSmall className="size-6" />}

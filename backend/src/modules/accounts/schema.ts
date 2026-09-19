@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { passwordSchema } from '../auth/schema';
+
 /** Optional Indian phone: +91 + 10 digits (spaces/dashes ignored). */
 const optionalPhone = z
   .string()
@@ -25,3 +27,10 @@ export const createStaffSchema = z.object({
 });
 
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;
+
+/** An admin / super admin setting a new password for a clinic account. */
+export const resetAccountPasswordSchema = z.object({
+  password: passwordSchema,
+});
+
+export type ResetAccountPasswordInput = z.infer<typeof resetAccountPasswordSchema>;

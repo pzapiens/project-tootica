@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { greetingLabel } from "@/lib/api";
 
-import { useMe } from "../DashboardShell";
+import { useMe } from "../session";
 import { type Timeframe } from "./mock";
 import NewAppointmentModal from "./NewAppointmentModal";
 import NotificationBell from "./NotificationBell";

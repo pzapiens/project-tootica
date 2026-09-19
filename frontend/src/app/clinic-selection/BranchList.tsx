@@ -74,12 +74,12 @@ export default function BranchList({
               }
             }}
             className={[
-              "grid cursor-pointer grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-[28px] border-[1.5px] px-6 py-5 text-left transition-colors",
-              "lg:min-h-[125px] lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)] lg:items-center lg:gap-0 lg:px-7 lg:py-0",
+              "grid cursor-pointer grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-[22px] border-[1.5px] px-6 py-4 text-left transition-colors",
+              "lg:min-h-[88px] lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)] lg:items-center lg:gap-0 lg:px-7 lg:py-0",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               selected
                 ? "border-brand bg-brand text-white"
-                : "border-field-border bg-white text-ink hover:bg-black/[.02]",
+                : "border-field-border bg-white text-ink hover:bg-[#E3F1FF]",
             ].join(" ")}
           >
             {/* Branch (with optional code badge) */}

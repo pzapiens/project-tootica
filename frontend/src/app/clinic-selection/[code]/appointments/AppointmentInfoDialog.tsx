@@ -4,8 +4,28 @@ import Image from "next/image";
 import { useEffect } from "react";
 
 /**
+ * Split an appointment's notes into the patient's original message and the
+ * cancellation reason. Cancelling an appointment appends
+ * `Cancellation reason: …` to the notes (see CancelAppointmentDialog), so the
+ * reason is carved back out here and shown in its own section.
+ */
+export function splitAppointmentNotes(notes: string): {
+  message: string;
+  cancellationReason: string;
+} {
+  const m = /cancellation reason:\s*/i.exec(notes ?? "");
+  if (!m) return { message: (notes ?? "").trim(), cancellationReason: "" };
+  return {
+    message: notes.slice(0, m.index).trim(),
+    cancellationReason: notes.slice(m.index + m[0].length).trim(),
+  };
+}
+
+/**
  * Additional Info dialog (Figma "Info"). A read-only view of the appointment's
- * patient message/notes, opened from the row overflow menu's **Info** action.
+ * patient message/notes, opened from the Patient Records header. Always shows a
+ * Cancellation Reason box below the message — filled with the reason captured at
+ * cancel time for a cancelled appointment, empty otherwise.
  */
 export default function AppointmentInfoDialog({
   patientName,
@@ -18,6 +38,8 @@ export default function AppointmentInfoDialog({
   message: string;
   onClose: () => void;
 }) {
+  const { message: patientMessage, cancellationReason } = splitAppointmentNotes(message);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -72,7 +94,22 @@ export default function AppointmentInfoDialog({
           </span>
           <div className="rounded-[10px] border border-[rgba(194,198,212,0.5)] bg-white p-[15px]">
             <p className="whitespace-pre-wrap font-inter text-[13px] italic leading-[18px] text-[#1e1e24]">
-              {message.trim() ? `"${message.trim()}"` : "No message provided."}
+              {patientMessage ? `"${patientMessage}"` : "No message provided."}
+            </p>
+          </div>
+        </div>
+
+        {/* Cancellation Reason — always shown; filled only for a cancelled
+            appointment (empty box otherwise). */}
+        <div className="flex flex-col gap-[14px]">
+          <span className="font-inter text-[11px] font-semibold tracking-[0.55px] text-[#1e1e24]">
+            Cancellation Reason
+          </span>
+          <div className="min-h-[54px] rounded-[10px] border border-[rgba(194,198,212,0.5)] bg-white p-[15px]">
+            <p className="whitespace-pre-wrap font-inter text-[13px] italic leading-[18px] text-[#1e1e24]">
+              {cancellationReason
+                ? `"${cancellationReason}"`
+                : "No cancellation reason — this appointment hasn't been cancelled."}
             </p>
           </div>
         </div>

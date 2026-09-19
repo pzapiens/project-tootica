@@ -102,7 +102,9 @@ model Clinic {
   branches       Branch[]
   toothRemarks   ToothRemark[]
   medicalHistory MedicalHistoryEntry[]
+  observations   ObservationEntry[]
   documents      PatientDocument[]
+  recordAuditLogs RecordAuditLog[]
 
   @@map("clinics")
 }
@@ -266,17 +268,15 @@ model Patient {
   gender       String?
   dob          DateTime? @db.Date
   medicalNotes String?   @map("medical_notes")
-  // Doctor/clinic observation note captured on the Patient Records screen (a
-  // single free-text note per patient, stamped when last saved).
-  observation          String?   @map("observation")
-  observationUpdatedAt DateTime? @map("observation_updated_at")
   createdAt    DateTime  @default(now()) @map("created_at")
 
   clinic         Clinic                @relation(fields: [clinicId], references: [id])
   appointments   Appointment[]
   toothRemarks   ToothRemark[]
   medicalHistory MedicalHistoryEntry[]
+  observations   ObservationEntry[]
   documents      PatientDocument[]
+  recordAuditLogs RecordAuditLog[]
 
   @@index([clinicId, id])
   @@index([clinicId, createdAt])
@@ -363,6 +363,11 @@ model ToothRemark {
   patientId String   @map("patient_id") @db.Uuid
   toothNo   String   @map("tooth_no")
   remarks   String
+  // The user who created the row — only they may edit/delete it. Name is
+  // denormalized (for display / to survive account deletion). Null for legacy
+  // rows created before this was tracked (those stay editable by anyone).
+  createdById   String?  @map("created_by_id") @db.Uuid
+  createdByName String?  @map("created_by_name")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -379,6 +384,9 @@ model MedicalHistoryEntry {
   clinicId  String   @map("clinic_id") @db.Uuid
   patientId String   @map("patient_id") @db.Uuid
   text      String
+  // Creator — only they may edit/delete (null for legacy rows). See ToothRemark.
+  createdById   String?  @map("created_by_id") @db.Uuid
+  createdByName String?  @map("created_by_name")
   createdAt DateTime @default(now()) @map("created_at")
 
   clinic  Clinic  @relation(fields: [clinicId], references: [id])
@@ -386,6 +394,25 @@ model MedicalHistoryEntry {
 
   @@index([clinicId, patientId])
   @@map("medical_history_entries")
+}
+
+/// A dated Doctor/Clinic observation entry (Patient Records screen). Mirrors
+/// MedicalHistoryEntry: multiple free-text observations per patient, each dated.
+model ObservationEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  clinicId  String   @map("clinic_id") @db.Uuid
+  patientId String   @map("patient_id") @db.Uuid
+  text      String
+  // Creator — only they may edit/delete (null for legacy rows). See ToothRemark.
+  createdById   String?  @map("created_by_id") @db.Uuid
+  createdByName String?  @map("created_by_name")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, patientId])
+  @@map("observation_entries")
 }
 
 /// An uploaded patient document (consent form / x-ray / other). Only metadata
@@ -401,6 +428,10 @@ model PatientDocument {
   size       Int
   mimeType   String   @map("mime_type")
   storageKey String   @map("storage_key")
+  // The uploader — shown on the document card. Denormalized name (survives
+  // account deletion); null for legacy uploads. See ToothRemark.
+  createdById   String?  @map("created_by_id") @db.Uuid
+  createdByName String?  @map("created_by_name")
   createdAt  DateTime @default(now()) @map("created_at")
 
   clinic  Clinic  @relation(fields: [clinicId], references: [id])
@@ -408,4 +439,34 @@ model PatientDocument {
 
   @@index([clinicId, patientId])
   @@map("patient_documents")
+}
+
+/// An audit-log entry for edits/deletes to a patient's records tables
+/// (observations, tooth remarks, medical history). Surfaced to admins on the
+/// Patient Records screen so they can see who changed what and when. The acting
+/// user's name is denormalized so the log survives that account's deletion.
+model RecordAuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  clinicId  String   @map("clinic_id") @db.Uuid
+  patientId String   @map("patient_id") @db.Uuid
+  // Which records table: "observation" | "tooth" | "medical-history".
+  table     String
+  // "UPDATE" | "DELETE".
+  action    String
+  // The affected entry's id (informational — the entry may no longer exist).
+  entryId   String   @map("entry_id")
+  // Human-readable snapshots of the row before/after the change. `previous` is
+  // null on a create, `updated` is null on a delete.
+  previous  String?
+  updated   String?
+  // The acting user — denormalized name so it survives the account's deletion.
+  userId    String   @map("user_id") @db.Uuid
+  userName  String   @map("user_name")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, patientId, createdAt])
+  @@map("record_audit_logs")
 }

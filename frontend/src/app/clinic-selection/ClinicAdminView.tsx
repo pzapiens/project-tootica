@@ -14,6 +14,7 @@ import {
 import { type Branch } from "./BranchList";
 import DashboardTop from "./DashboardTop";
 import ManageAccountsModal from "./ManageAccountsModal";
+import OverallAnalytics from "./OverallAnalytics";
 import SelectBranchSection from "./SelectBranchSection";
 
 /**
@@ -24,7 +25,13 @@ import SelectBranchSection from "./SelectBranchSection";
  * Appointment stat cards are still seed data — the backend has no per-status /
  * per-branch analytics endpoint yet.
  */
-export default function ClinicAdminView({ me }: { me: MeResponse }) {
+export default function ClinicAdminView({
+  me,
+  setMe,
+}: {
+  me: MeResponse;
+  setMe: (me: MeResponse) => void;
+}) {
   const router = useRouter();
   const [branchList, setBranchList] = useState<BranchSummary[]>([]);
   // The branch whose doctors + receptionists the admin is managing (modal open).
@@ -74,7 +81,7 @@ export default function ClinicAdminView({ me }: { me: MeResponse }) {
   return (
     <div className="flex min-h-dvh flex-col bg-white lg:h-dvh lg:overflow-hidden">
       <div className="mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-6 p-6 md:gap-7 md:p-7 lg:min-h-0">
-        <DashboardTop greetingName={greetingName} branches={branches} />
+        <DashboardTop greetingName={greetingName} branches={branches} me={me} setMe={setMe} />
         <SelectBranchSection
           branches={branches}
           onManage={me.clinic ? setManaging : undefined}

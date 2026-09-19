@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, type AppointmentListItem } from "@/lib/api";
 import { useAppointmentsRevision } from "@/lib/appointmentsBus";
 import { bookingChannelLabel } from "@/lib/whatsapp";
-import { statusBadgeClass, statusColor } from "@/lib/statusColors";
+import { statusDropdownBadgeClass, statusDropdownColor } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
 
@@ -182,15 +182,17 @@ function toEdit(a: DashboardAppointment): EditAppointment {
 }
 
 // Row styling for each option inside the status dropdown (Figma "Appts Status
-// Dropdown"), derived from the shared status palette so the dropdown, the row
-// badges and the calendar all stay in sync. `text` colours both the label and
-// the selected check (via currentColor). "All status" is not a real status, so
-// it keeps its own neutral brand tint.
+// Dropdown"), derived from the shared dropdown palette so the dropdown, the row
+// badges and the create/edit form stay in sync (incl. its No Show → amber
+// override). `text` colours both the label and the selected check (via
+// currentColor), so the tick always matches its option's text colour. "All
+// status" is not a real status, so it keeps the Figma's neutral grey tint + dark
+// ink (and a dark tick when selected).
 const STATUS_OPTION: Record<string, { row: string; text: string }> = {
-  "All status": { row: "bg-[rgba(0,94,184,0.1)]", text: "text-[#0077c0]" },
+  "All status": { row: "bg-[rgba(30,30,36,0.06)]", text: "text-[#1e1e24]" },
   ...Object.fromEntries(
     STATUS_FILTER_OPTIONS.filter((o) => o !== "All status").map((o) => {
-      const c = statusColor(o);
+      const c = statusDropdownColor(o);
       return [o, { row: c.bg, text: c.text }];
     }),
   ),
@@ -461,7 +463,7 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
       {/* Status */}
       <div>
         <span
-          className={`inline-flex rounded-full px-[14px] py-[4px] font-inter text-[14px] font-medium leading-[18.667px] ${statusBadgeClass(appt.status)}`}
+          className={`inline-flex rounded-full px-[14px] py-[4px] font-inter text-[14px] font-medium leading-[18.667px] ${statusDropdownBadgeClass(appt.status)}`}
         >
           {appt.status}
         </span>
@@ -525,7 +527,7 @@ function StatusFilter({
         />
       </button>
       {open && (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-30 flex w-[203px] flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div className="absolute right-0 top-[calc(100%+8px)] z-30 flex w-[216px] flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
           {STATUS_FILTER_OPTIONS.map((opt) => {
             const style = STATUS_OPTION[opt];
             const selected = opt === value;

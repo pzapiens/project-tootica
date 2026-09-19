@@ -138,9 +138,39 @@ Picking a branch on the selection screen enters the dashboard area, where
 
 - **Dark sidebar** with the logo, **role-gated navigation** (Dashboard,
   Appointments, Patients, Doctors — visible to everyone; Analytics and Revenue —
-  **admins only**), a **user chip** (name, "Dr." for doctors) whose drop-up has
-  Profile / Accounts / **Switch Branch** (→ back to `/clinic-selection`) and
-  **Log Out**.
+  **admins only**), a **user chip** (name, role-based avatar glyph whose hover
+  tooltip shows the account type) whose drop-up has **Profile** (→
+  `/clinic-selection/[code]/profile`) / **Accounts** (→
+  `/clinic-selection/[code]/accounts`, **admins only**) / **Switch Branch** (→
+  back to `/clinic-selection`) and **Log Out**.
+
+**`/profile`** (Figma "Profile", `ProfileClient`) — the **Profile Settings** page
+reached from the sidebar account drop-up: an avatar card (local **Upload / Remove
+Image** — stored as a data URL in `sessionStorage` per user via the shell's
+`useAvatar()` context, so it shows in the **sidebar chip** too; not sent to the
+backend), a **Personal Information** form (Full Name /
+Specialized Field / Phone / Email → **Save Changes** via `PATCH /api/auth/profile`;
+`GET /auth/me` now returns the doctor `specialization`), a **Reset Your Password**
+form (`POST /api/auth/change-password`), and **Delete Account**
+(`DELETE /api/auth/account`, behind a confirm dialog — blocked for a super admin or
+a clinic's last admin) + **Log Out** cards. Saving the profile pushes the fresh
+session into the shell (`useUpdateMe()`) so the sidebar name/avatar update instantly.
+
+**`/accounts`** (Figma "Accounts", `AccountsClient`) — the **Accounts Management**
+page reached from the sidebar drop-up → **Accounts** (visible to **CLIENT_ADMIN /
+SUPER_ADMIN** only). A table (Full Name / Email / Role badge / Status badge /
+Created / Actions) listing the clinic's **admins + doctors + receptionists** from
+`GET /api/accounts` (admins first; super admins are never clinic members, so they
+never appear — an admin only ever sees admins/staff). **The signed-in account is
+hidden from the table** (you manage your own via Profile settings), and **every
+listed row** gets the full **⋮ actions menu** (Figma "Settings Dropdown" — filled
+pills): **Edit** (Figma "EAP" — Full Name split to first/last via `PATCH
+/api/accounts/:id`; the email field stays **UI-only** until backend support
+lands), **Reset Password** (Figma "Accounts RP" — sets a new password via `POST
+/api/accounts/:id/reset-password`), **Disable/Enable** (`PATCH …/:id { status }`),
+and **Delete** (`DELETE …/:id`), each behind a confirm dialog. Mutations cover
+**admins + staff** (the accounts service blocks acting on yourself and keeps a
+clinic from losing its **last active admin**).
 - A fixed white content card; only its inner region scrolls. The dense
   1440-wide Figma layout is rendered at `zoom: 0.9` so it fits. The content
   wrapper is a flex column with `min-h-full` so it fills the scroll viewport
@@ -214,7 +244,7 @@ is derived from DOB and the **last clinic visit** is computed client-side from
 each patient's most recent *past* appointment (`GET /api/appointments`). Header
 actions: **Filter** opens an **Apply Filter** panel (ID / Alphabetic / Age, each
 ascending or descending) where selections are **staged** and committed with
-**Apply Filters** (or cleared with **Reset All**) — multiple cards combine into a
+**Apply Filters** (or cleared with **Clear Filters**) — multiple cards combine into a
 multi-key sort, and the number of active filters shows as a **badge on the filter
 icon**. **Export** downloads the current list as **CSV**. Each row has **Edit** (Edit Patient
 Profile modal → `PATCH /api/patients/:id`), a **Book appointment** icon (not
@@ -239,7 +269,7 @@ optional**) which creates a
 `GUEST_DOCTOR` user + profile inside the current clinic — no branch picker, since
 creation is already clinic-scoped). **Filter** opens an **Apply Filter** panel
 (ID ascending/descending + multi-select specialization chips, staged and
-committed with **Apply Filters** / **Reset All**, active count shown as a
+committed with **Apply Filters** / **Clear Filters**, active count shown as a
 **badge**). **Export** downloads the current list as **CSV**. Row actions (Figma
 `calendar_clock` glyph for the availability action): **Edit** — for **all**
 doctors — opens the per-doctor shift editor at `/doctors/:id/shift`; the
@@ -295,7 +325,7 @@ Appointment** opens the shared
 **NewAppointmentModal** wizard; **Filter** opens an **Apply Filter** panel (ID
 sort, Date & Time sort, Attending-Doctor search + checkboxes, Consultation-Type
 and Source checkboxes, and Status chips — all staged and committed with **Apply
-Filters** / **Reset All**, active count shown as a **badge**); **Export**
+Filters** / **Clear Filters**, active count shown as a **badge**); **Export**
 downloads the current list as **CSV**; a **refresh** button re-fetches.
 
 A **Pending** (`SCHEDULED`) appointment is a **patient WhatsApp booking** awaiting
@@ -334,8 +364,7 @@ confirmation, Figma "NTP" — the send is a placeholder until the notification
 backend lands), **Call** (opens a **"Proceed to Call?"** confirmation
 showing the number, "Appts - Call" — the number is a `tel:` link) and **Chat**
 (opens a **"Proceed to Chat?"** confirmation, Figma "PTC", whose **Proceed to
-WhatsApp** button opens `wa.me` for the patient's number), **Info** (read-only
-patient message in a bordered box, Figma "Info"), **Cancel** (required reason
+WhatsApp** button opens `wa.me` for the patient's number), **Cancel** (required reason
 → `CANCELLED`, Figma "Cancel Appointment?"), and **Delete** (`DELETE /api/appointments/:id`,
 Figma "Delete Appts"). The table grows with its rows, but the **pagination bar**
 (record range, per-page selector, numbered pagination) is pushed to the **bottom
@@ -345,10 +374,18 @@ and the page scrolls, the footer simply follows the last row.
 
 The ⋮ → **Records** action opens the **"Patient Records"** view
 (`PatientRecordsView`, Figma "Appts8 - Records") which replaces the table (back
-arrow returns). It shows the patient's name/ID card and six working sections
+arrow returns). Its header shows an **Info** icon (hover tip "Info") beside the
+patient's name/ID card that opens the **Additional Info** dialog (Figma "Info") —
+the patient's message plus a **Cancellation Reason** box below it (filled with the
+reason captured at cancel time for a cancelled appointment, empty otherwise). The
+header **card** shows the **Patient Name**, **Patient ID**, and — from the
+appointment the view was opened on — the **Appointment ID** and its **Date & Time**.
+Below the header are six working sections
 (each separated by the same 32px gap):
-**Doctor/Clinic Observations** — a free-text note with **Save** / **Discard**
-(shows **"Saved"** with a tick once persisted); the **Perio-dental chart** —
+**Doctor/Clinic Observations** (mirrors Medical History) — a free-text box with
+**Add** / **Discard** that appends dated rows to a table, each row **edited
+inline** (pencil → the row becomes an input with a **save** icon) and
+**deletable**; the **Perio-dental chart** —
 a clinical chart image beside a **Tooth-wise Remarks** form (Remarks +
 a Tooth Number stepper → **Add Entry**) that appends rows to a table, each row
 **editable** (loads it back into the form as **Update**) and **deletable** (red
@@ -367,13 +404,55 @@ document **metadata** are **cached in `localStorage`** per patient
 **IndexedDB** (`lib/documentFiles.ts`) so **Download** works across reloads. Every
 **delete** goes through a confirm prompt (`ConfirmDeleteDialog`). Each of the first
 three sections' **Export**
-downloads its data (dependency-free, via `lib/recordsExport.ts`): the observation
-as a **PDF** (a hand-built PDF blob), and the perio and medical-history tables as
-**Excel-openable `.xls`** sheets.
+downloads its table (dependency-free, via `lib/recordsExport.ts`) as an
+**Excel-openable `.xls`** sheet — observations, perio and medical history alike.
+Every records section — the three tables **and** each of the three document-upload
+sections — shows, for **admins and super admins** only, a **Log** icon (hover tip
+"Log") that opens a **Change Log** dialog for that section, newest first, showing
+the **date & time**, the **action**, and the **user** who made the change. The
+three **tables** log **Create / Edit / Delete** with the **previous** and
+**updated** data (`—` for the side that doesn't apply). The **document** sections
+log **Upload / Download / Delete** with the **file name** (downloads are captured
+server-side when the file is streamed). The log is written on each
+`POST`/`PATCH`/`DELETE` (and document `GET …/download`) and read from the
+admin-gated `GET /api/patients/:patientId/records/logs` (`fetchRecordsLog`); the
+document sections log under their upload category (`consent` / `xray` / `other`).
 
-**`/analytics`, `/revenue`** — routed
-and role-gated, currently rendering a **"Coming soon"** placeholder until each is
-built frame-by-frame.
+**Creator-only edits:** across the three tables, the **Edit** / **Delete** actions
+on a row are shown **only to the user who created that row** (others see a `—`); the
+backend enforces this too (`403` otherwise). **Admins and super admins are exempt** —
+they can edit/delete any entry regardless of creator. Rows created before this was
+tracked have no recorded creator and stay editable by anyone. Each uploaded **document card**
+shows its **upload date & time** and the **uploader's name** alongside the file size.
+
+**`/analytics`** (Figma "Analytics", `AnalyticsClient`) — the **Analytics
+Summary**: four appointment **stat cards** (Total / Completed / Pending /
+Cancelled) scoped by an **All-Time** timeframe, each with a **Review** link that
+deep-links to the filtered appointments list, plus a CSV **export**. Below the
+cards a **segmented toggle** swaps the content: **Doctor Performance** (search +
+timeframe + a per-doctor table of Total / Upcoming / Completed / No Show /
+Cancelled counts, each with an **eye** drill-down to
+`/appointments?doctorId=…&status=…`) and **Consultation Type & Source of Enquiry**
+(a shared timeframe above two **Appointment Counts** cards — Consultation Type +
+Source of Enquiry — each with a **sort-direction toggle** icon that flips the list
+between High→Low and Low→High, its hover tip showing the current direction; each
+count **row is clickable** and deep-links to the appointments list filtered to that
+value). All figures are derived
+client-side from one `GET /api/appointments` fetch (+ `GET /api/doctors` so
+zero-count doctors still list). `AppointmentsClient` accepts the `?doctorId=`,
+`?consultationType=` and `?source=` deep-links (the last shown as a dismissible
+banner).
+
+**`/revenue`** (Figma "Revenues1", `RevenueClient`) — the **Revenue Summary**: two
+blue stat cards (**Total Revenue Generated** / **Pending**, each with a **Review**
+link that filters the table to that payment status), a CSV **export**, and a
+**Recent Transactions** table (Transaction ID / Patient / Consultation Type /
+Amount / Payment Status / Date) with its own timeframe, a search (id + patient),
+and an **Apply Filter** panel (`RevenueFilterPanel` — ID sort, payment status,
+consultation type). Totals + rows are derived client-side from
+`GET /api/revenue/transactions` (one row per payment, with a per-clinic
+transaction code); amounts render as `en-IN` INR and the status badge reuses the
+shared status palette (Completed / Pending).
 
 The **Doctor Availability** timeline modal (Figma 501:51877) paints the day over
 a **Not Available** (dark) base: green **Available** windows from the doctor's
@@ -474,7 +553,10 @@ src/
 │           │   ├── PaymentManagementDialog.tsx         # "Payment Management" + "New Payment" flow
 │           │   ├── PatientRecordsView.tsx              # "Patient Records" (observations + perio chart) — ⋮ → Records
 │           │   ├── AppointmentWhatsAppDialog.tsx        # "WhatsApp Appointments" pending-bookings popup
-│           └── analytics|revenue/  # Coming soon
+│           ├── analytics/  # AnalyticsClient (stat cards + Doctor Performance / Consultation & Source-of-Enquiry toggle)
+│           ├── revenue/    # RevenueClient (revenue stat cards + transactions table) + RevenueFilterPanel
+│           ├── profile/    # ProfileClient (Profile Settings — personal info, password, delete, logout)
+│           └── accounts/   # AccountsClient (Accounts Management table + Edit/Reset/Disable/Delete popups, admins only)
 ├── components/
 │   └── PasswordToggle.tsx          # show/hide eye button
 └── lib/
@@ -483,7 +565,7 @@ src/
     ├── appointmentsBus.ts  # tiny event bus to refresh dashboard after a booking
     ├── statusColors.ts # single source of truth for appointment-status colours
     ├── paymentsStore.ts # localStorage cache for per-appointment payments + status glyph
-    ├── patientRecordsStore.ts # localStorage cache for Patient Records (observation note + tooth-wise remarks)
+    ├── patientRecordsStore.ts # backend-backed cache for Patient Records (observations, tooth-wise remarks, medical history, documents)
     ├── documentFiles.ts # IndexedDB store for uploaded Patient Records file bytes (download survives reloads)
     ├── recordsExport.ts # dependency-free exporters: observation → PDF, perio table → .xls
     ├── bookingChannelStore.ts # localStorage marker: appointments accepted from WhatsApp bookings

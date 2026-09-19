@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
  * replaces the appointments list while open. Two sorting cards (ID + Date &
  * Time), an Attending Doctor picker (search + checkboxes), Consultation Type and
  * Source checkbox lists, and a Status chip group. Selections are STAGED — they
- * only take effect when "Apply Filters" is clicked (Reset All clears both the
+ * only take effect when "Apply Filters" is clicked (Clear Filters clears both the
  * draft and any already-applied filters).
  */
 
@@ -275,9 +275,9 @@ export default function AppointmentFilterPanel({
             if (filterCount(applied) > 0) onApply(EMPTY_FILTERS);
           }}
           disabled={count === 0 && filterCount(applied) === 0}
-          className="px-[14px] py-[8px] font-inter text-[11px] font-semibold uppercase tracking-[1px] text-[#1e1e24] opacity-70 transition-opacity hover:opacity-100 disabled:opacity-30"
+          className="px-[14px] py-[8px] font-inter text-[13px] font-semibold tracking-[0.3px] text-[#1e1e24] opacity-70 transition-opacity hover:opacity-100 disabled:opacity-30"
         >
-          Reset All
+          Clear Filters
         </button>
         <button
           type="button"

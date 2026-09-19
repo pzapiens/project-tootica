@@ -9,7 +9,7 @@ import { apiFetch, type AppointmentListItem, type AppointmentStatus, type Bookin
 import { analyticsRangeQuery } from "@/lib/analytics";
 import { useAppointmentsRevision, notifyAppointmentsChanged } from "@/lib/appointmentsBus";
 import { bookingChannelLabel } from "@/lib/whatsapp";
-import { statusBadgeClass } from "@/lib/statusColors";
+import { statusDropdownBadgeClass } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
 
@@ -26,7 +26,6 @@ import AppointmentFilterPanel, {
 } from "./AppointmentFilterPanel";
 import AppointmentConfirmDialog, { type ConfirmVariant } from "./AppointmentConfirmDialog";
 import CancelAppointmentDialog from "./CancelAppointmentDialog";
-import AppointmentInfoDialog from "./AppointmentInfoDialog";
 import AppointmentCallDialog from "./AppointmentCallDialog";
 import AppointmentChatDialog from "./AppointmentChatDialog";
 import AppointmentWhatsAppDialog from "./AppointmentWhatsAppDialog";
@@ -251,7 +250,6 @@ const COLS =
 type RowDialog =
   | { kind: "confirm"; variant: ConfirmVariant; row: AppointmentRow }
   | { kind: "cancel"; row: AppointmentRow }
-  | { kind: "info"; row: AppointmentRow }
   | { kind: "call"; row: AppointmentRow }
   | { kind: "chat"; row: AppointmentRow }
   | { kind: "notify"; row: AppointmentRow }
@@ -271,18 +269,42 @@ export default function AppointmentsClient() {
   // Exact single-patient filter (by id) from the patients page; cleared via the
   // banner's ✕.
   const [patientFilterId, setPatientFilterId] = useState(() => searchParams.get("patientId") ?? "");
+  // Exact source-of-enquiry filter (from the analytics "Source of Enquiry" card),
+  // cleared via its banner's ✕.
+  const [sourceFilter, setSourceFilter] = useState(() => searchParams.get("source") ?? "");
   const [filters, setFilters] = useState<AppointmentFilters>(() => {
+    // Deep-links from the dashboard/analytics: `?status=` auto-applies a status
+    // chip, `?doctorId=` pins the list to one doctor (analytics eye drill-down),
+    // `?consultationType=` pre-selects a consultation-type facet (analytics card).
     const status = searchParams.get("status");
-    return status && (STATUS_CHIPS as readonly string[]).includes(status)
-      ? { ...EMPTY_FILTERS, statuses: [status] }
-      : EMPTY_FILTERS;
+    const doctorId = searchParams.get("doctorId");
+    const consultationType = searchParams.get("consultationType");
+    return {
+      ...EMPTY_FILTERS,
+      statuses:
+        status && (STATUS_CHIPS as readonly string[]).includes(status) ? [status] : [],
+      doctorIds: doctorId ? [doctorId] : [],
+      consultationTypes: consultationType ? [consultationType] : [],
+    };
   });
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
 
   const [filterOpen, setFilterOpen] = useState(false);
-  // The patient whose "Patient Records" view is open (⋮ → Records), or null.
-  const [records, setRecords] = useState<{ name: string; code: string; id: string } | null>(null);
+  // The patient whose "Patient Records" view is open (⋮ → Records), or null. The
+  // appointment's notes ride along so the records header's Info action can show
+  // the Additional Info dialog (patient message + cancellation reason).
+  const [records, setRecords] = useState<
+    {
+      name: string;
+      code: string;
+      id: string;
+      message: string;
+      appointmentCode: string;
+      appointmentDate: string;
+      appointmentTime: string;
+    } | null
+  >(null);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AppointmentListItem | null>(null);
@@ -360,6 +382,8 @@ export default function AppointmentsClient() {
       if (row.rawStatus === "SCHEDULED") return false;
       // Exact single-patient filter (from the patients page).
       if (patientFilterId && item.patient.id !== patientFilterId) return false;
+      // Exact source-of-enquiry filter (from the analytics card).
+      if (sourceFilter && (item.sourceOfEnquiry ?? "").trim() !== sourceFilter) return false;
       if (q) {
         const phoneHit = qDigits.length > 0 && row.phone.replace(/\D/g, "").includes(qDigits);
         const textHit = [row.code, row.patientName, row.doctor, row.consultationType].some((f) =>
@@ -390,7 +414,7 @@ export default function AppointmentsClient() {
     });
 
     return out;
-  }, [allRows, query, filters, patientFilterId]);
+  }, [allRows, query, filters, patientFilterId, sourceFilter]);
 
   // Name of the patient the list is pinned to (for the filter banner), resolved
   // from the loaded rows. Empty when no filter (or the patient has no rows).
@@ -461,6 +485,10 @@ export default function AppointmentsClient() {
         patientName={records.name}
         patientCode={records.code}
         patientId={records.id}
+        message={records.message}
+        appointmentCode={records.appointmentCode}
+        appointmentDate={records.appointmentDate}
+        appointmentTime={records.appointmentTime}
         onClose={() => setRecords(null)}
       />
     );
@@ -566,6 +594,28 @@ export default function AppointmentsClient() {
         </div>
       )}
 
+      {/* Source-of-enquiry filter banner (from the analytics "Source of Enquiry" card). */}
+      {sourceFilter && (
+        <div className="flex shrink-0 items-center gap-[10px] self-start rounded-full bg-[#e6f2fb] py-[8px] pl-[16px] pr-[10px]">
+          <span className="font-inter text-[14px] text-[#0077c0]">
+            Showing appointments from source <span className="font-semibold">{sourceFilter}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setSourceFilter("");
+              setPage(1);
+            }}
+            aria-label="Clear source-of-enquiry filter"
+            className="flex size-[22px] items-center justify-center rounded-full text-[#0077c0] transition-colors hover:bg-[#0077c0]/10"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="flex flex-col overflow-hidden rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white">
         {/* Header row */}
@@ -592,7 +642,7 @@ export default function AppointmentsClient() {
             <p className="px-[20px] py-10 font-inter text-[16px] text-[#94a3b8]">Loading appointments…</p>
           ) : total === 0 ? (
             <p className="px-[20px] py-10 font-inter text-[16px] text-[#94a3b8]">
-              {query.trim() || filterCount(filters) > 0
+              {query.trim() || filterCount(filters) > 0 || patientFilterId || sourceFilter
                 ? "No appointments match your search."
                 : "No appointments yet."}
             </p>
@@ -605,13 +655,20 @@ export default function AppointmentsClient() {
                 onRecords={() =>
                   // Records is only reachable for non-pending rows, which always
                   // have a real patient; the ?? "" just satisfies the type.
-                  setRecords({ name: row.patientName, code: item.patient.code ?? "—", id: item.patient.id ?? "" })
+                  setRecords({
+                    name: row.patientName,
+                    code: item.patient.code ?? "—",
+                    id: item.patient.id ?? "",
+                    message: row.message,
+                    appointmentCode: row.code,
+                    appointmentDate: row.date,
+                    appointmentTime: row.timeRange,
+                  })
                 }
                 onAccept={() => setDialog({ kind: "confirm", variant: "accept", row })}
                 onReject={() => setDialog({ kind: "confirm", variant: "reject", row })}
                 onCancel={() => setDialog({ kind: "cancel", row })}
                 onDelete={() => setDialog({ kind: "confirm", variant: "delete", row })}
-                onInfo={() => setDialog({ kind: "info", row })}
                 onCall={() => setDialog({ kind: "call", row })}
                 onChat={() => setDialog({ kind: "chat", row })}
                 onNotify={() => setDialog({ kind: "notify", row })}
@@ -704,14 +761,6 @@ export default function AppointmentsClient() {
           }}
         />
       )}
-      {dialog?.kind === "info" && (
-        <AppointmentInfoDialog
-          patientName={dialog.row.patientName}
-          patientCode={dialog.row.code}
-          message={dialog.row.message}
-          onClose={() => setDialog(null)}
-        />
-      )}
       {dialog?.kind === "call" && (
         <AppointmentCallDialog
           patientName={dialog.row.patientName}
@@ -788,7 +837,6 @@ function AppointmentRowView({
   onReject,
   onCancel,
   onDelete,
-  onInfo,
   onCall,
   onChat,
   onNotify,
@@ -801,7 +849,6 @@ function AppointmentRowView({
   onReject: () => void;
   onCancel: () => void;
   onDelete: () => void;
-  onInfo: () => void;
   onCall: () => void;
   onChat: () => void;
   onNotify: () => void;
@@ -842,7 +889,7 @@ function AppointmentRowView({
       {/* Status */}
       <div className="flex items-center gap-[6px] px-[20px] py-[22px]">
         <span
-          className={`inline-flex rounded-full px-[12px] py-[4px] font-inter text-[13px] font-medium leading-[18px] ${statusBadgeClass(
+          className={`inline-flex rounded-full px-[12px] py-[4px] font-inter text-[13px] font-medium leading-[18px] ${statusDropdownBadgeClass(
             row.statusLabel,
           )}`}
         >
@@ -888,7 +935,7 @@ function AppointmentRowView({
               className="group relative flex size-[34px] items-center justify-center"
             >
               <PaymentsIcon className={`size-6 ${paymentComplete ? "text-[#16a34a]" : "text-[#1e1e24]"}`} />
-              <Tip label={paymentComplete ? "Payments (paid)" : "Payments"} />
+              <Tip label={paymentComplete ? "Payments (paid)" : "Payments (Pending)"} />
             </button>
             <button type="button" onClick={onEdit} aria-label={`Edit ${row.patientName}'s appointment`} className="group relative flex size-[34px] items-center justify-center">
               <Image src="/dashboard/edit_square.svg" alt="" width={24} height={24} className="size-6" />
@@ -896,7 +943,6 @@ function AppointmentRowView({
             </button>
             <MoreMenu
               row={row}
-              onInfo={onInfo}
               onCancel={onCancel}
               onDelete={onDelete}
               onCall={onCall}
@@ -911,16 +957,16 @@ function AppointmentRowView({
 }
 
 /**
- * Row overflow ("⋮") menu (Figma "Appts More Dropdown"): Call, Chat, Notify, Info,
- * Cancel and Delete. (Records and Payments are now standalone row buttons.) Each
- * opens its dialog — Call → "Proceed to Call?" (Figma "Appts - Call"); Chat →
- * "Proceed to Chat?" (Figma "PTC" — opens the patient's WhatsApp); Notify → "Notify
- * the Patient" (Figma "NTP" — the send is a placeholder until the notification
- * backend lands); Info / Cancel / Delete their respective dialogs.
+ * Row overflow ("⋮") menu (Figma "Appts More Dropdown"): Call, Chat, Notify,
+ * Cancel and Delete. (Records and Payments are now standalone row buttons; Info
+ * moved to the Patient Records header.) Each opens its dialog — Call → "Proceed
+ * to Call?" (Figma "Appts - Call"); Chat → "Proceed to Chat?" (Figma "PTC" —
+ * opens the patient's WhatsApp); Notify → "Notify the Patient" (Figma "NTP" — the
+ * send is a placeholder until the notification backend lands); Cancel / Delete
+ * their respective dialogs.
  */
 function MoreMenu({
   row,
-  onInfo,
   onCancel,
   onDelete,
   onCall,
@@ -928,7 +974,6 @@ function MoreMenu({
   onNotify,
 }: {
   row: AppointmentRow;
-  onInfo: () => void;
   onCancel: () => void;
   onDelete: () => void;
   onCall: () => void;
@@ -942,9 +987,9 @@ function MoreMenu({
   // table body's scroll/overflow clipping; `pos` is computed on open.
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Menu footprint: 6 pills (py-10 + 20px line = 40px), 5×5px gaps, 2×17 padding.
+  // Menu footprint: 5 pills (py-10 + 20px line = 40px), 4×5px gaps, 2×17 padding.
   const MENU_WIDTH = 220;
-  const MENU_HEIGHT = 6 * 40 + 5 * 5 + 2 * 17;
+  const MENU_HEIGHT = 5 * 40 + 4 * 5 + 2 * 17;
 
   /** Place the menu above or below the trigger based on available space. */
   function place() {
@@ -1029,7 +1074,6 @@ function MoreMenu({
               onClick={() => run(onChat)}
             />
             <MenuItem label="Notify" onClick={() => run(onNotify)} />
-            <MenuItem label="Info" onClick={() => run(onInfo)} />
             <MenuItem label="Cancel" onClick={() => run(onCancel)} />
             <MenuItem label="Delete" tone="danger" onClick={() => run(onDelete)} />
           </div>,

@@ -9,7 +9,16 @@ import type { UpdateAccountInput } from '../super-admin/schema';
 import { accountRepository } from './repository';
 import type { CreateStaffInput } from './schema';
 
-type UserRow = Awaited<ReturnType<typeof accountRepository.findStaffByClinic>>[number];
+type UserRow = Awaited<ReturnType<typeof accountRepository.findAccountsByClinic>>[number];
+
+// Display order for the Accounts list: admins first, then doctors, then
+// receptionists (each group already sorted oldest-first by the query).
+const ROLE_ORDER: Record<string, number> = {
+  CLIENT_ADMIN: 0,
+  DOCTOR: 1,
+  GUEST_DOCTOR: 1,
+  RECEPTIONIST: 2,
+};
 
 /** Public shape for a staff account (never exposes the password hash). */
 function toAccountSummary(user: UserRow) {
@@ -30,10 +39,13 @@ function toAccountSummary(user: UserRow) {
 }
 
 export const accountService = {
-  /** A clinic's doctors + receptionists (for the clinic-admin manage popup). */
+  /** A clinic's accounts — admins + doctors + receptionists — for the Accounts
+   *  Management page (admins first, then staff). */
   list: async (clinicId: string) => {
-    const users = await accountRepository.findStaffByClinic(clinicId);
-    return users.map(toAccountSummary);
+    const users = await accountRepository.findAccountsByClinic(clinicId);
+    return [...users]
+      .sort((a, b) => (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9))
+      .map(toAccountSummary);
   },
 
   /** Create a doctor / receptionist at one of the clinic's own branches. */
@@ -96,11 +108,22 @@ export const accountService = {
     };
   },
 
-  update: async (clinicId: string, id: string, input: UpdateAccountInput) => {
-    // Confirm the target is a staff member of THIS clinic before mutating.
-    const existing = await accountRepository.findStaffById(clinicId, id);
+  update: async (clinicId: string, id: string, callerId: string, input: UpdateAccountInput) => {
+    // Confirm the target is a manageable account (admin/staff) of THIS clinic.
+    const existing = await accountRepository.findManageableById(clinicId, id);
     if (!existing) {
       throw new HttpError(404, 'Account not found');
+    }
+    if (id === callerId) {
+      throw new HttpError(403, 'You can’t manage your own account here — use Profile settings');
+    }
+    // Never let a clinic lose its last active admin by suspending one.
+    if (
+      existing.role === 'CLIENT_ADMIN' &&
+      existing.status === 'ACTIVE' &&
+      input.status === 'SUSPENDED'
+    ) {
+      await ensureNotLastActiveAdmin(clinicId);
     }
     const data: {
       title?: string | null;
@@ -118,11 +141,38 @@ export const accountService = {
     return toAccountSummary(updated);
   },
 
-  remove: async (clinicId: string, id: string) => {
-    const existing = await accountRepository.findStaffById(clinicId, id);
+  remove: async (clinicId: string, id: string, callerId: string) => {
+    const existing = await accountRepository.findManageableById(clinicId, id);
     if (!existing) {
       throw new HttpError(404, 'Account not found');
     }
+    if (id === callerId) {
+      throw new HttpError(403, 'You can’t delete your own account here — use Profile settings');
+    }
+    if (existing.role === 'CLIENT_ADMIN' && existing.status === 'ACTIVE') {
+      await ensureNotLastActiveAdmin(clinicId);
+    }
     await superAdminRepository.deleteAccount(id);
   },
+
+  /** Set a new password for a clinic account (admin / super admin only). */
+  resetPassword: async (clinicId: string, id: string, callerId: string, password: string) => {
+    const existing = await accountRepository.findManageableById(clinicId, id);
+    if (!existing) {
+      throw new HttpError(404, 'Account not found');
+    }
+    if (id === callerId) {
+      throw new HttpError(403, 'You can’t reset your own password here — use Profile settings');
+    }
+    await accountRepository.updatePassword(id, await hashPassword(password));
+  },
 };
+
+/** Throws when a clinic has only one active admin left (blocking a disable/delete
+ *  that would leave it with none). */
+async function ensureNotLastActiveAdmin(clinicId: string): Promise<void> {
+  const activeAdmins = await accountRepository.countActiveClinicAdmins(clinicId);
+  if (activeAdmins <= 1) {
+    throw new HttpError(409, 'A clinic must keep at least one active admin');
+  }
+}

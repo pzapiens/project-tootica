@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
@@ -26,6 +26,28 @@ export default function TimeframeFilter({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Flip the panel so it never hides under the sidebar or below the fold: open
+  // upward when there's no room below, and left-align (grow rightward) when the
+  // trigger sits on the left; otherwise the default down/right-aligned placement.
+  const [place, setPlace] = useState<{ up: boolean; alignRight: boolean }>({
+    up: false,
+    alignRight: true,
+  });
+
+  // Estimated panel footprint (visual px, i.e. already at the shell's 0.9 zoom).
+  const computePlace = useCallback(() => {
+    const btn = triggerRef.current;
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    const PANEL_W = 260;
+    const PANEL_H = 400;
+    const spaceBelow = window.innerHeight - r.bottom;
+    setPlace({
+      up: spaceBelow < PANEL_H && r.top > spaceBelow,
+      alignRight: window.innerWidth - r.left < PANEL_W + 16,
+    });
+  }, []);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -49,6 +71,7 @@ export default function TimeframeFilter({
     setOpen((wasOpen) => {
       const next = !wasOpen;
       if (next) {
+        computePlace();
         // Seed the draft from the committed range (if any) when opening.
         if (timeframe.kind === "range") {
           setFrom(formatDmy(new Date(timeframe.from)));
@@ -61,6 +84,18 @@ export default function TimeframeFilter({
       return next;
     });
   }
+
+  // Keep the placement correct as the page scrolls or the window resizes.
+  useEffect(() => {
+    if (!open) return;
+    computePlace();
+    window.addEventListener("resize", computePlace);
+    window.addEventListener("scroll", computePlace, true);
+    return () => {
+      window.removeEventListener("resize", computePlace);
+      window.removeEventListener("scroll", computePlace, true);
+    };
+  }, [open, computePlace]);
 
   function choosePreset(kind: "all" | "today") {
     onChange({ kind });
@@ -80,6 +115,7 @@ export default function TimeframeFilter({
   return (
     <div ref={ref} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={toggle}
         className="flex h-[54px] items-center gap-1 rounded-full border-[1.167px] border-[#c2c6d4] px-[16.167px] transition-colors hover:border-[#0077c0]"
@@ -97,7 +133,11 @@ export default function TimeframeFilter({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-30 flex w-[288px] flex-col gap-[16px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div
+          className={`absolute z-40 flex w-[288px] flex-col gap-[16px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] ${
+            place.up ? "bottom-[calc(100%+8px)]" : "top-[calc(100%+8px)]"
+          } ${place.alignRight ? "right-0" : "left-0"}`}
+        >
           {/* Presets */}
           <PresetRow label="All-Time" active={timeframe.kind === "all"} onClick={() => choosePreset("all")} />
           <PresetRow label="Today" active={timeframe.kind === "today"} onClick={() => choosePreset("today")} />

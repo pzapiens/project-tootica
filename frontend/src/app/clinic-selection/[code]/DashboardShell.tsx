@@ -3,19 +3,22 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   apiFetch,
   ApiError,
   displayName,
+  roleAvatar,
   type BranchSummary,
   type MeResponse,
   type Role,
 } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
+import { Tip } from "@/components/HoverTip";
 
 import ResetPasswordPopup from "../ResetPasswordPopup";
+import { DashboardSessionProvider, useLocalAvatar } from "./session";
 
 /**
  * The app shell for the per-clinic dashboard (Figma "Sidebar" + white content
@@ -57,15 +60,24 @@ function canSee(item: NavItem, role: Role): boolean {
   return item.roles === "all" || item.roles.includes(role);
 }
 
-/** Session (from `/auth/me`) shared with nested dashboard pages. */
-const MeContext = createContext<MeResponse | null>(null);
-
-/** Read the signed-in session inside any dashboard page. */
-export function useMe(): MeResponse {
-  const me = useContext(MeContext);
-  if (!me) throw new Error("useMe must be used within the dashboard shell");
-  return me;
+/** Friendly account-type label shown when hovering the sidebar avatar. */
+function roleLabel(role: Role): string {
+  switch (role) {
+    case "SUPER_ADMIN":
+      return "Super Admin";
+    case "CLIENT_ADMIN":
+      return "Admin";
+    case "RECEPTIONIST":
+      return "Receptionist";
+    case "DOCTOR":
+      return "Doctor";
+    case "GUEST_DOCTOR":
+      return "Guest Doctor";
+    default:
+      return "Account";
+  }
 }
+
 
 export default function DashboardShell({
   code,
@@ -81,6 +93,10 @@ export default function DashboardShell({
   const [clinicName, setClinicName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReset, setShowReset] = useState(false);
+
+  // Locally-uploaded avatar, shared with the Profile page via context and shown
+  // in the sidebar chip. Seeded from sessionStorage once the user is known.
+  const avatarValue = useLocalAvatar(me?.user.id);
 
   useEffect(() => {
     let active = true;
@@ -147,7 +163,7 @@ export default function DashboardShell({
 
   return (
     <div className="flex h-dvh overflow-hidden bg-[#1e1e24]">
-      <Sidebar code={code} items={items} pathname={pathname} me={me} branchName={branchName} clinicName={clinicName} />
+      <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarValue.url} branchName={branchName} clinicName={clinicName} />
       <main className="min-w-0 flex-1 p-[19px]">
         {/* Fixed white panel; only the inner region scrolls. */}
         <div className="h-full overflow-hidden rounded-[28px] bg-white">
@@ -159,7 +175,9 @@ export default function DashboardShell({
                 content fits; the page only scrolls when the rows genuinely
                 overflow. */}
             <div className="flex min-h-full origin-top flex-col [zoom:0.9]">
-              <MeContext.Provider value={me}>{children}</MeContext.Provider>
+              <DashboardSessionProvider me={me} setMe={setMe} avatar={avatarValue}>
+                {children}
+              </DashboardSessionProvider>
             </div>
           </div>
         </div>
@@ -174,6 +192,7 @@ function Sidebar({
   items,
   pathname,
   me,
+  avatarUrl,
   branchName,
   clinicName,
 }: {
@@ -181,6 +200,7 @@ function Sidebar({
   items: NavItem[];
   pathname: string;
   me: MeResponse;
+  avatarUrl: string | null;
   branchName: string | null;
   clinicName: string | null;
 }) {
@@ -240,12 +260,10 @@ function Sidebar({
       </nav>
 
       {/* User chip + footer */}
-      <UserChip me={me} branchName={branchName} clinicName={clinicName} />
+      <UserChip code={code} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} />
       <div className="pt-[16px]">
-        <p className="font-inter text-[16px] font-medium leading-[24px] text-[#94a3b8]">
-          © 2026 Tootica.
-          <br />
-          All Rights Reserved.
+        <p className="font-inter whitespace-nowrap text-[12px] font-medium leading-[18px] text-[#94a3b8]">
+          © 2026 Tootica. All Rights Reserved.
         </p>
       </div>
     </aside>
@@ -253,11 +271,15 @@ function Sidebar({
 }
 
 function UserChip({
+  code,
   me,
+  avatarUrl,
   branchName,
   clinicName,
 }: {
+  code: string;
   me: MeResponse;
+  avatarUrl: string | null;
   branchName: string | null;
   clinicName: string | null;
 }) {
@@ -296,19 +318,25 @@ function UserChip({
   }
 
   // Branch-locked staff (a doctor/receptionist has a branchId) can't switch
-  // branches — only clinic-wide admins see "Switch Branch".
+  // branches — only clinic-wide admins see "Switch Branch". Accounts Management
+  // is admin-only.
   const branchLocked = me.user.branchId !== null;
+  const isAdmin = me.user.role === "CLIENT_ADMIN" || me.user.role === "SUPER_ADMIN";
   const menuItems: { key: "profile" | "accounts" | "switch"; label: string }[] = [
     { key: "profile", label: "Profile" },
-    { key: "accounts", label: "Accounts" },
+    ...(isAdmin ? [{ key: "accounts" as const, label: "Accounts" }] : []),
     ...(branchLocked ? [] : [{ key: "switch" as const, label: "Switch Branch" }]),
   ];
 
   function onMenu(key: "profile" | "accounts" | "switch") {
     setActive(key);
+    setOpen(false);
     if (key === "switch") {
-      setOpen(false);
       router.push("/clinic-selection");
+    } else if (key === "profile") {
+      router.push(`/clinic-selection/${code}/profile`);
+    } else if (key === "accounts") {
+      router.push(`/clinic-selection/${code}/accounts`);
     }
   }
 
@@ -356,8 +384,14 @@ function UserChip({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center rounded-[50px] bg-white/10 px-[16px] py-[12px] text-left transition-colors hover:bg-white/[0.14]"
       >
-        <span className="flex size-[37px] shrink-0 items-center justify-center rounded-full bg-[#0077c0]">
-          <Image src="/dashboard/person_shield.svg" alt="" width={24} height={24} className="size-6" />
+        <span className="relative flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt="" className="size-full object-cover" />
+          ) : (
+            <Image src={roleAvatar(me.user.role)} alt="" width={24} height={24} className="size-6" />
+          )}
+          <Tip label={roleLabel(me.user.role)} />
         </span>
         <span className="ml-[10px] min-w-0 flex-1 truncate font-inter text-[16px] font-medium leading-[16px] text-white">
           {label}

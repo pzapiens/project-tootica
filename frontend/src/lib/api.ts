@@ -238,6 +238,8 @@ export interface AuthResponse {
 export interface MeResponse {
   user: PublicUser;
   clinic: Clinic | null;
+  /** The caller's doctor specialization (Profile page); null for non-doctors. */
+  specialization: string | null;
 }
 
 /** A branch (`GET /api/branches`, `GET /api/super-admin/branches`). */
@@ -305,6 +307,27 @@ export type AccountType = (typeof ACCOUNT_TYPES)[number]["value"];
 /** Honorific / preference options. */
 export const TITLE_OPTIONS = ["Mr", "Mrs", "Ms", "Dr"] as const;
 
+/**
+ * Avatar glyph for an account, chosen by role: a role-specific badge for admins,
+ * doctors and receptionists, falling back to the super-admin shield. All are
+ * white 24×24 Material glyphs meant to sit on the blue avatar circle. Used by the
+ * sidebar account chip and the Profile page avatar card.
+ */
+export function roleAvatar(role: Role): string {
+  switch (role) {
+    case "CLIENT_ADMIN":
+      return "/dashboard/administrator.svg";
+    case "DOCTOR":
+    case "GUEST_DOCTOR":
+      return "/dashboard/doctor.svg";
+    case "RECEPTIONIST":
+      return "/dashboard/receptionist.svg";
+    default:
+      // SUPER_ADMIN keeps the shield.
+      return "/dashboard/person_shield.svg";
+  }
+}
+
 /** Best-effort display name for a user: full name → first name → email local part. */
 export function displayName(user: Pick<PublicUser, "firstName" | "lastName" | "email">): string {
   const full = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
@@ -366,6 +389,22 @@ export interface AnalyticsSummary {
     pending: number;
     cancelled: number;
   };
+}
+
+/** A revenue transaction (`GET /api/revenue/transactions`) — one per payment
+ *  entry, joined with its appointment's patient + consultation type + date. */
+export interface RevenueTransaction {
+  id: string;
+  /** Per-clinic transaction code, e.g. "BSD001-TT000001". */
+  code: string;
+  patientName: string;
+  consultationType: string | null;
+  /** Amount in the clinic's currency, as a plain number. */
+  amount: number;
+  /** Whether this transaction has been paid (Completed) or is Pending. */
+  paid: boolean;
+  /** The appointment's start time (ISO) — the transaction's date. */
+  date: string;
 }
 
 /** Backend appointment status enum. */

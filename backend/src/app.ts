@@ -18,6 +18,7 @@ import { doctorRoutes } from './modules/doctors/routes';
 import { patientRoutes } from './modules/patients/routes';
 import { paymentRoutes } from './modules/payments/routes';
 import { recordsRoutes } from './modules/records/routes';
+import { revenueRoutes } from './modules/revenue/routes';
 import { superAdminRoutes } from './modules/super-admin/routes';
 
 function healthCheck(_req: Request, res: Response): void {
@@ -60,13 +61,17 @@ export function createApp(): express.Express {
   // Per-appointment payments — nested under /api/appointments/:appointmentId/payments.
   app.use('/api/appointments', authenticate, requireTenant, resolveBranch, paymentRoutes);
   app.use('/api/analytics', authenticate, requireTenant, resolveBranch, analyticsRoutes);
+  // Revenue transactions — clinic-wide (aggregated from the clinic's payments).
+  app.use('/api/revenue', authenticate, requireTenant, revenueRoutes);
 
-  // Clinic admins manage their own clinic's doctors + receptionists.
+  // Clinic admins (and super admins drilling into a clinic via X-Clinic-Id)
+  // manage the clinic's accounts. The list returns admins + staff; mutations stay
+  // restricted to staff (doctors/receptionists) in the service layer.
   app.use(
     '/api/accounts',
     authenticate,
     requireTenant,
-    requireRole('CLIENT_ADMIN'),
+    requireRole('CLIENT_ADMIN', 'SUPER_ADMIN'),
     accountRoutes,
   );
 

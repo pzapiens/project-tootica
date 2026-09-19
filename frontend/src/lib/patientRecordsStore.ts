@@ -23,6 +23,8 @@ export interface ToothEntry {
   remarks: string;
   /** dd/mm/yyyy, from the entry's createdAt. */
   date: string;
+  /** The user who created it — only they may edit/delete (null for legacy rows). */
+  createdById: string | null;
 }
 
 export interface MedHistoryEntry {
@@ -30,6 +32,17 @@ export interface MedHistoryEntry {
   text: string;
   /** dd/mm/yyyy, from the entry's createdAt. */
   date: string;
+  /** The user who created it — only they may edit/delete (null for legacy rows). */
+  createdById: string | null;
+}
+
+export interface ObservationEntry {
+  id: string;
+  text: string;
+  /** dd/mm/yyyy, from the entry's createdAt. */
+  date: string;
+  /** The user who created it — only they may edit/delete (null for legacy rows). */
+  createdById: string | null;
 }
 
 /** Which document upload section a file belongs to. */
@@ -45,19 +58,21 @@ export interface DocEntry {
   type: string;
   /** dd/mm/yyyy, from the document's createdAt. */
   date: string;
+  /** dd/mm/yyyy, hh:mm AM/PM — the upload date & time (shown on the card). */
+  dateTime: string;
+  /** The uploader's display name (null for legacy uploads). */
+  createdByName: string | null;
 }
 
 export interface PatientRecord {
-  observation: string;
-  /** dd/mm/yyyy the observation note was last saved (undefined when never/empty). */
-  observationUpdatedAt?: string;
   teeth: ToothEntry[];
   medHistory: MedHistoryEntry[];
+  observations: ObservationEntry[];
   documents: DocEntry[];
 }
 
 const EVENT = "tootica:patient-records-changed";
-const EMPTY: PatientRecord = { observation: "", teeth: [], medHistory: [], documents: [] };
+const EMPTY: PatientRecord = { teeth: [], medHistory: [], observations: [], documents: [] };
 
 // In-memory cache, keyed by patientId. The view reads this synchronously.
 const cache = new Map<string, PatientRecord>();
@@ -65,16 +80,16 @@ const cache = new Map<string, PatientRecord>();
 /* -------------------------------------------------- backend bundle → view shape */
 
 interface BundleDto {
-  observation: string;
-  observationUpdatedAt: string | null;
-  teeth: { id: string; toothNo: string; remarks: string; createdAt: string }[];
-  medHistory: { id: string; text: string; createdAt: string }[];
+  teeth: { id: string; toothNo: string; remarks: string; createdById: string | null; createdAt: string }[];
+  medHistory: { id: string; text: string; createdById: string | null; createdAt: string }[];
+  observations: { id: string; text: string; createdById: string | null; createdAt: string }[];
   documents: {
     id: string;
     category: string;
     name: string;
     size: number;
     mimeType: string;
+    createdByName: string | null;
     createdAt: string;
   }[];
 }
@@ -86,12 +101,36 @@ function fmtDate(iso: string): string {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
+/** ISO timestamp → "dd/mm/yyyy, hh:mm AM/PM" (local). */
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const period = d.getHours() >= 12 ? "PM" : "AM";
+  const h = d.getHours() % 12 || 12;
+  return `${fmtDate(iso)}, ${pad(h)}:${pad(d.getMinutes())} ${period}`;
+}
+
 function toRecord(b: BundleDto): PatientRecord {
   return {
-    observation: b.observation ?? "",
-    observationUpdatedAt: b.observationUpdatedAt ? fmtDate(b.observationUpdatedAt) : undefined,
-    teeth: b.teeth.map((t) => ({ id: t.id, toothNo: t.toothNo, remarks: t.remarks, date: fmtDate(t.createdAt) })),
-    medHistory: b.medHistory.map((m) => ({ id: m.id, text: m.text, date: fmtDate(m.createdAt) })),
+    teeth: b.teeth.map((t) => ({
+      id: t.id,
+      toothNo: t.toothNo,
+      remarks: t.remarks,
+      date: fmtDate(t.createdAt),
+      createdById: t.createdById,
+    })),
+    medHistory: b.medHistory.map((m) => ({
+      id: m.id,
+      text: m.text,
+      date: fmtDate(m.createdAt),
+      createdById: m.createdById,
+    })),
+    observations: b.observations.map((o) => ({
+      id: o.id,
+      text: o.text,
+      date: fmtDate(o.createdAt),
+      createdById: o.createdById,
+    })),
     documents: b.documents.map((d) => ({
       id: d.id,
       category: (d.category as DocCategory) ?? "consent",
@@ -99,6 +138,8 @@ function toRecord(b: BundleDto): PatientRecord {
       size: d.size,
       type: d.mimeType,
       date: fmtDate(d.createdAt),
+      dateTime: fmtDateTime(d.createdAt),
+      createdByName: d.createdByName,
     })),
   };
 }
@@ -130,15 +171,29 @@ async function mutate(patientId: string, write: () => Promise<unknown>): Promise
   }
 }
 
-/* ----------------------------------------------------------------- observation */
+/* ---------------------------------------------------------------- observations */
 
-/** Persist the doctor/clinic observation note (empty clears it). */
-export async function setObservation(patientId: string, observation: string): Promise<void> {
-  await mutate(patientId, () =>
-    apiFetch(`/patients/${patientId}/records/observation`, {
-      method: "PUT",
-      body: JSON.stringify({ text: observation }),
+export function addObservation(patientId: string, text: string): Promise<void> {
+  return mutate(patientId, () =>
+    apiFetch(`/patients/${patientId}/records/observations`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
     }),
+  );
+}
+
+export function updateObservation(patientId: string, id: string, text: string): Promise<void> {
+  return mutate(patientId, () =>
+    apiFetch(`/patients/${patientId}/records/observations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ text }),
+    }),
+  );
+}
+
+export function removeObservation(patientId: string, id: string): Promise<void> {
+  return mutate(patientId, () =>
+    apiFetch(`/patients/${patientId}/records/observations/${id}`, { method: "DELETE" }),
   );
 }
 
@@ -219,6 +274,36 @@ export function removeDocument(patientId: string, id: string): Promise<void> {
 /** Same-origin URL to open/download a document (cookies authorise the GET). */
 export function documentDownloadUrl(patientId: string, id: string): string {
   return `/api/patients/${patientId}/records/documents/${id}/download`;
+}
+
+/* ------------------------------------------------------------------ audit log */
+
+/** Which records table a log entry belongs to. The three document-upload
+ *  sections each log under their own category ("consent" / "xray" / "other"). */
+export type LogTable = "observation" | "tooth" | "medical-history" | DocCategory;
+
+/** One create/edit/delete audit entry for a records table (admins only). */
+export interface RecordLogEntry {
+  id: string;
+  table: LogTable;
+  /** "CREATE" | "UPDATE" | "DELETE". */
+  action: string;
+  entryId: string;
+  /** Human-readable snapshot of the row before the change; null for a create. */
+  previous: string | null;
+  /** Snapshot after the change; null for a delete. */
+  updated: string | null;
+  /** The acting user's display name (denormalized on the server). */
+  userName: string;
+  /** ISO timestamp of the change. */
+  createdAt: string;
+}
+
+/** The edit/delete history for a patient's records tables (newest first). Not
+ *  cached — the log dialog fetches it fresh each time it opens. Admins only
+ *  (the backend gates the endpoint to CLIENT_ADMIN / SUPER_ADMIN). */
+export function fetchRecordsLog(patientId: string): Promise<RecordLogEntry[]> {
+  return apiFetch<RecordLogEntry[]>(`/patients/${patientId}/records/logs`);
 }
 
 /** Re-render signal: bumps on any records change (this tab). */

@@ -107,6 +107,10 @@ const CONSULTATION_TYPES = [
   'RESTORATION',
 ];
 const LEAD_SOURCES = ['INSTAGRAM', 'GOOGLE SEARCH', 'WEBSITE', 'PATIENT REFERRAL', 'WALK IN'];
+// One payment (transaction) per appointment, cycled — drives the Revenue page.
+// A COMPLETED appointment's payment is marked paid (revenue generated); every
+// other status stays unpaid (revenue pending).
+const APPT_AMOUNTS = [1250, 1100, 950, 1450, 800, 2000, 600, 1750, 900, 1300];
 // [dayOffset, hour, durationMin, status] per appointment — a mix of past
 // (done/missed/cancelled), today, and upcoming so the dashboard has variety.
 // NB: SCHEDULED is reserved for pending WhatsApp bookings (excluded from the
@@ -315,7 +319,8 @@ async function main(): Promise<void> {
     const [dayOffset, hour, dur, status] = APPT_PLAN[j];
     const start = at(dayOffset, hour);
     const end = new Date(start.getTime() + dur * 60 * 1000);
-    await prisma.appointment.create({
+    const consultationType = CONSULTATION_TYPES[j % CONSULTATION_TYPES.length];
+    const appt = await prisma.appointment.create({
       data: {
         clinicId: patient.clinicId,
         code: await nextAppointmentCode(patient.clinicId),
@@ -325,8 +330,19 @@ async function main(): Promise<void> {
         endTime: end,
         status,
         bookingChannel: 'WEB',
-        consultationType: CONSULTATION_TYPES[j % CONSULTATION_TYPES.length],
+        consultationType,
         sourceOfEnquiry: LEAD_SOURCES[j % LEAD_SOURCES.length],
+        createdAt: start,
+      },
+    });
+    // A single payment per appointment (the Revenue page's transactions) — paid
+    // once the appointment is COMPLETED, otherwise pending.
+    await prisma.payment.create({
+      data: {
+        appointmentId: appt.id,
+        description: consultationType,
+        amount: APPT_AMOUNTS[j % APPT_AMOUNTS.length],
+        paid: status === 'COMPLETED',
         createdAt: start,
       },
     });

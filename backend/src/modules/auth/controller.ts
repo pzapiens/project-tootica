@@ -11,6 +11,7 @@ import {
   loginVerifyOtpSchema,
   resetPasswordSchema,
   setPasswordSchema,
+  updateProfileSchema,
   verifyOtpSchema,
 } from './schema';
 import { authService } from './service';
@@ -97,5 +98,23 @@ export const authController = {
     const { password } = completeOnboardingSchema.parse(req.body);
     await authService.completeOnboarding(req.user.id, password);
     res.json({ message: 'Your password has been set and Terms accepted.' });
+  },
+
+  updateProfile: async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new HttpError(401, 'Authentication required');
+    }
+    const data = updateProfileSchema.parse(req.body);
+    res.json(await authService.updateProfile(req.user.id, data));
+  },
+
+  deleteAccount: async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new HttpError(401, 'Authentication required');
+    }
+    await authService.deleteAccount(req.user.id);
+    // The account is gone — end the session too.
+    clearAuthCookies(res);
+    res.status(204).send();
   },
 };

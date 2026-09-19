@@ -7,7 +7,7 @@ import { SPECIALIZATIONS } from "./constants";
 /**
  * Apply Filter panel (Figma "Doctors3 - filter"): a full-content panel with a
  * header, an "ID Sorting" card (Ascending / Descending) and a "Specialization"
- * card (multi-select chips), plus a footer (Reset All + Apply Filters).
+ * card (multi-select chips), plus a footer (Clear Filters + Apply Filters).
  * Selections are STAGED — they only take effect when "Apply Filters" is clicked.
  */
 
@@ -158,9 +158,9 @@ export default function DoctorFilterPanel({
             if (applied.sort || applied.specializations.length > 0) onApply(EMPTY_FILTERS);
           }}
           disabled={count === 0 && applied.sort === null && applied.specializations.length === 0}
-          className="px-[14px] py-[8px] font-inter text-[11px] font-semibold uppercase tracking-[1px] text-[#1e1e24] opacity-70 transition-opacity hover:opacity-100 disabled:opacity-30"
+          className="px-[14px] py-[8px] font-inter text-[13px] font-semibold tracking-[0.3px] text-[#1e1e24] opacity-70 transition-opacity hover:opacity-100 disabled:opacity-30"
         >
-          Reset All
+          Clear Filters
         </button>
         <button
           type="button"

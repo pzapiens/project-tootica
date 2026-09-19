@@ -17,6 +17,7 @@ export default function SelectBranchSection({
   firstColumnLabel = "Branch",
   searchPlaceholder = "Search branch, PIC or contact number",
   itemNoun = "branches",
+  fill = true,
   onManage,
   onEdit,
   onDelete,
@@ -28,6 +29,10 @@ export default function SelectBranchSection({
   searchPlaceholder?: string;
   /** Plural noun used in the search label + empty state (e.g. "clinics"). */
   itemNoun?: string;
+  /** When true (default), the list fills the remaining viewport height and scrolls
+   *  internally (fixed-height single-screen layouts). Set false to let the list
+   *  size to its content so the whole page scrolls (e.g. with sections below it). */
+  fill?: boolean;
   /** When provided, render a "manage accounts" action (super-admin only). */
   onManage?: (branch: Branch) => void;
   onEdit?: (branch: Branch) => void;
@@ -46,7 +51,7 @@ export default function SelectBranchSection({
   }, [branches, query]);
 
   return (
-    <section className="flex flex-col gap-5 lg:min-h-0 lg:flex-1">
+    <section className={`flex flex-col gap-5${fill ? " lg:min-h-0 lg:flex-1" : ""}`}>
       {/* Toolbar: heading + search */}
       <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-inter text-[23.333px] font-semibold leading-[32.667px] text-ink">
@@ -79,8 +84,8 @@ export default function SelectBranchSection({
         <span />
       </div>
 
-      {/* Scroll region: only this scrolls when branches overflow */}
-      <div className="lg:-mr-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+      {/* Scroll region: only this scrolls when branches overflow (fill mode). */}
+      <div className={fill ? "lg:-mr-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2" : ""}>
         {filtered.length === 0 ? (
           <p className="px-2 py-6 font-inter text-[16px] text-ink/60">
             No {itemNoun} match “{query}”.

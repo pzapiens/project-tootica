@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -15,6 +14,7 @@ import {
   type SuperAdminClinic,
 } from "@/lib/api";
 
+import AccountMenu from "./AccountMenu";
 import AddBranchModal from "./AddBranchModal";
 import AddClinicAccountModal from "./AddClinicAccountModal";
 import { type Branch } from "./BranchList";
@@ -41,7 +41,13 @@ type ManageTarget = {
  * Doctors + receptionists are branch-scoped, so their accounts are managed from
  * a branch row; the clinic admin is managed from the clinic row.
  */
-export default function SuperAdminView({ me }: { me: MeResponse }) {
+export default function SuperAdminView({
+  me,
+  setMe,
+}: {
+  me: MeResponse;
+  setMe: (me: MeResponse) => void;
+}) {
   const router = useRouter();
   const [clinics, setClinics] = useState<SuperAdminClinic[]>([]);
   const [branches, setBranches] = useState<BranchSummary[]>([]);
@@ -124,16 +130,6 @@ export default function SuperAdminView({ me }: { me: MeResponse }) {
     }
   }
 
-  async function handleLogout() {
-    try {
-      await apiFetch("/auth/logout", { method: "POST" });
-    } catch {
-      // Ignore — head to login regardless.
-    }
-    clearActiveClinicId();
-    router.push("/login");
-  }
-
   const selectedClinic = clinics.find((c) => c.id === selectedClinicId) ?? null;
 
   // Clinic rows: badge = clinic code (CL-…); PIC = the clinic admin.
@@ -188,14 +184,8 @@ export default function SuperAdminView({ me }: { me: MeResponse }) {
               <span className="text-[22px] leading-none">+</span>
               Add Clinic &amp; Account
             </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex h-[55px] items-center gap-[9.333px] self-start rounded-full bg-brand px-[25px] font-inter text-[16.333px] font-semibold leading-[23.333px] tracking-[0.408px] text-white transition-opacity hover:opacity-90 sm:self-auto"
-            >
-              <Image src="/clinic/logout.svg" alt="" width={24} height={24} className="size-6" />
-              LOGOUT
-            </button>
+            {/* Super admins manage accounts per-clinic (row Manage), so no Accounts option. */}
+            <AccountMenu me={me} setMe={setMe} showAccounts={false} />
           </div>
         </header>
 

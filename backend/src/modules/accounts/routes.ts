@@ -9,3 +9,4 @@ accountRoutes.get('/', asyncHandler(accountController.list));
 accountRoutes.post('/', asyncHandler(accountController.create));
 accountRoutes.patch('/:id', asyncHandler(accountController.update));
 accountRoutes.delete('/:id', asyncHandler(accountController.remove));
+accountRoutes.post('/:id/reset-password', asyncHandler(accountController.resetPassword));

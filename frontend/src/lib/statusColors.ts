@@ -50,3 +50,25 @@ export function statusBadgeClass(label: string): string {
   const c = statusColor(label);
   return `${c.bg} ${c.text}`;
 }
+
+// The status dropdowns (create/edit form + dashboard "Today's Appointments"
+// filter) and the appointments-table status badges follow the Figma "Appts
+// Status Dropdown", which colours "No Show" amber rather than the shared
+// palette's slate. Scoped here so the dropdowns and those badges stay in sync;
+// the calendar (which reads `statusColor` directly) keeps the slate No Show.
+const STATUS_DROPDOWN_OVERRIDE: Record<string, Pick<StatusColor, "bg" | "text">> = {
+  "No Show": { bg: "bg-[#fdf9f0]", text: "text-[#a36d16]" },
+};
+
+/** Dropdown/badge colours ("bg" + "text") for a display-status label, applying
+ *  the Figma dropdown's per-status overrides (e.g. No Show → amber). */
+export function statusDropdownColor(label: string): { bg: string; text: string } {
+  const c = statusColor(label);
+  return STATUS_DROPDOWN_OVERRIDE[label] ?? { bg: c.bg, text: c.text };
+}
+
+/** Badge/option className ("bg + text") matching the status dropdown's palette. */
+export function statusDropdownBadgeClass(label: string): string {
+  const { bg, text } = statusDropdownColor(label);
+  return `${bg} ${text}`;
+}

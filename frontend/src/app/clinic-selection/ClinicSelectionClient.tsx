@@ -74,12 +74,12 @@ export default function ClinicSelectionClient() {
   }
 
   if (me.user.role === "SUPER_ADMIN") {
-    return <SuperAdminView me={me} />;
+    return <SuperAdminView me={me} setMe={setMe} />;
   }
 
   return (
     <>
-      <ClinicAdminView me={me} />
+      <ClinicAdminView me={me} setMe={setMe} />
       {showReset && <ResetPasswordPopup onClose={() => setShowReset(false)} />}
     </>
   );

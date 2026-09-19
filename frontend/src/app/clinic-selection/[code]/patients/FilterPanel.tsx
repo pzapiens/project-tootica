@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 /**
  * Apply Filter panel (Figma "Patients - Filter"): a full-content panel with a
  * header, three sorting cards (ID / Alphabetic / Age, each ascending or
- * descending) and a footer (Reset All + Apply Filters). Selections are STAGED —
+ * descending) and a footer (Clear Filters + Apply Filters). Selections are STAGED —
  * they only take effect when "Apply Filters" is clicked. Each card contributes
  * at most one sort key; together they form a multi-key sort (ID → name → age).
  */
@@ -93,7 +93,7 @@ export default function FilterPanel({
 
   const draftCount = Object.keys(draft).length;
   // Apply is active only while at least one option is selected. Clearing applied
-  // filters is done via Reset All (below), so this can't leave a filter stuck.
+  // filters is done via Clear Filters (below), so this can't leave a filter stuck.
   const canApply = draftCount > 0;
 
   return (
@@ -166,9 +166,9 @@ export default function FilterPanel({
             if (applied.length > 0) onApply([]);
           }}
           disabled={draftCount === 0 && applied.length === 0}
-          className="px-[14px] py-[8px] font-inter text-[11px] font-semibold uppercase tracking-[1px] text-[#1e1e24] opacity-70 transition-opacity hover:opacity-100 disabled:opacity-30"
+          className="px-[14px] py-[8px] font-inter text-[13px] font-semibold tracking-[0.3px] text-[#1e1e24] opacity-70 transition-opacity hover:opacity-100 disabled:opacity-30"
         >
-          Reset All
+          Clear Filters
         </button>
         <button
           type="button"
