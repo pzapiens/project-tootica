@@ -164,7 +164,7 @@ export default function PaymentManagementDialog({
           <span className="font-inter text-[15px] text-[#1e1e24]">
             {payments.length === 0
               ? "No payments yet"
-              : `${payments.filter((p) => p.paid).length} of ${payments.length} paid`}
+              : `${payments.filter((p) => p.paid).length} of ${payments.length} received`}
           </span>
           <button
             type="button"
@@ -189,7 +189,7 @@ export default function PaymentManagementDialog({
             <span className={HEAD}>Description</span>
             <span className={HEAD}>Date</span>
             <span className={`${HEAD} text-right`}>Amount</span>
-            <span className={`${HEAD} text-center`}>Paid</span>
+            <span className={`${HEAD} text-center`}>Received</span>
             <span className={`${HEAD} text-right`}>Actions</span>
           </div>
 
@@ -197,14 +197,14 @@ export default function PaymentManagementDialog({
           {payments.map((p, i) => (
             <div key={p.id} className={`${COLS} px-[16px] py-[19px]`}>
               <span className="font-inter text-[14px] text-[#1e1e24]">#{i + 1}</span>
-              <span className="truncate font-inter text-[14px] text-[#1e1e24]">{p.description}</span>
+              <span className="break-words font-inter text-[14px] text-[#1e1e24]">{p.description}</span>
               <span className="font-inter text-[14px] text-[#1e1e24]">{fmtDate(p.createdAt)}</span>
               <span className="text-right font-inter text-[14px] text-[#1e1e24]">{formatAmount(p.amount)}</span>
               <span className="flex justify-center">
                 <CheckBox
                   checked={p.paid}
                   onChange={() => togglePaid(p)}
-                  label={`Mark ${p.description} ${p.paid ? "unpaid" : "paid"}`}
+                  label={`Mark ${p.description} ${p.paid ? "not received" : "received"}`}
                 />
               </span>
               <span className="flex justify-end">
@@ -383,7 +383,7 @@ function NewPaymentDialog({
 
 /** Shared column grid for the payments table header + rows (SI No / Description /
  *  Date / Amount / Paid / Actions). */
-const COLS = "grid grid-cols-[52px_minmax(0,1fr)_110px_100px_64px_64px] items-center gap-[8px]";
+const COLS = "grid grid-cols-[52px_minmax(0,1fr)_110px_100px_72px_72px] items-center gap-[20px]";
 /** Column-header cell styling. */
 const HEAD = "font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24]";
 

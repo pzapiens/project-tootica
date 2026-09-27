@@ -115,7 +115,7 @@ function EmailStep({
           label="Email Address"
           icon="/auth/mail.svg"
           type="email"
-          placeholder="e.g. dr.smith@clinique.com"
+          placeholder="Enter your email"
           value={email}
           onChange={onEmailChange}
           autoComplete="email"

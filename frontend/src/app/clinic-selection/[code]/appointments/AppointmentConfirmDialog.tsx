@@ -170,7 +170,7 @@ export default function AppointmentConfirmDialog({
               ) : (
                 <>{patient}’s appointment</>
               )}
-              ? This permanently removes it and can’t be undone.
+              ? This action is permanent and cannot be undone.
             </>
           )}
         </p>

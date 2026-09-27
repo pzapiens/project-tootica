@@ -22,6 +22,7 @@ export const revenueRepository = {
             startTime: true,
             consultationType: true,
             patient: { select: { name: true } },
+            doctor: { select: { branchId: true } },
           },
         },
       },

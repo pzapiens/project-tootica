@@ -21,6 +21,9 @@ export const revenueService = {
       amount: Number(r.amount),
       paid: r.paid,
       date: r.appointment.startTime,
+      // The branch the appointment's doctor belongs to (null when unassigned) —
+      // lets the clinic-selection overview scope revenue by branch.
+      branchId: r.appointment.doctor?.branchId ?? null,
     }));
   },
 };

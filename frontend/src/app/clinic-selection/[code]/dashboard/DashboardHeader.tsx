@@ -30,7 +30,7 @@ export default function DashboardHeader({
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
       <h1 className="font-inter text-[35px] font-semibold leading-[42px] text-[#1e1e24]">
-        Welcome back, {greetingName}
+        Welcome, {greetingName}
       </h1>
       <div className="flex items-center gap-[18.667px]">
         <TimeframeFilter timeframe={timeframe} onChange={onTimeframeChange} />

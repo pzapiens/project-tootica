@@ -1,8 +1,10 @@
 /**
  * Minimal seed — the SAME structure as `seed-all.ts` (super admin + 2 clinics,
  * each with 2 branches, doctors, receptionists and weekly shifts), but a tiny
- * dataset: EXACTLY 5 patients and 10 appointments TOTAL, spread across all
- * clinics. Handy for a clean, easy-to-eyeball state.
+ * dataset: EXACTLY 5 patients and 17 appointments TOTAL, spread across all
+ * clinics. The 17 appointments cover EVERY consultation type and cycle through
+ * every lead source and all five statuses, so the Analytics / Revenue pie
+ * charts show a full spread. Handy for a clean, easy-to-eyeball state.
  *
  *   npm run db:seed:minimal
  *
@@ -99,36 +101,74 @@ const PATIENT_NAMES: Array<[string, string]> = [
   ['Charlotte', 'Kim'],
   ['Benjamin', 'Silva'],
 ];
+// Every consultation type the app offers (mirrors CONSULTATION_TYPES in the
+// frontend's AppointmentFormStep) — one appointment per type below.
 const CONSULTATION_TYPES = [
   'GENERAL CONSULTATION / XRAY',
   'ROOT CANAL TREATMENT',
+  'RE ROOT CANAL TREATMENT',
+  'CROWN / VENEER / FPD',
+  'EXTRACTION / SURGICAL EXTRACTION',
   'SCALING',
-  'TEETH WHITENING',
   'RESTORATION',
+  'TEETH WHITENING',
+  'ORTHODONTIC TREATMENT BRACES / ALIGNERS',
+  'PEDODONTIC TREATMENT',
+  'RPD / CD',
+  'IMPLANTS',
+  'TMJ DISORDERS',
+  'GUM RELATED TREATMENTS',
+  'INTRAORAL SCANNING',
+  'OTHER LASER TREATMENTS',
+  'OTHERS',
 ];
-const LEAD_SOURCES = ['INSTAGRAM', 'GOOGLE SEARCH', 'WEBSITE', 'PATIENT REFERRAL', 'WALK IN'];
+// Every lead source the app offers (mirrors LEAD_SOURCES in AppointmentFormStep)
+// — cycled across the appointments so each source is represented.
+const LEAD_SOURCES = [
+  'INSTAGRAM',
+  'FACEBOOK',
+  'WHATSAPP',
+  'GOOGLE SEARCH',
+  'WEBSITE',
+  'BOARD / SIGNBOARD',
+  'PATIENT REFERRAL',
+  'DOCTOR REFERRAL',
+  'CAMP / DENTAL CAMP',
+  'ONLINE ADS',
+  'OTHERS',
+];
 // One payment (transaction) per appointment, cycled — drives the Revenue page.
 // A COMPLETED appointment's payment is marked paid (revenue generated); every
 // other status stays unpaid (revenue pending).
-const APPT_AMOUNTS = [1250, 1100, 950, 1450, 800, 2000, 600, 1750, 900, 1300];
-// [dayOffset, hour, durationMin, status] per appointment — a mix of past
-// (done/missed/cancelled), today, and upcoming so the dashboard has variety.
-// NB: SCHEDULED is reserved for pending WhatsApp bookings (excluded from the
-// main list), so real bookings use CONFIRMED for "Upcoming" — never SCHEDULED.
+const APPT_AMOUNTS = [
+  1250, 1100, 950, 1450, 800, 2000, 600, 1750, 900, 1300, 1600, 2500, 700, 1150, 1900, 1050, 2200,
+];
+// [dayOffset, hour, durationMin, status] per appointment — one row per
+// consultation type (same index), a mix of past (done/missed/cancelled), today
+// (completed/ongoing/upcoming) and future (upcoming) so every status is present
+// for the pie charts. NB: SCHEDULED is reserved for pending WhatsApp bookings
+// (excluded from the main list), so real bookings use CONFIRMED for "Upcoming".
 const APPT_PLAN: Array<[number, number, number, AppointmentStatus]> = [
+  [-30, 9, 30, 'COMPLETED'],
+  [-25, 10, 60, 'COMPLETED'],
+  [-20, 11, 30, 'NO_SHOW'],
+  [-18, 14, 60, 'CANCELLED'],
+  [-15, 9, 30, 'COMPLETED'],
+  [-10, 15, 30, 'NO_SHOW'],
+  [-7, 16, 60, 'CANCELLED'],
+  [-3, 10, 30, 'COMPLETED'],
   [0, 9, 30, 'COMPLETED'],
   [0, 11, 60, 'ONGOING'],
+  [0, 13, 30, 'ONGOING'],
   [0, 15, 30, 'CONFIRMED'],
-  [-3, 10, 30, 'COMPLETED'],
-  [-10, 14, 60, 'NO_SHOW'],
-  [-20, 9, 30, 'CANCELLED'],
-  [2, 10, 60, 'CONFIRMED'],
-  [5, 16, 30, 'CONFIRMED'],
-  [9, 11, 30, 'CONFIRMED'],
-  [14, 15, 60, 'CONFIRMED'],
+  [0, 16, 60, 'CONFIRMED'],
+  [2, 10, 30, 'CONFIRMED'],
+  [4, 11, 60, 'CONFIRMED'],
+  [7, 14, 30, 'CONFIRMED'],
+  [12, 15, 60, 'CONFIRMED'],
 ];
 const TOTAL_PATIENTS = 5;
-const TOTAL_APPTS = 10;
+const TOTAL_APPTS = 17;
 
 // Every account is ready to log in immediately.
 const onboarded = { mustResetPassword: false, termsAcceptedAt: new Date() } as const;

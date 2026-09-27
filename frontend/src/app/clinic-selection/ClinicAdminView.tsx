@@ -55,6 +55,10 @@ export default function ClinicAdminView({
   // the branch PIC uses the plain full name.
   const greetingName = greetingLabel(me.user);
 
+  // The "Overall Analytics" pie section is a clinic-admin overview (not shown to
+  // super admins — they use SuperAdminView — nor to any other role).
+  const isAdmin = me.user.role === "CLIENT_ADMIN";
+
   // Prefer the clinic's real branches (with their PIC + contact). Fall back to a
   // single row derived from the clinic itself when no branches are defined.
   const branches: Branch[] =
@@ -79,16 +83,22 @@ export default function ClinicAdminView({
         : [];
 
   return (
-    <div className="flex min-h-dvh flex-col bg-white lg:h-dvh lg:overflow-hidden">
-      <div className="mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-6 p-6 md:gap-7 md:p-7 lg:min-h-0">
-        <DashboardTop greetingName={greetingName} branches={branches} me={me} setMe={setMe} />
-        <SelectBranchSection
-          branches={branches}
-          onManage={me.clinic ? setManaging : undefined}
-          onSelect={(branch) =>
-            router.push(`/clinic-selection/${branch.code ?? branch.id}/dashboard`)
-          }
-        />
+    <div className="flex min-h-dvh flex-col bg-white">
+      <div className="mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-6 p-6 md:gap-7 md:p-7">
+        <DashboardTop greetingName={greetingName} me={me} setMe={setMe} />
+        <div className="mt-2 md:mt-4">
+          <SelectBranchSection
+            branches={branches}
+            heading="Clinic Branches"
+            fill={false}
+            showHeader={false}
+            onManage={me.clinic ? setManaging : undefined}
+            onSelect={(branch) =>
+              router.push(`/clinic-selection/${branch.code ?? branch.id}/dashboard`)
+            }
+          />
+        </div>
+        {isAdmin && <OverallAnalytics branches={branches} />}
       </div>
 
       {managing && me.clinic && (

@@ -17,7 +17,7 @@ export type TimeFrame =
 
 /** Short label for the trigger pill (e.g. "All-Time", "Today", "01/10 – 23/10"). */
 export function timeFrameLabel(tf: TimeFrame): string {
-  if (tf.kind === "all") return "All-Time";
+  if (tf.kind === "all") return "All time";
   if (tf.kind === "today") return "Today";
   return `${formatShort(tf.from)} – ${formatShort(tf.to)}`;
 }
@@ -106,7 +106,7 @@ export default function TimeFilter({
           aria-label="Filter by time frame"
           className="absolute right-0 top-full z-20 mt-2 flex w-[288px] max-w-[calc(100vw-2rem)] flex-col gap-4 rounded-[15px] border border-field-border bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
         >
-          <QuickOption label="All-Time" selected={value.kind === "all"} onClick={() => select({ kind: "all" })} />
+          <QuickOption label="All time" selected={value.kind === "all"} onClick={() => select({ kind: "all" })} />
           <QuickOption label="Today" selected={value.kind === "today"} onClick={() => select({ kind: "today" })} />
 
           <div className="flex flex-col gap-4">

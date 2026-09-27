@@ -15,9 +15,10 @@ export default function SelectBranchSection({
   branches,
   heading = "Select Branch",
   firstColumnLabel = "Branch",
-  searchPlaceholder = "Search branch, PIC or contact number",
+  searchPlaceholder = "Search here...",
   itemNoun = "branches",
   fill = true,
+  showHeader = true,
   onManage,
   onEdit,
   onDelete,
@@ -33,6 +34,8 @@ export default function SelectBranchSection({
    *  internally (fixed-height single-screen layouts). Set false to let the list
    *  size to its content so the whole page scrolls (e.g. with sections below it). */
   fill?: boolean;
+  /** Show the desktop column-header row above the list (default true). */
+  showHeader?: boolean;
   /** When provided, render a "manage accounts" action (super-admin only). */
   onManage?: (branch: Branch) => void;
   onEdit?: (branch: Branch) => void;
@@ -77,12 +80,14 @@ export default function SelectBranchSection({
       </div>
 
       {/* Column headers — desktop table only */}
-      <div className="hidden shrink-0 px-7 lg:grid lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)]">
-        <HeaderCell>{firstColumnLabel}</HeaderCell>
-        <HeaderCell>Person in charge(PIC)</HeaderCell>
-        <HeaderCell>Contact number</HeaderCell>
-        <span />
-      </div>
+      {showHeader && (
+        <div className="hidden shrink-0 px-7 lg:grid lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)] lg:gap-x-6">
+          <HeaderCell>{firstColumnLabel}</HeaderCell>
+          <HeaderCell>Person in charge</HeaderCell>
+          <HeaderCell>Contact number</HeaderCell>
+          <span />
+        </div>
+      )}
 
       {/* Scroll region: only this scrolls when branches overflow (fill mode). */}
       <div className={fill ? "lg:-mr-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2" : ""}>
@@ -106,7 +111,7 @@ export default function SelectBranchSection({
 
 function HeaderCell({ children }: { children: React.ReactNode }) {
   return (
-    <span className="px-3.5 font-inter text-[14.453px] font-semibold uppercase leading-[19.271px] tracking-[0.723px] text-ink">
+    <span className="font-inter text-[14.453px] font-semibold uppercase leading-[19.271px] tracking-[0.723px] text-ink">
       {children}
     </span>
   );

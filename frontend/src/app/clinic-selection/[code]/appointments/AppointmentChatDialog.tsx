@@ -69,7 +69,7 @@ export default function AppointmentChatDialog({
 
         {/* Body */}
         <p className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
-          Please login to the WhatsApp web in this PC before proceeding to chat with{" "}
+          You&rsquo;ll be redirected to WhatsApp Web to chat with{" "}
           <span className="font-bold text-[#0077c0]">
             {patientName} ({patientCode})
           </span>

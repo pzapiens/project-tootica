@@ -5,7 +5,7 @@ import { useState } from "react";
 /**
  * Apply Filter panel for the Revenue page (Figma "Revenue2 - Filter"): a
  * full-content panel that replaces the page while open — ID Sorting
- * (Ascending / Descending), a Payment Status chip group (Completed / Pending),
+ * (Ascending / Descending), a Payment Status chip group (Received / Pending),
  * and a Consultation Type checkbox list. Selections are STAGED and only take
  * effect on "Apply Filters"; "Clear Filters" clears the draft + applied filters.
  */
@@ -13,7 +13,7 @@ import { useState } from "react";
 export interface RevenueFilters {
   /** Sort by transaction ID/code. */
   idSort: "asc" | "desc" | null;
-  /** Selected payment-status labels ("Completed" / "Pending"). */
+  /** Selected payment-status labels ("Received" / "Pending"). */
   paymentStatuses: string[];
   /** Selected consultation types (raw upper-case values). */
   consultationTypes: string[];
@@ -30,7 +30,7 @@ export function revenueFilterCount(f: RevenueFilters): number {
   return (f.idSort ? 1 : 0) + f.paymentStatuses.length + f.consultationTypes.length;
 }
 
-const PAYMENT_STATUSES = ["Completed", "Pending"] as const;
+const PAYMENT_STATUSES = ["Received", "Pending"] as const;
 
 export interface FilterOption {
   value: string;

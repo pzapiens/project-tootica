@@ -16,12 +16,16 @@ export interface AppointmentFilters {
   idSort: "asc" | "desc" | null;
   /** Sort by date & time. */
   dateSort: "newest" | "oldest" | null;
+  /** Sort by patient name (alphabetic). */
+  nameSort: "asc" | "desc" | null;
   /** Selected attending-doctor ids. */
   doctorIds: string[];
   /** Selected consultation types (raw values, upper-case). */
   consultationTypes: string[];
   /** Selected booking channels ("WEB" / "WHATSAPP"). */
   channels: string[];
+  /** Selected sources of enquiry (raw values, upper-case). */
+  sourcesOfEnquiry: string[];
   /** Selected status chip labels (display statuses). */
   statuses: string[];
 }
@@ -29,9 +33,11 @@ export interface AppointmentFilters {
 export const EMPTY_FILTERS: AppointmentFilters = {
   idSort: null,
   dateSort: null,
+  nameSort: null,
   doctorIds: [],
   consultationTypes: [],
   channels: [],
+  sourcesOfEnquiry: [],
   statuses: [],
 };
 
@@ -40,9 +46,11 @@ export function filterCount(f: AppointmentFilters): number {
   return (
     (f.idSort ? 1 : 0) +
     (f.dateSort ? 1 : 0) +
+    (f.nameSort ? 1 : 0) +
     f.doctorIds.length +
     f.consultationTypes.length +
     f.channels.length +
+    f.sourcesOfEnquiry.length +
     f.statuses.length
   );
 }
@@ -69,6 +77,7 @@ export default function AppointmentFilterPanel({
   doctorOptions,
   consultationOptions,
   channelOptions,
+  sourceOptions,
   onApply,
   onClose,
 }: {
@@ -76,6 +85,7 @@ export default function AppointmentFilterPanel({
   doctorOptions: FilterOption[];
   consultationOptions: FilterOption[];
   channelOptions: FilterOption[];
+  sourceOptions: FilterOption[];
   onApply: (filters: AppointmentFilters) => void;
   onClose: () => void;
 }) {
@@ -96,7 +106,7 @@ export default function AppointmentFilterPanel({
   }, [doctorOptions, doctorQuery]);
 
   /** Toggle a value inside one of the multi-select arrays. */
-  function toggleIn(key: "doctorIds" | "consultationTypes" | "channels" | "statuses", value: string) {
+  function toggleIn(key: "doctorIds" | "consultationTypes" | "channels" | "sourcesOfEnquiry" | "statuses", value: string) {
     setDraft((d) => {
       const set = new Set(d[key]);
       if (set.has(value)) set.delete(value);
@@ -111,6 +121,9 @@ export default function AppointmentFilterPanel({
   }
   function setDateSort(dir: "newest" | "oldest") {
     setDraft((d) => ({ ...d, dateSort: d.dateSort === dir ? null : dir }));
+  }
+  function setNameSort(dir: "asc" | "desc") {
+    setDraft((d) => ({ ...d, nameSort: d.nameSort === dir ? null : dir }));
   }
 
   const count = filterCount(draft);
@@ -133,9 +146,10 @@ export default function AppointmentFilterPanel({
           would stretch each row to its tallest card, leaving a gap under the
           shorter one (e.g. Attending Doctor → Source). */}
       <div className="min-h-0 flex-1 overflow-y-auto py-[32px]">
-        <div className="flex items-start gap-[24px]">
-          {/* Left column */}
-          <div className="flex flex-1 flex-col gap-[24px]">
+        <div className="flex items-stretch gap-[24px]">
+          {/* Left column — spreads so its last card (Source of Enquiry) ends level
+              with the right column's last card (Booking Channel). */}
+          <div className="flex flex-1 flex-col justify-between gap-[24px]">
             {/* ID Sorting */}
             <Card title="ID Sorting" icon={<SortIcon className="size-6 text-[#1e1e24]" />}>
               <div className="grid grid-cols-2 gap-[16px] pt-[6px]">
@@ -154,6 +168,24 @@ export default function AppointmentFilterPanel({
               </div>
             </Card>
 
+            {/* Alphabetic Order (patient name) */}
+            <Card title="Alphabetic Order" icon={<SortIcon className="size-6 text-[#1e1e24]" />}>
+              <div className="grid grid-cols-2 gap-[16px] pt-[6px]">
+                <CheckOption
+                  label="A to Z"
+                  arrow="down"
+                  selected={draft.nameSort === "asc"}
+                  onClick={() => setNameSort("asc")}
+                />
+                <CheckOption
+                  label="Z to A"
+                  arrow="up"
+                  selected={draft.nameSort === "desc"}
+                  onClick={() => setNameSort("desc")}
+                />
+              </div>
+            </Card>
+
             {/* Attending Doctor */}
             <Card title="Attending Doctor" icon={<DoctorIcon className="size-6 text-[#1e1e24]" />}>
               <div className="relative">
@@ -162,7 +194,7 @@ export default function AppointmentFilterPanel({
                   type="search"
                   value={doctorQuery}
                   onChange={(e) => setDoctorQuery(e.target.value)}
-                  placeholder="Search doctors..."
+                  placeholder="Search here..."
                   aria-label="Search doctors"
                   className="h-[44px] w-full rounded-[10px] border border-[#c2c6d4] pl-[44px] pr-[14px] font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
                 />
@@ -183,18 +215,18 @@ export default function AppointmentFilterPanel({
               </div>
             </Card>
 
-            {/* Booking Channel */}
-            <Card title="Booking Channel" icon={<SourceIcon className="size-6 text-[#1e1e24]" />}>
-              <div className="flex flex-col gap-[12px] pt-[6px]">
-                {channelOptions.length === 0 ? (
-                  <span className="font-inter text-[13px] text-[#94a3b8]">No channels.</span>
+            {/* Source of Enquiry */}
+            <Card title="Source of Enquiry" icon={<EnquiryIcon className="size-6 text-[#1e1e24]" />}>
+              <div className="flex max-h-[220px] flex-col gap-[12px] overflow-y-auto pt-[6px]">
+                {sourceOptions.length === 0 ? (
+                  <span className="font-inter text-[13px] text-[#94a3b8]">No sources.</span>
                 ) : (
-                  channelOptions.map((c) => (
+                  sourceOptions.map((s) => (
                     <BoxedCheckboxRow
-                      key={c.value}
-                      label={c.label}
-                      selected={draft.channels.includes(c.value)}
-                      onClick={() => toggleIn("channels", c.value)}
+                      key={s.value}
+                      label={s.label}
+                      selected={draft.sourcesOfEnquiry.includes(s.value)}
+                      onClick={() => toggleIn("sourcesOfEnquiry", s.value)}
                     />
                   ))
                 )}
@@ -260,6 +292,24 @@ export default function AppointmentFilterPanel({
                     </button>
                   );
                 })}
+              </div>
+            </Card>
+
+            {/* Booking Channel */}
+            <Card title="Booking Channel" icon={<SourceIcon className="size-6 text-[#1e1e24]" />}>
+              <div className="flex flex-col gap-[12px] pt-[6px]">
+                {channelOptions.length === 0 ? (
+                  <span className="font-inter text-[13px] text-[#94a3b8]">No channels.</span>
+                ) : (
+                  channelOptions.map((c) => (
+                    <BoxedCheckboxRow
+                      key={c.value}
+                      label={c.label}
+                      selected={draft.channels.includes(c.value)}
+                      onClick={() => toggleIn("channels", c.value)}
+                    />
+                  ))
+                )}
               </div>
             </Card>
           </div>
@@ -444,6 +494,18 @@ function SourceIcon({ className }: { className?: string }) {
       <ellipse cx="12" cy="5" rx="8" ry="3" />
       <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
       <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+    </svg>
+  );
+}
+
+// Megaphone — "Source of Enquiry" = how the patient heard of the clinic
+// (marketing channel). Distinct from the Booking Channel's database glyph.
+function EnquiryIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M3 9v6h4l8 5V4L7 9H3z" />
+      <path d="M7 15v4a1 1 0 0 0 1 1h1.5" />
+      <path d="M19 8a5.5 5.5 0 0 1 0 8" />
     </svg>
   );
 }

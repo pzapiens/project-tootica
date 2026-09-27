@@ -224,7 +224,7 @@ export default function DoctorsClient() {
               setQuery(e.target.value);
               setPage(1);
             }}
-            placeholder="Search doctor by id,doctor name etc..."
+            placeholder="Search here..."
             aria-label="Search doctors"
             className="h-[54px] w-full rounded-[27px] border-[1.2px] border-[#c2c6d4] pl-[58px] pr-[20px] font-inter text-[16px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
           />

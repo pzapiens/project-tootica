@@ -80,3 +80,36 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Tailwind v4's Preflight no longer sets `cursor: pointer` on buttons, so any
+   actionable element (button, link, role=button, selectable input, etc.) is
+   given the hand pointer globally instead of adding `cursor-pointer` per
+   component. Disabled controls fall back to the not-allowed cursor. */
+@layer base {
+  button,
+  a[href],
+  label[for],
+  summary,
+  [role="button"],
+  [role="link"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  select,
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="submit"],
+  input[type="button"],
+  input[type="reset"],
+  input[type="file"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input:disabled,
+  select:disabled,
+  a[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}

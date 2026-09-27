@@ -52,7 +52,7 @@ const NAV: NavItem[] = [
   { key: "appointments", label: "Appointments", segment: "appointments", icon: "/dashboard/productivity.svg", roles: "all" },
   { key: "patients", label: "Patients", segment: "patients", icon: "/dashboard/personal_injury.svg", roles: "all" },
   { key: "doctors", label: "Doctors", segment: "doctors", icon: "/dashboard/oral_disease.svg", roles: "all" },
-  { key: "analytics", label: "Analytics", segment: "analytics", icon: "/dashboard/leaderboard.svg", roles: ["SUPER_ADMIN", "CLIENT_ADMIN"] },
+  { key: "analytics", label: "Insights", segment: "analytics", icon: "/dashboard/leaderboard.svg", roles: ["SUPER_ADMIN", "CLIENT_ADMIN"] },
   { key: "revenue", label: "Revenue", segment: "revenue", icon: "/dashboard/account_balance_wallet.svg", roles: ["SUPER_ADMIN", "CLIENT_ADMIN"] },
 ];
 
@@ -208,8 +208,12 @@ function Sidebar({
   // pre-divided by 0.9 so it still fills the viewport after the zoom.
   return (
     <aside className="flex h-[calc(100dvh/0.9)] w-[271px] shrink-0 flex-col justify-between overflow-y-auto px-[16px] py-[32px] [zoom:0.9]">
-      {/* Logo (mark + wordmark) */}
-      <div className="flex items-center gap-[8px] pb-[48px] pl-[15px]">
+      {/* Logo (mark + wordmark) — links back to the dashboard from anywhere. */}
+      <Link
+        href={`/clinic-selection/${code}/dashboard`}
+        aria-label="Go to dashboard"
+        className="flex items-center gap-[8px] pb-[48px] pl-[15px] transition-opacity hover:opacity-80"
+      >
         <Image
           src="/auth/logo.png"
           alt="Tootica"
@@ -221,7 +225,7 @@ function Sidebar({
         <span className="font-inter text-[28px] font-bold leading-none tracking-[-0.5px] text-[#0077c0]">
           Tootica
         </span>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-[24px]">
@@ -240,12 +244,22 @@ function Sidebar({
                   : "rounded-[12px] hover:bg-white/5",
               ].join(" ")}
             >
-              <Image
-                src={item.icon}
-                alt=""
-                width={24}
-                height={24}
-                className={`size-6 ${active ? "opacity-100" : "opacity-70"}`}
+              {/* The nav SVGs have baked-in fills (some white, some grey), so we
+                  mask them and drive the color here — selected → white, otherwise
+                  the muted grey — keeping every icon consistent with its label. */}
+              <span
+                aria-hidden
+                className={`size-6 shrink-0 ${active ? "bg-white" : "bg-[#94a3b8]"}`}
+                style={{
+                  maskImage: `url(${item.icon})`,
+                  WebkitMaskImage: `url(${item.icon})`,
+                  maskRepeat: "no-repeat",
+                  WebkitMaskRepeat: "no-repeat",
+                  maskPosition: "center",
+                  WebkitMaskPosition: "center",
+                  maskSize: "contain",
+                  WebkitMaskSize: "contain",
+                }}
               />
               <span
                 className={`pl-[16px] font-inter text-[16px] font-medium leading-[24px] ${

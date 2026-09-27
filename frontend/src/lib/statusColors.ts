@@ -38,6 +38,9 @@ export const STATUS_COLORS: Record<string, StatusColor> = {
 // The calendar spells "On going" as "Ongoing" — alias so both resolve the same.
 STATUS_COLORS.Ongoing = STATUS_COLORS["On going"];
 
+// Revenue labels a paid transaction "Received" — same green as "Completed".
+STATUS_COLORS.Received = STATUS_COLORS.Completed;
+
 const FALLBACK: StatusColor = { bg: "bg-[#f1f5f9]", text: "text-[#1e1e24]", accent: "#1e1e24" };
 
 /** Resolve a display-status label to its colours (tolerant of unknown labels). */

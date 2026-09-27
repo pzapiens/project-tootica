@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { apiFetch, ApiError, displayName, greetingLabel, roleAvatar, ROLE_LABELS, type MeResponse } from "@/lib/api";
+import BackButton from "@/components/BackButton";
 
 import { useAvatar, useMe, useUpdateMe } from "../session";
 import { SPECIALIZATIONS } from "../doctors/constants";
@@ -136,16 +137,7 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
   return (
     <div className="flex flex-1 flex-col gap-[32px]">
       <div className="flex items-center gap-[14px]">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Go back"
-            className="flex size-[44px] shrink-0 items-center justify-center rounded-full text-[#1e1e24] transition-colors hover:bg-[#f1f5f9]"
-          >
-            <BackArrow className="size-7" />
-          </button>
-        )}
+        {onBack && <BackButton onClick={onBack} ariaLabel="Go back" />}
         <h1 className="font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
           Profile Settings
         </h1>
@@ -311,8 +303,8 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
               <TrashIcon className="size-5" /> Delete Account
             </button>
             <p className="pt-[14px] font-inter text-[14px] leading-[20px] text-[#727783]">
-              Deleting your account is permanent and cannot be undone. All clinical records and personal
-              data will be purged.
+              This action cannot be undone. Your account and all associated data will be permanently
+              deleted.
             </p>
             {dangerMsg && <p className="pt-[8px] font-inter text-[13px] text-[#ba1a1a]">{dangerMsg}</p>}
           </div>
@@ -424,15 +416,6 @@ function MailIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
       <path d="M4 20q-.825 0-1.412-.587Q2 18.825 2 18V6q0-.825.588-1.413Q3.175 4 4 4h16q.825 0 1.413.587Q22 5.175 22 6v12q0 .825-.587 1.413Q20.825 20 20 20H4Zm8-7 8-5V6l-8 5-8-5v2l8 5Z" />
-    </svg>
-  );
-}
-
-function BackArrow({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M19 12H5" />
-      <path d="m12 19-7-7 7-7" />
     </svg>
   );
 }

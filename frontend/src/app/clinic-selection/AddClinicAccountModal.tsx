@@ -623,7 +623,7 @@ export default function AddClinicAccountModal({
                   setSelectedBranch(null);
                   setFormError("");
                 }}
-                placeholder="Search or select a clinic"
+                placeholder="Search here..."
                 emptyText="No matching clinic."
                 footer={
                   <button

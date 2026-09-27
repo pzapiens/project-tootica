@@ -139,7 +139,7 @@ export default function TimeframeFilter({
           } ${place.alignRight ? "right-0" : "left-0"}`}
         >
           {/* Presets */}
-          <PresetRow label="All-Time" active={timeframe.kind === "all"} onClick={() => choosePreset("all")} />
+          <PresetRow label="All time" active={timeframe.kind === "all"} onClick={() => choosePreset("all")} />
           <PresetRow label="Today" active={timeframe.kind === "today"} onClick={() => choosePreset("today")} />
 
           {/* Custom range */}

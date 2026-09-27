@@ -158,13 +158,17 @@ export default function MiniCalendar({
                     `/clinic-selection/${params.code}/calendar?date=${dateParam(cell.date)}`,
                   )
                 }
-                className="group flex flex-col items-center justify-center gap-[3px]"
+                className="group flex cursor-pointer flex-col items-center justify-center gap-px"
               >
                 <span className={cellClass}>{cell.date.getDate()}</span>
-                {/* Appointment indicator (dot under days that have appointments) */}
+                {/* Appointment indicator: an underline under days that have
+                    appointments — brand blue normally, black on today — kept at
+                    the same weight/thickness the dot used. */}
                 <span
                   aria-hidden
-                  className={`size-[5px] rounded-full ${hasAppts ? "bg-[#0077c0]" : "bg-transparent"}`}
+                  className={`h-[2px] w-[18px] rounded-full transition-colors ${
+                    hasAppts ? (isToday ? "bg-[#1e1e24]" : "bg-[#0077c0]") : "bg-transparent"
+                  }`}
                 />
               </button>
             );

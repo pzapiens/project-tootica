@@ -98,7 +98,7 @@ export const CONSULTATION_TYPES = [
 // Source of enquiry — the marketing lead source (how the patient heard of the
 // clinic). Distinct from the booking channel (Web / WhatsApp), which is how the
 // booking was actually made.
-const LEAD_SOURCES = [
+export const LEAD_SOURCES = [
   "INSTAGRAM",
   "FACEBOOK",
   "WHATSAPP",

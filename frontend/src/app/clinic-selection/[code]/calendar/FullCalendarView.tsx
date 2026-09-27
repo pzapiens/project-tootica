@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { apiFetch, type AppointmentListItem } from "@/lib/api";
+import BackButton from "@/components/BackButton";
 import { statusColor } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
@@ -122,14 +123,10 @@ export default function FullCalendarView() {
       <div className="flex items-end justify-between">
         <div className="flex flex-col gap-[19px]">
           <div className="flex items-center gap-[15px]">
-            <button
-              type="button"
-              aria-label="Back to dashboard"
+            <BackButton
               onClick={() => router.push(`/clinic-selection/${code}/dashboard`)}
-              className="flex size-[38px] items-center justify-center"
-            >
-              <Image src="/dashboard/chevron_dark.svg" alt="" width={30} height={30} className="size-[30px]" />
-            </button>
+              ariaLabel="Back to dashboard"
+            />
             <h1 className="font-manrope text-[28px] font-bold leading-[31px] text-[#1e1e24]">Calendar</h1>
           </div>
           <div className="flex flex-col gap-[8px]">
@@ -408,9 +405,7 @@ function SlideOver({
       <div className="flex shrink-0 items-center justify-between border-b border-[#c2c6d4] px-[30px] pb-[30px] pt-[30px]">
         <div className="flex items-center gap-[10px]">
           {appt && (
-            <button type="button" aria-label="Back to list" onClick={onBack}>
-              <Image src="/dashboard/chevron_dark.svg" alt="" width={22} height={22} className="size-[22px]" />
-            </button>
+            <BackButton onClick={onBack} ariaLabel="Back to list" />
           )}
           <h2 className="font-manrope text-[19px] font-semibold leading-[27px] text-[#1e1e24]">{heading}</h2>
         </div>

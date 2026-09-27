@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -14,7 +14,7 @@ import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
 
 import NewAppointmentModal, { type EditAppointment } from "../dashboard/NewAppointmentModal";
-import { CONSULTATION_TYPES, type Time } from "../dashboard/AppointmentFormStep";
+import { CONSULTATION_TYPES, LEAD_SOURCES, type Time } from "../dashboard/AppointmentFormStep";
 import { type Timeframe } from "../dashboard/mock";
 import TimeframeFilter from "../dashboard/TimeframeFilter";
 import AppointmentFilterPanel, {
@@ -260,6 +260,8 @@ export default function AppointmentsClient() {
   // filter, `?patientId=` pins the list to one patient (from the patients page's
   // Appointments action).
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { code } = useParams<{ code: string }>();
 
   const [items, setItems] = useState<AppointmentListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -363,6 +365,13 @@ export default function AppointmentsClient() {
     [],
   );
 
+  // The Source of Enquiry filter offers the same canonical list used when
+  // creating an appointment (how the patient heard of the clinic).
+  const sourceOptions = useMemo<FilterOption[]>(
+    () => LEAD_SOURCES.map((s) => ({ value: s, label: titleCase(s) })),
+    [],
+  );
+
   // Search → facet filters → sort.
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -374,6 +383,7 @@ export default function AppointmentsClient() {
     const doctorSet = new Set(filters.doctorIds);
     const consultationSet = new Set(filters.consultationTypes);
     const channelSet = new Set(filters.channels);
+    const sourceSet = new Set(filters.sourcesOfEnquiry);
 
     let out = allRows.filter(({ item, row }) => {
       // Pending (SCHEDULED) bookings arrive via WhatsApp and live only in the
@@ -394,6 +404,7 @@ export default function AppointmentsClient() {
       if (doctorSet.size > 0 && !doctorSet.has(row.doctorId)) return false;
       if (consultationSet.size > 0 && !row.consultationTypes.some((c) => consultationSet.has(c))) return false;
       if (channelSet.size > 0 && !channelSet.has(row.bookingChannel)) return false;
+      if (sourceSet.size > 0 && !sourceSet.has((item.sourceOfEnquiry ?? "").trim())) return false;
       if (filters.statuses.length > 0 && !chipStatuses.has(row.rawStatus)) return false;
       return true;
     });
@@ -406,6 +417,11 @@ export default function AppointmentsClient() {
         const cmp = new Date(a.row.startTime).getTime() - new Date(b.row.startTime).getTime();
         // dateSort "oldest" = ascending; "newest" = descending.
         return filters.dateSort === "oldest" ? cmp : -cmp;
+      }
+      if (filters.nameSort) {
+        const cmp = a.row.patientName.localeCompare(b.row.patientName);
+        // nameSort "asc" = A→Z; "desc" = Z→A.
+        return filters.nameSort === "asc" ? cmp : -cmp;
       }
       // Compare by the code's numeric sequence (e.g. "BSD001-A000019" → 19).
       const cmp = codeNum(a.row.code) - codeNum(b.row.code);
@@ -502,6 +518,7 @@ export default function AppointmentsClient() {
         doctorOptions={doctorOptions}
         consultationOptions={consultationOptions}
         channelOptions={channelOptions}
+        sourceOptions={sourceOptions}
         onApply={(f) => {
           setFilters(f);
           setPage(1);
@@ -561,7 +578,7 @@ export default function AppointmentsClient() {
               setQuery(e.target.value);
               setPage(1);
             }}
-            placeholder="Search by id, patient, doctor, consultation..."
+            placeholder="Search here..."
             aria-label="Search appointments"
             className="h-[54px] w-full rounded-[27px] border-[1.2px] border-[#c2c6d4] pl-[58px] pr-[20px] font-inter text-[16px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
           />
@@ -651,6 +668,13 @@ export default function AppointmentsClient() {
               <AppointmentRowView
                 key={row.id}
                 row={row}
+                onPatient={
+                  // Clicking the name opens the patient's history summary. Pending
+                  // WhatsApp leads have no patient row yet, so there's nowhere to go.
+                  item.patient.id
+                    ? () => router.push(`/clinic-selection/${code}/patients/${item.patient.id}/history`)
+                    : undefined
+                }
                 onEdit={() => setEditing(item)}
                 onRecords={() =>
                   // Records is only reachable for non-pending rows, which always
@@ -831,6 +855,7 @@ function IconButton({
 
 function AppointmentRowView({
   row,
+  onPatient,
   onEdit,
   onRecords,
   onAccept,
@@ -843,6 +868,8 @@ function AppointmentRowView({
   onPayments,
 }: {
   row: AppointmentRow;
+  /** Opens the patient's history summary; undefined for pending leads (no patient). */
+  onPatient?: () => void;
   onEdit: () => void;
   onRecords: () => void;
   onAccept: () => void;
@@ -869,9 +896,21 @@ function AppointmentRowView({
       <span className={`px-[20px] py-[22px] font-inter text-[15px] font-medium leading-[21px] ${textColor}`}>
         {row.code}
       </span>
-      {/* Patient Name */}
-      <span className={`px-[20px] py-[22px] font-inter text-[15px] font-medium leading-[21px] ${textColor}`}>
-        {row.patientName}
+      {/* Patient Name — opens the patient's history summary (when a patient exists). */}
+      <span className="px-[20px] py-[22px]">
+        {onPatient ? (
+          <button
+            type="button"
+            onClick={onPatient}
+            className={`cursor-pointer text-left font-inter text-[15px] font-medium leading-[21px] transition-colors hover:text-[#0077c0] ${textColor}`}
+          >
+            {row.patientName}
+          </button>
+        ) : (
+          <span className={`font-inter text-[15px] font-medium leading-[21px] ${textColor}`}>
+            {row.patientName}
+          </span>
+        )}
       </span>
       {/* Consultation Type */}
       <span className={`px-[20px] py-[22px] font-inter text-[14px] font-medium leading-[20px] ${textColor}`}>
@@ -925,20 +964,22 @@ function AppointmentRowView({
         ) : (
           <>
             <button type="button" onClick={onRecords} aria-label={`View ${row.patientName}'s records`} className="group relative flex size-[34px] items-center justify-center">
-              <RecordsIcon className="size-6 text-[#1e1e24]" />
+              <RecordsIcon className={`size-6 ${textColor}`} />
               <Tip label="Records" />
             </button>
             <button
               type="button"
               onClick={onPayments}
-              aria-label={`Manage ${row.patientName}'s payments${paymentComplete ? " (paid)" : ""}`}
+              aria-label={`Manage ${row.patientName}'s payments${paymentComplete ? " (received)" : ""}`}
               className="group relative flex size-[34px] items-center justify-center"
             >
-              <PaymentsIcon className={`size-6 ${paymentComplete ? "text-[#16a34a]" : "text-[#1e1e24]"}`} />
-              <Tip label={paymentComplete ? "Payments (paid)" : "Payments (Pending)"} />
+              {/* Paid keeps its semantic green; otherwise the icon follows the
+                  row's colour (blue when ongoing, ink otherwise). */}
+              <PaymentsIcon className={`size-6 ${paymentComplete ? "text-[#16a34a]" : textColor}`} />
+              <Tip label={paymentComplete ? "Payments (Received)" : "Payments (Pending)"} />
             </button>
             <button type="button" onClick={onEdit} aria-label={`Edit ${row.patientName}'s appointment`} className="group relative flex size-[34px] items-center justify-center">
-              <Image src="/dashboard/edit_square.svg" alt="" width={24} height={24} className="size-6" />
+              <Image src={ongoing ? "/dashboard/edit_square_blue.svg" : "/dashboard/edit_square.svg"} alt="" width={24} height={24} className="size-6" />
               <Tip label="Edit" />
             </button>
             <MoreMenu
@@ -1053,7 +1094,7 @@ function MoreMenu({
         aria-expanded={open}
         className="flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
       >
-        <MoreIcon className="size-6 text-[#1e1e24]" />
+        <MoreIcon className={`size-6 ${row.statusLabel === "On going" ? "text-[#0077c0]" : "text-[#1e1e24]"}`} />
       </button>
       {open && pos && typeof document !== "undefined" &&
         createPortal(

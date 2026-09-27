@@ -194,7 +194,7 @@ export default function SuperAdminView({
             branches={clinicRows}
             heading="Clinics"
             firstColumnLabel="Clinic"
-            searchPlaceholder="Search clinic by name, admin or contact number"
+            searchPlaceholder="Search here..."
             itemNoun="clinics"
             // Click a clinic → drill into its branches. Remember the clinic so
             // tenant-scoped requests (X-Clinic-Id) resolve to it.
@@ -241,7 +241,7 @@ export default function SuperAdminView({
               branches={branchRows}
               heading={`${selectedClinic?.name ?? "Clinic"} · Branches`}
               firstColumnLabel="Branch"
-              searchPlaceholder="Search branch by name, PIC or contact number"
+              searchPlaceholder="Search here..."
               itemNoun="branches"
               onSelect={(row) => {
                 // Ensure the clinic context is set before entering the tenant

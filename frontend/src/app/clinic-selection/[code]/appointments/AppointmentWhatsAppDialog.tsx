@@ -87,16 +87,18 @@ export default function AppointmentWhatsAppDialog({
           </button>
         </div>
 
-        {/* Table */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Table — inset from the dialog edges (a margin on all four sides) so
+            the popup reads wider than the table itself. */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-[28px] py-[24px]">
+          <div className="rounded-[16px] border-[1.2px] border-[#c2c6d4]">
           {/* Column header — not sticky so a first-row action tooltip paints in
               front of it instead of being covered by the sticky (opaque) header. */}
-          <div className={`grid ${COLS} items-center border-b border-[rgba(194,198,212,0.6)] bg-[#f8fafc] px-[28px]`}>
+          <div className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] px-[28px]`}>
             {["Patient Name", "Consultation Type", "Date", "Age / Gender", "Actions"].map((h) => (
               <span
                 key={h}
-                className={`py-[15px] font-inter text-[12px] font-semibold uppercase leading-[16px] tracking-[0.5px] text-[#727783] ${
-                  h === "Actions" ? "text-center" : ""
+                className={`py-[24px] font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.5px] text-[#727783] ${
+                  h === "Actions" ? "text-center" : "text-left"
                 }`}
               >
                 {h}
@@ -118,21 +120,21 @@ export default function AppointmentWhatsAppDialog({
             rows.map((row) => (
               <div
                 key={row.id}
-                className={`grid ${COLS} items-center border-b border-[rgba(194,198,212,0.4)] px-[28px] transition-colors last:border-b-0 hover:bg-[#f8fafc]`}
+                className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] px-[28px] last:border-b-0`}
               >
-                <span className="py-[18px] pr-3 font-inter text-[15px] font-medium leading-[21px] text-[#1e1e24]">
+                <span className="py-[22px] pr-3 font-inter text-[15px] font-medium leading-[21px] text-[#1e1e24]">
                   {row.patientName}
                 </span>
-                <span className="py-[18px] pr-3 font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
+                <span className="py-[22px] pr-3 font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
                   {row.consultationType}
                 </span>
-                <span className="py-[18px] pr-3 font-inter text-[13px] font-medium leading-[18px] text-[#1e1e24]">
+                <span className="py-[22px] pr-3 font-inter text-[13px] font-medium leading-[18px] text-[#1e1e24]">
                   {row.date}
                 </span>
-                <span className="py-[18px] pr-3 font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
+                <span className="py-[22px] pr-3 font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
                   {row.age === null ? "--" : row.age} / {row.gender || "--"}
                 </span>
-                <div className="flex items-center justify-center gap-[14px] py-[18px]">
+                <div className="flex items-center justify-center gap-[14px] py-[22px]">
                   <button
                     type="button"
                     onClick={() => onAccept(row)}
@@ -155,6 +157,7 @@ export default function AppointmentWhatsAppDialog({
               </div>
             ))
           )}
+          </div>
         </div>
       </div>
     </div>

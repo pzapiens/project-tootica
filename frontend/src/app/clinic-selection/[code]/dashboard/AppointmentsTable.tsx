@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, type AppointmentListItem } from "@/lib/api";
 import { useAppointmentsRevision } from "@/lib/appointmentsBus";
 import { bookingChannelLabel } from "@/lib/whatsapp";
-import { statusDropdownBadgeClass, statusDropdownColor } from "@/lib/statusColors";
+import { statusColor, statusDropdownBadgeClass, statusDropdownColor } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
 
@@ -333,7 +333,7 @@ export default function AppointmentsTable({
                 setQuery(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search here"
+              placeholder="Search here..."
               aria-label="Search appointments"
               className="h-[45px] w-[195px] rounded-full border-[1.167px] border-[#c2c6d4] pl-[50px] pr-[10px] font-inter text-[16.333px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4] focus:border-[#0077c0]"
             />
@@ -351,13 +351,13 @@ export default function AppointmentsTable({
       {/* Bordered table — height hugs its content, capped by the section max */}
       <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[18.667px] border-[1.2px] border-[#c2c6d4] bg-white shadow-[0px_1.167px_2.333px_0px_rgba(0,0,0,0.05)]">
         {/* Header row */}
-        <div className="grid shrink-0 grid-cols-[minmax(0,197fr)_minmax(0,123fr)_minmax(0,114fr)_minmax(0,119fr)_minmax(0,75fr)] border-b-[1.167px] border-[#c2c6d4] px-[18.667px]">
+        <div className="grid shrink-0 grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)] gap-x-5 border-b-[1.167px] border-[#c2c6d4] px-[18.667px]">
           {["Patient Name", "Doctor", "Date & Time", "Status", "Action"].map((h, i) => (
             <span
               key={h}
               className={`py-[18.667px] font-inter text-[14px] font-medium uppercase leading-[18.667px] tracking-[0.35px] text-[#1e1e24] ${
-                i === 4 ? "text-right" : ""
-              } ${i === 1 ? "-ml-[15px]" : ""}`}
+                i === 4 ? "w-[60px] justify-self-end" : ""
+              } ${i === 3 ? "text-center" : ""} ${i === 1 ? "pl-6" : ""}`}
             >
               {h}
             </span>
@@ -438,30 +438,42 @@ function PageButton({
 
 function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void }) {
   const ongoing = appt.status === "On going";
-  const nameColor = ongoing ? "text-[#0077c0]" : "text-[#1e1e24]";
-  const cellColor = ongoing ? "text-[#0077c0]" : "text-[#1e1e24]";
+  // When ongoing, the whole row adopts the "On going" status box colour (its
+  // solid blue, pulled from the shared palette) so the row reads as active at a
+  // glance; otherwise the default ink. Applied via inline style since the hex
+  // comes from the palette (not a static Tailwind class).
+  const contentStyle = ongoing ? { color: statusColor(appt.status).accent } : undefined;
 
   return (
-    <div className="grid grid-cols-[minmax(0,197fr)_minmax(0,123fr)_minmax(0,114fr)_minmax(0,119fr)_minmax(0,75fr)] items-center border-t-[1.167px] border-[#c2c6d4] px-[18.667px]">
+    <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)] items-center gap-x-5 border-t-[1.167px] border-[#c2c6d4] px-[18.667px]">
       {/* Patient */}
-      <div className="py-[18.667px] pr-2">
-        <p className={`font-inter text-[16.333px] font-medium leading-[23.333px] ${nameColor}`}>
+      <div className="py-[18.667px]">
+        <p
+          className={`font-inter text-[16.333px] font-medium leading-[23.333px] ${ongoing ? "" : "text-[#1e1e24]"}`}
+          style={contentStyle}
+        >
           {appt.patientName}
         </p>
       </div>
       {/* Doctor */}
-      <span className={`-ml-[15px] font-inter text-[16.333px] font-medium leading-[23.333px] ${cellColor}`}>
+      <span
+        className={`pl-6 font-inter text-[16.333px] font-medium leading-[23.333px] ${ongoing ? "" : "text-[#1e1e24]"}`}
+        style={contentStyle}
+      >
         {appt.doctor === "Unassigned" ? "--" : appt.doctor}
       </span>
       {/* Date & Time */}
-      <div className={`flex flex-col gap-[6px] font-inter text-[12px] font-semibold leading-[15px] ${cellColor}`}>
+      <div
+        className={`flex flex-col gap-[6px] font-inter text-[12px] font-semibold leading-[15px] ${ongoing ? "" : "text-[#1e1e24]"}`}
+        style={contentStyle}
+      >
         <span>{fmtDateLabel(appt.date)}</span>
         <span className="opacity-80">
           {appt.startTime === "--" ? "--" : `${appt.startTime} - ${appt.endTime}`}
         </span>
       </div>
       {/* Status */}
-      <div>
+      <div className="flex justify-center">
         <span
           className={`inline-flex rounded-full px-[14px] py-[4px] font-inter text-[14px] font-medium leading-[18.667px] ${statusDropdownBadgeClass(appt.status)}`}
         >
@@ -469,7 +481,7 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
         </span>
       </div>
       {/* Action */}
-      <div className="flex justify-end">
+      <div className="flex w-[60px] justify-start justify-self-end">
         <button
           type="button"
           onClick={onEdit}

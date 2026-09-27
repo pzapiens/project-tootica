@@ -405,6 +405,9 @@ export interface RevenueTransaction {
   paid: boolean;
   /** The appointment's start time (ISO) — the transaction's date. */
   date: string;
+  /** Branch of the appointment's doctor (null when unassigned) — for scoping
+   *  the clinic-selection overview's revenue by branch. */
+  branchId: string | null;
 }
 
 /** Backend appointment status enum. */

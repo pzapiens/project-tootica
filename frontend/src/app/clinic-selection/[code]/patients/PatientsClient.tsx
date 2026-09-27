@@ -18,7 +18,7 @@ import FilterPanel, { type SortKey } from "./FilterPanel";
 export interface PatientRow extends Patient {
   age: number | null;
   /** Most recent past appointment, or null when the patient has never visited. */
-  lastVisit: { date: string; time: string } | null;
+  lastVisit: { date: string; time: string; ts: number } | null;
 }
 
 const PER_PAGE_OPTIONS = [10, 20, 50, 100];
@@ -66,10 +66,10 @@ function fmtPhone(phone: string | null): string {
  */
 function lastVisitsByPatient(
   appts: AppointmentListItem[],
-): Record<string, { date: string; time: string }> {
+): Record<string, { date: string; time: string; ts: number }> {
   const now = Date.now();
   const latest: Record<string, string> = {};
-  const out: Record<string, { date: string; time: string }> = {};
+  const out: Record<string, { date: string; time: string; ts: number }> = {};
   for (const a of appts) {
     // Pending WhatsApp leads have no patient yet — skip them.
     const pid = a.patient.id;
@@ -81,6 +81,7 @@ function lastVisitsByPatient(
       out[pid] = {
         date: fmtShortDate(a.startTime),
         time: `${fmtClock(a.startTime)}- ${fmtClock(a.endTime)}`,
+        ts: start,
       };
     }
   }
@@ -109,7 +110,7 @@ export default function PatientsClient() {
   const router = useRouter();
   const { code } = useParams<{ code: string }>();
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [visits, setVisits] = useState<Record<string, { date: string; time: string }>>({});
+  const [visits, setVisits] = useState<Record<string, { date: string; time: string; ts: number }>>({});
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
@@ -190,7 +191,14 @@ export default function PatientsClient() {
         let cmp: number;
         if (s.key === "id") cmp = (a.code ?? "").localeCompare(b.code ?? "");
         else if (s.key === "name") cmp = a.name.localeCompare(b.name);
-        else cmp = (a.age ?? Infinity) - (b.age ?? Infinity);
+        else if (s.key === "age") cmp = (a.age ?? Infinity) - (b.age ?? Infinity);
+        else {
+          // Last clinic visit; "never visited" is treated as the oldest so it
+          // sorts to the bottom of "Latest to Old". (-Inf === -Inf → tie.)
+          const at = a.lastVisit?.ts ?? -Infinity;
+          const bt = b.lastVisit?.ts ?? -Infinity;
+          cmp = at === bt ? 0 : at - bt;
+        }
         if (s.dir === "desc") cmp = -cmp;
         if (cmp !== 0) return cmp;
       }
@@ -293,7 +301,7 @@ export default function PatientsClient() {
               setQuery(e.target.value);
               setPage(1);
             }}
-            placeholder="Search patient by id,Patient name etc..."
+            placeholder="Search here..."
             aria-label="Search patients"
             className="h-[54px] w-full rounded-[27px] border-[1.2px] border-[#c2c6d4] pl-[58px] pr-[20px] font-inter text-[16px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
           />
@@ -338,6 +346,10 @@ export default function PatientsClient() {
                 patient={p}
                 onEdit={() => setEditing(p)}
                 onDelete={() => setDeleting(p)}
+                onOpenHistory={() =>
+                  // Clicking the name opens the read-only Patient History Summary.
+                  router.push(`/clinic-selection/${code}/patients/${p.id}/history`)
+                }
                 onAppointments={() =>
                   // Deep-link to the appointments page filtered to exactly this
                   // patient (by id).
@@ -446,11 +458,13 @@ function PatientRowView({
   patient,
   onEdit,
   onDelete,
+  onOpenHistory,
   onAppointments,
 }: {
   patient: PatientRow;
   onEdit: () => void;
   onDelete: () => void;
+  onOpenHistory: () => void;
   onAppointments: () => void;
 }) {
   return (
@@ -459,9 +473,15 @@ function PatientRowView({
       <span className="px-[29px] py-[24px] text-left font-inter text-[16px] font-medium leading-[24px] text-[#1e1e24]">
         {patient.code ?? "—"}
       </span>
-      {/* Name */}
-      <span className="px-[29px] py-[24px] text-left font-inter text-[16px] font-medium leading-[24px] text-[#1e1e24]">
-        {patient.name}
+      {/* Name — opens the patient's history summary. */}
+      <span className="px-[29px] py-[24px] text-left">
+        <button
+          type="button"
+          onClick={onOpenHistory}
+          className="cursor-pointer font-inter text-[16px] font-medium leading-[24px] text-[#1e1e24] transition-colors hover:text-[#0077c0]"
+        >
+          {patient.name}
+        </button>
       </span>
       {/* Phone */}
       <span className="px-[29px] py-[24px] text-left font-inter text-[14px] font-medium leading-[19px] text-[#1e1e24]">

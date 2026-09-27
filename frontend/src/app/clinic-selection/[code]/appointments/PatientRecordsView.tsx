@@ -30,6 +30,7 @@ import {
 } from "@/lib/patientRecordsStore";
 
 import { exportMedHistoryXls, exportObservationsXls, exportPerioXls } from "@/lib/recordsExport";
+import BackButton from "@/components/BackButton";
 import { Tip } from "@/components/HoverTip";
 
 import AppointmentInfoDialog from "./AppointmentInfoDialog";
@@ -109,20 +110,13 @@ export default function PatientRecordsView({
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between gap-4">
         <div className="flex items-center gap-[15px]">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Back to appointments"
-            className="flex size-[44px] items-center justify-center rounded-full text-[#1e1e24] transition-colors hover:bg-[#f1f5f9]"
-          >
-            <BackChevron className="h-[34px] w-[22px]" />
-          </button>
+          <BackButton onClick={onClose} ariaLabel="Back to appointments" />
           <div>
             <h1 className="font-manrope text-[32px] font-bold leading-[40px] tracking-[-0.6px] text-[#1e1e24]">
               Patient Records
             </h1>
             <p className="font-inter text-[15px] leading-[21px] text-[#1e1e24]">
-              Manage the patient data and documentation.
+              Manage patient records and documentations.
             </p>
           </div>
         </div>
@@ -293,10 +287,10 @@ function ObservationsSection({
           <Image src="/dashboard/note_alt.svg" alt="" width={48} height={48} className="size-[48px] shrink-0" />
           <div>
             <h2 className="font-manrope text-[21px] font-semibold leading-[30px] text-[#1e1e24]">
-              Doctor/Clinic Observations
+              Doctor/Clinical Observations
             </h2>
             <p className="font-manrope text-[15px] leading-[21px] text-[#1e1e24]">
-              Add your remarks regarding your observations.
+              Add your remarks based on your observations.
             </p>
           </div>
         </div>
@@ -1178,18 +1172,10 @@ function ExportButton({ enabled, onClick }: { enabled: boolean; onClick?: () => 
   );
 }
 
-function BackChevron({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 22 34" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M18 3L5 17l13 14" />
-    </svg>
-  );
-}
-
 /* --------------------------------------------------------------- change log */
 
 const LOG_TITLES: Record<LogTable, string> = {
-  observation: "Doctor/Clinic Observations",
+  observation: "Doctor/Clinical Observations",
   tooth: "Tooth-wise Remarks",
   "medical-history": "Patient Medical History",
   consent: "Patient Consent Form",

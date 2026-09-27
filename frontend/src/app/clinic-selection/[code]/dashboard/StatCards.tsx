@@ -28,7 +28,7 @@ export default function StatCards({ counts }: { counts: StatCounts }) {
       {STAT_CARDS.map((card) => (
         <div
           key={card.key}
-          className="flex h-[224px] min-w-[220px] flex-1 flex-col justify-between overflow-hidden rounded-[28px] bg-[#0077c0] p-[28px]"
+          className="flex h-[200px] min-w-[220px] flex-1 flex-col justify-between overflow-hidden rounded-[28px] bg-[#0077c0] p-[24px]"
         >
           <div className="flex flex-col gap-[4.667px]">
             <span className="font-inter text-[42px] font-bold leading-[46.667px] text-white">
@@ -38,14 +38,14 @@ export default function StatCards({ counts }: { counts: StatCounts }) {
               {card.label}
             </span>
           </div>
-          <div className="flex items-end justify-between pt-[18.667px]">
+          <div className="flex items-end justify-between pt-[12px]">
             <Image src={card.icon} alt="" width={40} height={40} className="size-10" />
             <button
               type="button"
               onClick={() => review(card.key)}
-              className="font-inter text-[16.333px] font-medium leading-[23.333px] text-white hover:underline"
+              className="cursor-pointer font-inter text-[16.333px] font-medium leading-[23.333px] text-white"
             >
-              Review
+              View all
             </button>
           </div>
         </div>

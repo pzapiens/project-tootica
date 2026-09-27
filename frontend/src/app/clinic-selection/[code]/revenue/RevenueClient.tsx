@@ -8,6 +8,7 @@ import { frameRange } from "@/lib/analytics";
 import { useAppointmentsRevision } from "@/lib/appointmentsBus";
 import { statusBadgeClass } from "@/lib/statusColors";
 import { Tip } from "@/components/HoverTip";
+import DonutChart, { type DonutDatum } from "@/components/DonutChart";
 
 import TimeframeFilter from "../dashboard/TimeframeFilter";
 import { CONSULTATION_TYPES } from "../dashboard/AppointmentFormStep";
@@ -25,6 +26,14 @@ const inr = new Intl.NumberFormat("en-IN", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
+/** Compact INR for the donut centre, e.g. "₹1.25 L" / "₹3.40 Cr" / "₹5.6K". */
+function inrCompact(n: number): string {
+  if (n >= 1e7) return `₹${(n / 1e7).toFixed(2)} Cr`;
+  if (n >= 1e5) return `₹${(n / 1e5).toFixed(2)} L`;
+  if (n >= 1e3) return `₹${(n / 1e3).toFixed(1)}K`;
+  return `₹${n}`;
+}
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const p2 = (n: number) => String(n).padStart(2, "0");
@@ -75,6 +84,10 @@ export default function RevenueClient() {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<RevenueFilters>(EMPTY_REVENUE_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
+  // Payment-status filter driven by clicking the breakdown pie ("Received" /
+  // "Pending"); applies on top of the panel filters + search. Click the same
+  // slice again to clear it.
+  const [pieStatus, setPieStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -105,6 +118,17 @@ export default function RevenueClient() {
     return { generated, pending };
   }, [items, cardsTf]);
 
+  // Revenue breakdown pie — generated (paid) vs pending (unpaid) amounts within
+  // the header timeframe. Zero-value slices are dropped.
+  const revenuePie = useMemo<DonutDatum[]>(
+    () =>
+      [
+        { key: "Received", label: "Revenue Received", value: summary.generated },
+        { key: "Pending", label: "Revenue Pending", value: summary.pending },
+      ].filter((d) => d.value > 0),
+    [summary],
+  );
+
   // The filter offers the app's full canonical consultation-type list (not just
   // the types present in the revenue data), matching the appointments filter.
   const consultationOptions = useMemo<FilterOption[]>(
@@ -121,7 +145,8 @@ export default function RevenueClient() {
     let out = items.filter((t) => {
       if (!inRange(t.date, txTf)) return false;
       if (q && !t.code.toLowerCase().includes(q) && !t.patientName.toLowerCase().includes(q)) return false;
-      if (statusSet.size > 0 && !statusSet.has(t.paid ? "Completed" : "Pending")) return false;
+      if (pieStatus && (t.paid ? "Received" : "Pending") !== pieStatus) return false;
+      if (statusSet.size > 0 && !statusSet.has(t.paid ? "Received" : "Pending")) return false;
       if (consultSet.size > 0 && !splitTypes(t.consultationType).some((c) => consultSet.has(c))) return false;
       return true;
     });
@@ -136,7 +161,7 @@ export default function RevenueClient() {
     });
 
     return out;
-  }, [items, query, txTf, filters]);
+  }, [items, query, txTf, filters, pieStatus]);
 
   function exportCsv() {
     const header = ["Transaction ID", "Patient Name", "Consultation Type", "Amount", "Payment Status", "Date"];
@@ -146,7 +171,7 @@ export default function RevenueClient() {
         t.patientName,
         t.consultationType ? titleCase(t.consultationType) : "--",
         String(t.amount),
-        t.paid ? "Completed" : "Pending",
+        t.paid ? "Received" : "Pending",
         fmtDate(t.date),
       ]
         .map(csvCell)
@@ -184,18 +209,30 @@ export default function RevenueClient() {
         <TimeframeFilter timeframe={cardsTf} onChange={setCardsTf} />
       </div>
 
-      {/* Summary cards */}
-      <div className="grid shrink-0 grid-cols-1 gap-[28px] md:grid-cols-2">
-        <SummaryCard
-          amount={loading ? null : summary.generated}
-          label="Total Revenue Generated"
-          icon="check"
-        />
-        <SummaryCard
-          amount={loading ? null : summary.pending}
-          label="Total Revenue Pending"
-          icon="hourglass"
-        />
+      {/* Revenue breakdown pie (replaces the summary cards). A single chart, so it
+          sits on the left at a bounded width rather than stretching the page. */}
+      <div className="flex w-full max-w-[680px] shrink-0 flex-col gap-[24px] rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white p-[28px]">
+        <div>
+          <h2 className="font-inter text-[18px] font-bold uppercase leading-[24px] tracking-[0.4px] text-[#1e1e24]">
+            Revenue Breakdown :
+          </h2>
+          <p className="mt-[3px] font-inter text-[14px] leading-[20px] text-[#727783]">
+            Breakdown of received and pending revenue
+          </p>
+        </div>
+        {loading ? (
+          <p className="py-6 font-inter text-[15px] text-[#94a3b8]">Loading…</p>
+        ) : (
+          <DonutChart
+            data={revenuePie}
+            onSelect={(key) => setPieStatus((s) => (s === key ? null : key))}
+            formatValue={(n) => inr.format(n)}
+            formatCenter={inrCompact}
+            totalLabel="Total Revenue"
+            selectedKey={pieStatus}
+            size={300}
+          />
+        )}
       </div>
 
       {/* Recent Transactions */}
@@ -227,15 +264,38 @@ export default function RevenueClient() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search transactions by id and Patient name"
+            placeholder="Search here..."
             aria-label="Search transactions"
             className="h-[54px] w-full rounded-[27px] border-[1.2px] border-[#c2c6d4] pl-[58px] pr-[20px] font-inter text-[16px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
           />
         </div>
 
+        {/* Active pie filter banner (from clicking a Revenue Breakdown segment). */}
+        {pieStatus && (
+          <div className="flex w-fit shrink-0 items-center gap-[10px] rounded-full bg-[#e6f2fb] py-[8px] pl-[16px] pr-[10px]">
+            <span className="font-inter text-[14px] text-[#0077c0]">
+              Filtered by payment status: <span className="font-semibold">{pieStatus}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setPieStatus(null)}
+              aria-label="Clear payment status filter"
+              className="flex size-[24px] items-center justify-center rounded-full text-[#0077c0] transition-colors hover:bg-[#0077c0]/10"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="size-4" aria-hidden>
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Table */}
         <div className="flex flex-col overflow-hidden rounded-[20px] border-[1.2px] border-[#c2c6d4] bg-white">
-          <div className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)]`}>
+          {/* Header + body share ONE scroll container so their columns line up —
+              a body-only scrollbar would shift the rows relative to the header.
+              The header is sticky so it stays put while the body scrolls. */}
+          <div className="max-h-[547px] overflow-y-auto">
+          <div className={`sticky top-0 z-10 grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] bg-white`}>
             {["Transaction ID", "Patient Name", "Consultation Type", "Amount", "Payment Status", "Date"].map((h) => (
               <span
                 key={h}
@@ -250,13 +310,13 @@ export default function RevenueClient() {
             <p className="px-[20px] py-10 font-inter text-[16px] text-[#94a3b8]">Loading transactions…</p>
           ) : rows.length === 0 ? (
             <p className="px-[20px] py-10 font-inter text-[16px] text-[#94a3b8]">
-              {query.trim() || revenueFilterCount(filters) > 0
+              {query.trim() || revenueFilterCount(filters) > 0 || pieStatus
                 ? "No transactions match your search."
                 : "No transactions yet."}
             </p>
           ) : (
             rows.map((t) => {
-              const status = t.paid ? "Completed" : "Pending";
+              const status = t.paid ? "Received" : "Pending";
               return (
                 <div
                   key={t.id}
@@ -280,42 +340,8 @@ export default function RevenueClient() {
               );
             })
           )}
+          </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** A big blue revenue stat card (amount + label + icon). */
-function SummaryCard({
-  amount,
-  label,
-  icon,
-}: {
-  amount: number | null;
-  label: string;
-  icon: "check" | "hourglass";
-}) {
-  return (
-    <div className="flex h-[224px] flex-col justify-between overflow-hidden rounded-[28px] bg-[#0077c0] p-[28px]">
-      <div className="flex flex-col gap-[6px]">
-        <span className="font-inter text-[42px] font-bold leading-[46.667px] text-white">
-          {amount === null ? "—" : inr.format(amount)}
-        </span>
-        <span className="font-inter text-[18.667px] font-medium leading-[28px] text-white">{label}</span>
-      </div>
-      <div className="flex items-end">
-        {icon === "check" ? (
-          <CheckCircle className="size-10 text-white" />
-        ) : (
-          <Image
-            src="/dashboard/stat_hourglass_empty.svg"
-            alt=""
-            width={40}
-            height={40}
-            className="size-10 [filter:brightness(0)_invert(1)]"
-          />
-        )}
       </div>
     </div>
   );
@@ -350,14 +376,5 @@ function IconButton({
       )}
       <Tip label={tip ?? label} below />
     </button>
-  );
-}
-
-function CheckCircle({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} aria-hidden>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M8.5 12.5l2.5 2.5 4.5-5.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

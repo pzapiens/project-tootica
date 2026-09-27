@@ -206,22 +206,22 @@ export default function LoginCard() {
         <Image
           src="/auth/logo.png"
           alt="Tootica"
-          width={56}
-          height={56}
+          width={80}
+          height={80}
           priority
-          className="size-14 object-contain"
+          className="size-20 object-contain"
         />
       </div>
 
       {/* Header */}
-      <div className="flex flex-col items-center gap-[11px] pt-2">
+      <div className="-mt-4 flex flex-col items-center gap-[11px]">
         <h1 className="font-manrope text-[36px] leading-[44px] tracking-[-0.72px] text-ink">
-          Welcome Back
+          Welcome
         </h1>
         <p className="max-w-[280px] text-center font-inter text-[15px] leading-[24px] text-ink">
           {mode === "password"
-            ? "Please enter your credentials to access the app."
-            : "Sign in with a one-time code sent to your phone."}
+            ? "Sign in to continue to your account"
+            : "Enter your phone number to receive a verification code."}
         </p>
       </div>
 
@@ -230,10 +230,10 @@ export default function LoginCard() {
         {mode === "password" ? (
           <Field
             id="identifier"
-            label="Email Address"
+            label="Email address"
             icon="/auth/mail.svg"
             type="email"
-            placeholder="e.g. dr.smith@clinique.com"
+            placeholder="Enter your email"
             value={identifier}
             onChange={onIdentifierChange}
             autoComplete="email"
@@ -245,7 +245,7 @@ export default function LoginCard() {
             label="Phone Number"
             icon="/auth/phone.svg"
             type="tel"
-            placeholder="e.g. 98765 43210 (no +91 needed)"
+            placeholder="Enter your phone number"
             value={identifier}
             onChange={onIdentifierChange}
             autoComplete="tel"
@@ -336,16 +336,16 @@ export default function LoginCard() {
         <button
           type="button"
           onClick={switchMode}
-          className="cursor-pointer font-inter text-[14px] font-medium leading-5 text-brand"
+          className="cursor-pointer font-inter text-[14px] font-medium leading-5 text-ink"
         >
-          {mode === "password" ? "Sign in with a code instead" : "Sign in with a password instead"}
+          {mode === "password" ? "Sign in with single-use code" : "Sign in with password"}
         </button>
         {mode === "password" && (
           <Link
             href="/forgot-password"
-            className="font-inter text-[14px] font-medium leading-5 text-field-placeholder"
+            className="font-inter text-[14px] font-medium leading-5 text-brand"
           >
-            Forgot Password?
+            Forgot password?
           </Link>
         )}
       </div>

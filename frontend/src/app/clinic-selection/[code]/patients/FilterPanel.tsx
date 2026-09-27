@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
  */
 
 export interface SortKey {
-  key: "id" | "name" | "age";
+  key: "id" | "name" | "age" | "visit";
   dir: "asc" | "desc";
 }
 
@@ -19,7 +19,7 @@ export interface SortKey {
 type Draft = Partial<Record<SortKey["key"], SortKey["dir"]>>;
 
 // Fixed priority for the multi-key sort (and the order chips read back).
-const ORDER: SortKey["key"][] = ["id", "name", "age"];
+const ORDER: SortKey["key"][] = ["id", "name", "age", "visit"];
 
 function draftToSorts(draft: Draft): SortKey[] {
   return ORDER.filter((k) => draft[k]).map((k) => ({ key: k, dir: draft[k]! }));
@@ -54,6 +54,14 @@ const GROUPS: Array<{ title: string; key: SortKey["key"]; options: Option[] }> =
     options: [
       { label: "Ascending", dir: "asc", arrow: "up" },
       { label: "Descending", dir: "desc", arrow: "down" },
+    ],
+  },
+  {
+    title: "Last Clinic Visit",
+    key: "visit",
+    options: [
+      { label: "Latest to Old", dir: "desc", arrow: "down" },
+      { label: "Old to Latest", dir: "asc", arrow: "up" },
     ],
   },
 ];

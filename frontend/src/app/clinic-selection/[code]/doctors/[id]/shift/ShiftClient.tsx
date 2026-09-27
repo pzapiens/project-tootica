@@ -8,6 +8,7 @@ import { apiFetch, ApiError, type DoctorSummary } from "@/lib/api";
 import { phoneDigits, phoneLocalPart, phoneWithCc } from "@/lib/validation";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { fetchShifts, saveShifts } from "@/lib/shifts";
+import BackButton from "@/components/BackButton";
 import { Tip } from "@/components/HoverTip";
 
 import { SPECIALIZATIONS } from "../../constants";
@@ -354,14 +355,7 @@ export default function ShiftClient() {
     <div className="flex flex-col gap-[32px] pb-[24px]">
       {/* Header */}
       <div className="flex items-center gap-[16px]">
-        <button
-          type="button"
-          aria-label="Back to doctors"
-          onClick={() => router.back()}
-          className="flex size-[40px] items-center justify-center"
-        >
-          <Image src="/dashboard/chevron_dark.svg" alt="" width={28} height={28} className="size-7" />
-        </button>
+        <BackButton onClick={() => router.back()} ariaLabel="Back to doctors" />
         <h1 className="font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
           Edit Doctor Shift
         </h1>
@@ -491,7 +485,10 @@ export default function ShiftClient() {
             No shifts added yet. Pick dates, a recurrence and a time range above.
           </p>
         ) : (
-          sortedShifts.map((s) => (
+          // Show up to 5 rows; the rest scroll within the table body (the header
+          // above stays fixed). ~69px per row → 5 rows ≈ 346px.
+          <div className="max-h-[346px] overflow-y-auto">
+          {sortedShifts.map((s) => (
             <div
               key={s.id}
               className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_120px] items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0"
@@ -520,7 +517,8 @@ export default function ShiftClient() {
                 </button>
               </div>
             </div>
-          ))
+          ))}
+          </div>
         )}
       </div>
 

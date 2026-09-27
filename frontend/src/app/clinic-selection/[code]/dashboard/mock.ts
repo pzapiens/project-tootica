@@ -64,7 +64,7 @@ function fmt2(n: number): string {
 
 /** Button label for the current timeframe (e.g. "All-Time", "01/10/23 - 23/10/23"). */
 export function timeframeLabel(tf: Timeframe): string {
-  if (tf.kind === "all") return "All-Time";
+  if (tf.kind === "all") return "All time";
   if (tf.kind === "today") return "Today";
   const f = new Date(tf.from);
   const t = new Date(tf.to);
@@ -78,9 +78,9 @@ export type StatKey = keyof StatCounts;
 /** Card metadata; the numeric value comes from the resolved counts. */
 export const STAT_CARDS = [
   { key: "total", label: "Total Appointments", icon: "/dashboard/stat_productivity.svg" },
-  { key: "completed", label: "Total Appointments Completed", icon: "/dashboard/stat_event_available.svg" },
-  { key: "pending", label: "Total Appointments Upcoming", icon: "/dashboard/stat_hourglass_empty.svg" },
-  { key: "cancelled", label: "Total Appointments Cancelled", icon: "/dashboard/stat_cancel.svg" },
+  { key: "completed", label: "Completed Appointments", icon: "/dashboard/stat_event_available.svg" },
+  { key: "pending", label: "Upcoming Appointments", icon: "/dashboard/stat_hourglass_empty.svg" },
+  { key: "cancelled", label: "Cancelled Appointments", icon: "/dashboard/stat_cancel.svg" },
 ] as const;
 
 /**
@@ -97,7 +97,7 @@ export const STAT_CARD_REVIEW: Record<StatKey, { status: string; heading: string
   cancelled: { status: "Cancelled", heading: "Cancelled Appointments" },
 };
 
-export const TIMEFRAME_OPTIONS = ["All-Time", "Today", "This Week", "This Month"] as const;
+export const TIMEFRAME_OPTIONS = ["All time", "Today", "This Week", "This Month"] as const;
 export const STATUS_FILTER_OPTIONS = [
   "All status",
   "Upcoming",

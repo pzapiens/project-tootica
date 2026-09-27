@@ -479,7 +479,7 @@ function SearchStep({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by patient ID or registered phone number..."
+                placeholder="Search here..."
                 aria-label="Search patient by ID or phone"
                 className="h-[45px] w-full rounded-full border border-[#c2c6d4] pl-[44px] pr-[40px] font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/70 focus:border-[#0077c0]"
               />

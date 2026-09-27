@@ -1,11 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
-import { apiFetch, type AppointmentListItem, type DoctorSummary } from "@/lib/api";
+import {
+  apiFetch,
+  type AppointmentListItem,
+  type DoctorSummary,
+  type RevenueTransaction,
+} from "@/lib/api";
 import { frameRange } from "@/lib/analytics";
-import { Tip } from "@/components/HoverTip";
+import DonutChart, { type DonutDatum } from "@/components/DonutChart";
 
 import BranchFilter, { type BranchOption } from "./BranchFilter";
 import { type Branch } from "./BranchList";
@@ -13,49 +17,31 @@ import TimeFilter, { type TimeFrame } from "./TimeFilter";
 
 /**
  * "Overall Analytics" section shown below the branch list on the clinic-selection
- * page. Three tabs over a shared **All Branch** + **All-Time** filter:
- *  - **Appointments** — four appointment stat cards (total / completed / pending /
- *    cancelled).
- *  - **Doctor Performance** — per-doctor appointment counts by status.
- *  - **Consultation Type & Lead Source** — appointment counts grouped by each.
+ * page (clinic admins only). It mirrors the in-clinic Analytics + Revenue pages'
+ * pie-chart UI — Doctor Performance and a Revenue Breakdown — but aggregated
+ * across the whole clinic.
  *
- * One clinic-wide fetch (appointments + doctors) feeds every tab; the timeframe
- * filters client-side and the branch filter scopes by each appointment's doctor's
- * branch (unassigned appointments drop out when a specific branch is picked).
+ * A shared **All Branch** + **All-Time** filter (both defaults) scopes every
+ * chart: with the defaults every appointment/transaction from the beginning of
+ * time is summed across all branches; narrowing the branch scopes by each
+ * appointment's doctor's branch (unassigned rows drop out) and the timeframe
+ * clips by date. One clinic-wide fetch feeds all charts; everything filters
+ * client-side.
  */
 
-type Tab = "appointments" | "doctor" | "counts";
-type SortDir = "high" | "low";
+const inr = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
-const STAT_CARDS = [
-  { key: "total", label: "Total Appointments", icon: "/clinic/productivity.svg" },
-  { key: "completed", label: "Total Appointments Completed", icon: "/clinic/event_available.svg" },
-  { key: "pending", label: "Total Appointments Pending", icon: "/clinic/hourglass_empty.svg" },
-  { key: "cancelled", label: "Total Appointments Cancelled", icon: "/clinic/cancel.svg" },
-] as const;
-type StatKey = (typeof STAT_CARDS)[number]["key"];
-
-const DOCTOR_COLUMNS = [
-  { key: "total", header: "Total" },
-  { key: "upcoming", header: "Upcoming" },
-  { key: "completed", header: "Completed" },
-  { key: "noShow", header: "No Show" },
-  { key: "cancelled", header: "Cancelled" },
-] as const;
-type DoctorColKey = (typeof DOCTOR_COLUMNS)[number]["key"];
-
-const DOC_COLS =
-  "grid-cols-[minmax(0,220fr)_minmax(0,120fr)_minmax(0,120fr)_minmax(0,120fr)_minmax(0,120fr)_minmax(0,120fr)]";
-
-interface DoctorRow {
-  id: string;
-  name: string;
-  counts: Record<DoctorColKey, number>;
-}
-
-/** "TEETH WHITENING" → "Teeth Whitening". */
-function titleCase(s: string): string {
-  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+/** Compact INR for the donut centre, e.g. "₹1.25 L" / "₹3.40 Cr" / "₹5.6K". */
+function inrCompact(n: number): string {
+  if (n >= 1e7) return `₹${(n / 1e7).toFixed(2)} Cr`;
+  if (n >= 1e5) return `₹${(n / 1e5).toFixed(2)} L`;
+  if (n >= 1e3) return `₹${(n / 1e3).toFixed(1)}K`;
+  return `₹${n}`;
 }
 
 /** Whether an ISO instant falls inside a timeframe (all-time → always true). */
@@ -66,51 +52,50 @@ function inRange(iso: string, tf: TimeFrame): boolean {
   return t >= r.from.getTime() && t <= r.to.getTime();
 }
 
-/** Count a list into `{ label, count }[]`, sorted by count (default high→low). */
-function countBy(
-  items: AppointmentListItem[],
-  keys: (a: AppointmentListItem) => string[],
-  sort: SortDir,
-): { label: string; count: number }[] {
-  const map = new Map<string, number>();
-  for (const a of items) {
-    for (const k of keys(a)) map.set(k, (map.get(k) ?? 0) + 1);
-  }
-  const rows = [...map].map(([label, count]) => ({ label, count }));
-  rows.sort((a, b) => (sort === "low" ? a.count - b.count : b.count - a.count));
-  return rows;
-}
+/** The Doctor Performance pie's status slices (mirrors the in-clinic Analytics
+ *  page): each partitions the total, so together they fill the ring. */
+const DOCTOR_STATUS_SLICES: { label: string; match: AppointmentListItem["status"] }[] = [
+  { label: "Pending", match: "CONFIRMED" },
+  { label: "On going", match: "ONGOING" },
+  { label: "Completed", match: "COMPLETED" },
+  { label: "No Show", match: "NO_SHOW" },
+  { label: "Cancelled", match: "CANCELLED" },
+];
+
+type Tab = "doctor" | "revenue";
 
 export default function OverallAnalytics({ branches }: { branches: Branch[] }) {
-  const [tab, setTab] = useState<Tab>("appointments");
+  const [tab, setTab] = useState<Tab>("doctor");
+  // Defaults: All Branch + All-Time — the section opens showing every branch's
+  // data from the beginning of time until the filters are narrowed.
   const [branchId, setBranchId] = useState("all");
   const [timeFrame, setTimeFrame] = useState<TimeFrame>({ kind: "all" });
 
   const [items, setItems] = useState<AppointmentListItem[]>([]);
   const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
+  const [transactions, setTransactions] = useState<RevenueTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [doctorQuery, setDoctorQuery] = useState("");
-  const [consultSort, setConsultSort] = useState<SortDir>("high");
-  const [leadSort, setLeadSort] = useState<SortDir>("high");
 
   useEffect(() => {
     let active = true;
     Promise.all([
       apiFetch<AppointmentListItem[]>("/appointments?limit=500"),
       apiFetch<DoctorSummary[]>("/doctors"),
+      apiFetch<RevenueTransaction[]>("/revenue/transactions"),
     ])
-      .then(([appts, docs]) => {
+      .then(([appts, docs, tx]) => {
         if (!active) return;
         // Pending (SCHEDULED) WhatsApp bookings live in their own popup until
         // accepted, so they're excluded from analytics — matching the dashboard.
         setItems(appts.filter((a) => a.status !== "SCHEDULED"));
         setDoctors(docs);
+        setTransactions(tx);
       })
       .catch(() => {
         if (!active) return;
         setItems([]);
         setDoctors([]);
+        setTransactions([]);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -145,137 +130,85 @@ export default function OverallAnalytics({ branches }: { branches: Branch[] }) {
     [items, timeFrame, branchId, doctorBranch],
   );
 
-  const cardCounts = useMemo<Record<StatKey, number>>(() => {
-    const by = (s: AppointmentListItem["status"]) => filtered.filter((a) => a.status === s).length;
-    return {
-      total: filtered.length,
-      completed: by("COMPLETED"),
-      pending: by("CONFIRMED"),
-      cancelled: by("CANCELLED") + by("NO_SHOW"),
-    };
-  }, [filtered]);
-
-  const scopedDoctors = useMemo(
-    () => (branchId === "all" ? doctors : doctors.filter((d) => d.branchId === branchId)),
-    [doctors, branchId],
-  );
-
-  const doctorRows = useMemo<DoctorRow[]>(() => {
-    const rows = scopedDoctors.map((d) => {
-      const mine = filtered.filter((a) => a.doctor.id === d.id);
-      const by = (s: AppointmentListItem["status"]) => mine.filter((a) => a.status === s).length;
-      return {
-        id: d.id,
-        name: d.name ? `Dr. ${d.name}` : "Unassigned",
-        counts: {
-          total: mine.length,
-          upcoming: by("CONFIRMED"),
-          completed: by("COMPLETED"),
-          noShow: by("NO_SHOW"),
-          cancelled: by("CANCELLED"),
-        },
-      };
-    });
-    const q = doctorQuery.trim().toLowerCase();
-    return q ? rows.filter((r) => r.name.toLowerCase().includes(q)) : rows;
-  }, [scopedDoctors, filtered, doctorQuery]);
-
-  const consultRows = useMemo(
+  const filteredTx = useMemo(
     () =>
-      countBy(
-        filtered,
-        (a) => (a.consultationType ?? "").split(",").map((c) => c.trim()).filter(Boolean).map(titleCase),
-        consultSort,
-      ),
-    [filtered, consultSort],
+      transactions.filter((t) => {
+        if (!inRange(t.date, timeFrame)) return false;
+        if (branchId !== "all" && t.branchId !== branchId) return false;
+        return true;
+      }),
+    [transactions, timeFrame, branchId],
   );
-  const leadRows = useMemo(
+
+  // Doctor Performance — appointment-status breakdown; zero-count slices dropped.
+  const doctorPie = useMemo<DonutDatum[]>(
     () =>
-      countBy(
-        filtered,
-        (a) => {
-          const s = a.sourceOfEnquiry?.trim();
-          return s ? [s] : [];
-        },
-        leadSort,
-      ),
-    [filtered, leadSort],
+      DOCTOR_STATUS_SLICES.map((s) => ({
+        key: s.label,
+        label: s.label,
+        value: filtered.filter((a) => a.status === s.match).length,
+      })).filter((d) => d.value > 0),
+    [filtered],
   );
+
+  // Revenue breakdown — generated (paid) vs pending (unpaid) amounts.
+  const revenuePie = useMemo<DonutDatum[]>(() => {
+    let generated = 0;
+    let pending = 0;
+    for (const t of filteredTx) {
+      if (t.paid) generated += t.amount;
+      else pending += t.amount;
+    }
+    return [
+      { key: "Completed", label: "Revenue Received", value: generated },
+      { key: "Pending", label: "Revenue Pending", value: pending },
+    ].filter((d) => d.value > 0);
+  }, [filteredTx]);
 
   return (
-    <section className="flex shrink-0 flex-col gap-[24px]">
-      <h2 className="font-inter text-[26px] font-bold leading-tight text-ink md:text-[30px]">
+    <section className="mt-4 flex shrink-0 flex-col gap-[24px] md:mt-8">
+      <h2 className="font-inter text-[23.333px] font-semibold leading-[32.667px] text-ink">
         Overall Analytics
       </h2>
 
       {/* Tabs */}
       <div className="flex w-fit max-w-full items-center gap-[6px] overflow-x-auto rounded-full border-[1.2px] border-field-border p-[5px]">
-        <TabButton label="Appointments" active={tab === "appointments"} onClick={() => setTab("appointments")} />
-        <TabButton label="Doctor Performance" active={tab === "doctor"} onClick={() => setTab("doctor")} />
-        <TabButton
-          label="Consultation Type & Lead Source"
-          active={tab === "counts"}
-          onClick={() => setTab("counts")}
-        />
+        <TabButton label="Appointments" active={tab === "doctor"} onClick={() => setTab("doctor")} />
+        <TabButton label="Revenue" active={tab === "revenue"} onClick={() => setTab("revenue")} />
       </div>
 
-      {/* Shared filters */}
+      {/* Shared filters (default All Branch + All-Time) */}
       <div className="flex flex-wrap items-center gap-3">
         <BranchFilter options={options} selectedId={branchId} onSelect={setBranchId} />
         <TimeFilter value={timeFrame} onChange={setTimeFrame} />
       </div>
 
-      {tab === "appointments" && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:gap-[28px] xl:grid-cols-4">
-          {STAT_CARDS.map((c) => (
-            <StatCard key={c.key} value={loading ? "—" : cardCounts[c.key]} label={c.label} icon={c.icon} />
-          ))}
+      {tab === "doctor" && (
+        <div className="grid grid-cols-1 gap-[28px] xl:grid-cols-2">
+          <ChartCard
+            title="Appointments :"
+            subtitle="Appointments by status across the clinic."
+            loading={loading}
+            data={doctorPie}
+          />
         </div>
       )}
 
-      {tab === "doctor" && (
-        <DoctorPerformance
-          rows={doctorRows}
-          query={doctorQuery}
-          onQueryChange={setDoctorQuery}
-          loading={loading}
-        />
-      )}
-
-      {tab === "counts" && (
-        <div className="grid grid-cols-1 items-start gap-[28px] md:grid-cols-2">
-          <CountCard
-            title="Consultation Type"
-            rows={consultRows}
-            sort={consultSort}
-            onToggleSort={() => setConsultSort((s) => (s === "high" ? "low" : "high"))}
+      {tab === "revenue" && (
+        <div className="grid grid-cols-1 gap-[28px] xl:grid-cols-2">
+          <ChartCard
+            title="Revenue :"
+            subtitle="Breakdown of received and pending revenue"
             loading={loading}
-            emptyLabel="No consultation types yet."
-          />
-          <CountCard
-            title="Lead Source"
-            rows={leadRows}
-            sort={leadSort}
-            onToggleSort={() => setLeadSort((s) => (s === "high" ? "low" : "high"))}
-            loading={loading}
-            emptyLabel="No lead sources yet."
+            data={revenuePie}
+            formatValue={(n) => inr.format(n)}
+            formatCenter={inrCompact}
+            totalLabel="Total Revenue"
+            emptyLabel="No revenue recorded yet."
           />
         </div>
       )}
     </section>
-  );
-}
-
-/** One appointment stat card (blue, number + label + icon). */
-function StatCard({ value, label, icon }: { value: number | string; label: string; icon: string }) {
-  return (
-    <div className="flex h-[170px] flex-col justify-between overflow-hidden rounded-[24px] bg-brand p-6">
-      <div className="flex flex-col gap-[4px]">
-        <span className="font-inter text-[34px] font-bold leading-[40px] text-white">{value}</span>
-        <span className="font-inter text-[16px] font-medium leading-[22px] text-white">{label}</span>
-      </div>
-      <Image src={icon} alt="" width={32} height={32} className="size-8" />
-    </div>
   );
 }
 
@@ -295,156 +228,48 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
-/** The "Doctor Performance" tab: a search box + a per-doctor counts table. */
-function DoctorPerformance({
-  rows,
-  query,
-  onQueryChange,
-  loading,
-}: {
-  rows: DoctorRow[];
-  query: string;
-  onQueryChange: (q: string) => void;
-  loading: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="relative w-full sm:w-[340px]">
-        <Image
-          src="/clinic/search.svg"
-          alt=""
-          width={24}
-          height={24}
-          className="pointer-events-none absolute left-4 top-1/2 size-6 -translate-y-1/2"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search doctor name"
-          aria-label="Search doctor name"
-          className="h-[54px] w-full rounded-full border-[1.167px] border-field-border bg-white pl-[52px] pr-4 font-inter text-[16px] text-ink outline-none placeholder:text-field-placeholder focus:border-brand"
-        />
-      </div>
-
-      <div className="overflow-x-auto rounded-[24px] border-[1.2px] border-field-border bg-white">
-        <div className={`grid ${DOC_COLS} min-w-[720px] border-b-[1.2px] border-[rgba(194,198,212,0.5)]`}>
-          <span className="px-6 py-5 font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.5px] text-[#727783]">
-            Doctor Name
-          </span>
-          {DOCTOR_COLUMNS.map((c) => (
-            <span
-              key={c.key}
-              className="px-3 py-5 font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.5px] text-[#727783]"
-            >
-              {c.header}
-            </span>
-          ))}
-        </div>
-
-        {loading ? (
-          <p className="px-6 py-8 font-inter text-[16px] text-ink/60">Loading analytics…</p>
-        ) : rows.length === 0 ? (
-          <p className="px-6 py-8 font-inter text-[16px] text-ink/60">
-            {query.trim() ? "No doctors match your search." : "No doctors yet."}
-          </p>
-        ) : (
-          rows.map((r) => (
-            <div
-              key={r.id}
-              className={`grid ${DOC_COLS} min-w-[720px] items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0`}
-            >
-              <span className="px-6 py-5 font-inter text-[15px] font-medium leading-[21px] text-ink">
-                {r.name}
-              </span>
-              {DOCTOR_COLUMNS.map((c) => (
-                <span
-                  key={c.key}
-                  className="px-3 py-5 font-inter text-[15px] font-medium leading-[21px] text-ink"
-                >
-                  {r.counts[c.key]}
-                </span>
-              ))}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** An appointment-counts card: a title + a sort toggle, then `label → count` rows. */
-function CountCard({
+/** A bordered analytics card: title + hint, then the shared donut chart. Matches
+ *  the in-clinic Analytics / Revenue pages' chart cards. The overview charts are
+ *  read-only (no drill-down — there's no clinic route to open from here). */
+function ChartCard({
   title,
-  rows,
-  sort,
-  onToggleSort,
+  subtitle,
   loading,
+  data,
+  formatValue,
+  formatCenter,
+  totalLabel,
   emptyLabel,
 }: {
   title: string;
-  rows: { label: string; count: number }[];
-  sort: SortDir;
-  onToggleSort: () => void;
+  subtitle: string;
   loading: boolean;
-  emptyLabel: string;
+  data: DonutDatum[];
+  formatValue?: (n: number) => string;
+  formatCenter?: (n: number) => string;
+  totalLabel?: string;
+  emptyLabel?: string;
 }) {
-  const sortLabel = sort === "low" ? "Low to High" : "High to Low";
   return (
-    <div className="flex flex-col gap-[20px] rounded-[24px] border-[1.2px] border-field-border bg-white p-[26px]">
-      <div className="flex items-start gap-[16px]">
-        <div className="flex-1">
-          <h3 className="font-inter text-[18px] font-bold uppercase leading-[24px] tracking-[0.4px] text-ink">
-            {title}
-          </h3>
-          <p className="mt-[3px] font-inter text-[14px] leading-[20px] text-[#727783]">Appointment Counts</p>
-        </div>
-        <button
-          type="button"
-          onClick={onToggleSort}
-          aria-label={`Sort ${sortLabel}`}
-          className="group relative flex size-[48px] shrink-0 items-center justify-center rounded-full border-[1.4px] border-field-border text-ink transition-colors hover:border-brand hover:text-brand"
-        >
-          <SortIcon dir={sort} className="size-6" />
-          <Tip label={sortLabel} below />
-        </button>
+    <div className="flex flex-col gap-[24px] rounded-[28px] border-[1.2px] border-field-border bg-white p-[28px]">
+      <div>
+        <h3 className="font-inter text-[18px] font-bold uppercase leading-[24px] tracking-[0.4px] text-ink">
+          {title}
+        </h3>
+        <p className="mt-[3px] font-inter text-[14px] leading-[20px] text-[#727783]">{subtitle}</p>
       </div>
-      <div className="flex flex-col gap-[14px]">
-        {loading ? (
-          <p className="py-6 font-inter text-[15px] text-ink/60">Loading…</p>
-        ) : rows.length === 0 ? (
-          <p className="py-6 font-inter text-[15px] text-ink/60">{emptyLabel}</p>
-        ) : (
-          rows.map((r) => (
-            <div
-              key={r.label}
-              className="flex items-center justify-between rounded-[14px] border-[1.2px] border-field-border px-[22px] py-[18px]"
-            >
-              <span className="font-inter text-[16px] leading-[22px] text-ink">{r.label}</span>
-              <span className="font-inter text-[22px] font-bold leading-[26px] text-brand">{r.count}</span>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** Sort-direction glyph (ascending bars for low→high, descending for high→low). */
-function SortIcon({ dir, className }: { dir: SortDir; className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      {dir === "low" ? (
-        <>
-          <path d="M4 6h4M4 12h7M4 18h10" />
-          <path d="M19 20V8M16 11l3-3 3 3" />
-        </>
+      {loading ? (
+        <p className="py-6 font-inter text-[15px] text-[#94a3b8]">Loading…</p>
       ) : (
-        <>
-          <path d="M4 6h10M4 12h7M4 18h4" />
-          <path d="M19 8v12M16 17l3 3 3-3" />
-        </>
+        <DonutChart
+          data={data}
+          onSelect={() => {}}
+          formatValue={formatValue}
+          formatCenter={formatCenter}
+          totalLabel={totalLabel}
+          emptyLabel={emptyLabel}
+        />
       )}
-    </svg>
+    </div>
   );
 }
