@@ -455,22 +455,32 @@ documents). All scoped to the caller's clinic; `404` when the patient isn't in i
 
 - `GET /:patientId/records` → the full bundle:
   `{ teeth[], medHistory[], observations[], documents[] }`
-  (`teeth[i]` = `{ id, toothNo, remarks, createdById, createdAt }`;
-  `medHistory[i]` = `{ id, text, createdById, createdAt }`;
-  `observations[i]` = `{ id, text, createdById, createdAt }`;
-  `documents[i]` = `{ id, category, name, size, mimeType, createdByName, createdAt }` —
+  (`teeth[i]` = `{ id, toothNo, remarks, createdById, createdByName, appointmentId, createdAt }`;
+  `medHistory[i]` = `{ id, text, createdById, createdByName, appointmentId, createdAt }`;
+  `observations[i]` = `{ id, text, createdById, createdByName, appointmentId, createdAt }`;
+  `createdByName` is the author's display name — any role — shown as
+  "Comments by &lt;name&gt; on &lt;date&gt;" in the Patient History Summary;
+  `documents[i]` = `{ id, category, name, size, mimeType, createdByName, appointmentId, createdAt }` —
   `createdByName` is the uploader, shown on the card).
+  `appointmentId` is the visit the entry was recorded under (`null` for legacy
+  rows / after that appointment is deleted); the Patient History Summary groups
+  each visit's card by it, falling back to date for `null`.
 - **Creator-only edits:** for the three text tables (observations / teeth /
   medical-history), `PATCH` and `DELETE` are allowed **only for the user who created
   the entry** — anyone else gets **403**. **Exception:** CLIENT_ADMIN and SUPER_ADMIN
   may edit/delete **any** entry regardless of creator. Legacy rows with no recorded
   creator (`createdById: null`) stay editable by anyone.
-- `POST /:patientId/records/observations` — `{ "text" }`. **201** → observation entry.
+  The three text tables' create bodies (and the document upload's multipart form)
+  also accept an optional `appointmentId` (UUID) — the visit the entry is recorded
+  under; omit it for an un-stamped entry. It is **not** editable via `PATCH` (an
+  edit keeps the entry's original visit). The editable Patient Records view scopes
+  every section to this appointment; entries from other visits don't appear there.
+- `POST /:patientId/records/observations` — `{ "text", "appointmentId"? }`. **201** → observation entry.
   `PATCH`/`DELETE …/:entryId` as below (creator-only).
-- `POST /:patientId/records/teeth` — `{ "toothNo", "remarks" }`. **201** → tooth entry.
-- `PATCH /:patientId/records/teeth/:entryId` — partial. **200** · `DELETE …/:entryId` → **204** (creator-only).
-- `POST /:patientId/records/medical-history` — `{ "text" }`. **201**. `PATCH`/`DELETE …/:entryId` as above (creator-only).
-- `POST /:patientId/records/documents` — **multipart** (`category` field + `file`, ≤25 MB). **201** → document.
+- `POST /:patientId/records/teeth` — `{ "toothNo", "remarks", "appointmentId"? }`. **201** → tooth entry.
+- `PATCH /:patientId/records/teeth/:entryId` — partial (`toothNo`/`remarks`). **200** · `DELETE …/:entryId` → **204** (creator-only).
+- `POST /:patientId/records/medical-history` — `{ "text", "appointmentId"? }`. **201**. `PATCH`/`DELETE …/:entryId` as above (creator-only).
+- `POST /:patientId/records/documents` — **multipart** (`category` field + `file`, ≤25 MB; optional `appointmentId` field). **201** → document.
 - `GET /:patientId/records/documents/:documentId/download` — streams the file inline.
 - `DELETE /:patientId/records/documents/:documentId` → **204**.
 - `GET /:patientId/records/logs` — **admins only** (CLIENT_ADMIN / SUPER_ADMIN; `403`

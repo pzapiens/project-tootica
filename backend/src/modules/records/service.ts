@@ -10,23 +10,33 @@ type ObservationRow = Awaited<ReturnType<typeof repo.createObservation>>;
 type DocRow = Awaited<ReturnType<typeof repo.createDocument>>;
 
 // Shape rows for the client — never leak clinicId/patientId or the storageKey.
+// `appointmentId` is the visit the entry was recorded under (null for legacy
+// rows); the Patient History Summary groups by it.
 const toTooth = (r: ToothRow) => ({
   id: r.id,
   toothNo: r.toothNo,
   remarks: r.remarks,
   createdById: r.createdById,
+  // Denormalized author name (any role) — shown as "Comments by <name>" in the
+  // Patient History Summary. Null for legacy rows created before this was tracked.
+  createdByName: r.createdByName,
+  appointmentId: r.appointmentId,
   createdAt: r.createdAt,
 });
 const toMed = (r: MedRow) => ({
   id: r.id,
   text: r.text,
   createdById: r.createdById,
+  createdByName: r.createdByName,
+  appointmentId: r.appointmentId,
   createdAt: r.createdAt,
 });
 const toObservation = (r: ObservationRow) => ({
   id: r.id,
   text: r.text,
   createdById: r.createdById,
+  createdByName: r.createdByName,
+  appointmentId: r.appointmentId,
   createdAt: r.createdAt,
 });
 const toDoc = (r: DocRow) => ({
@@ -37,6 +47,7 @@ const toDoc = (r: DocRow) => ({
   mimeType: r.mimeType,
   // Uploader — shown on the document card.
   createdByName: r.createdByName,
+  appointmentId: r.appointmentId,
   createdAt: r.createdAt,
 });
 
@@ -130,9 +141,15 @@ export const recordsService = {
   },
 
   // --- observations ---------------------------------------------------------
-  addObservation: async (clinicId: string, patientId: string, text: string, userId: string) => {
+  addObservation: async (
+    clinicId: string,
+    patientId: string,
+    text: string,
+    userId: string,
+    appointmentId?: string,
+  ) => {
     await ensurePatient(clinicId, patientId);
-    const row = await repo.createObservation(clinicId, patientId, text, await actor(userId));
+    const row = await repo.createObservation(clinicId, patientId, text, await actor(userId), appointmentId);
     await logChange({
       clinicId,
       patientId,
@@ -255,9 +272,15 @@ export const recordsService = {
   },
 
   // --- medical history ------------------------------------------------------
-  addMed: async (clinicId: string, patientId: string, text: string, userId: string) => {
+  addMed: async (
+    clinicId: string,
+    patientId: string,
+    text: string,
+    userId: string,
+    appointmentId?: string,
+  ) => {
     await ensurePatient(clinicId, patientId);
-    const row = await repo.createMed(clinicId, patientId, text, await actor(userId));
+    const row = await repo.createMed(clinicId, patientId, text, await actor(userId), appointmentId);
     await logChange({
       clinicId,
       patientId,
@@ -321,6 +344,7 @@ export const recordsService = {
     category: DocumentCategory,
     file: Express.Multer.File | undefined,
     userId: string,
+    appointmentId?: string,
   ) => {
     await ensurePatient(clinicId, patientId);
     if (!file) {
@@ -336,6 +360,7 @@ export const recordsService = {
         size: file.size,
         mimeType: file.mimetype,
         storageKey,
+        appointmentId,
       },
       await actor(userId),
     );

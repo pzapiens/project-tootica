@@ -6,8 +6,12 @@ steps to run it on **AWS API Gateway + Lambda** without rewriting the app.
 - Audience: whoever does the AWS migration.
 - TL;DR: the app already exposes a serverless entry point (`src/lambda.ts`) that
   wraps the *same* Express app used locally. The work is mostly swapping a few
-  interface implementations (OTP store, email) and getting the surrounding AWS
-  plumbing right (connections, secrets, cookies/CORS).
+  interface implementations (OTP store, email, **file storage → S3**) and getting
+  the surrounding AWS plumbing right (connections, secrets, cookies/CORS).
+- **Executing the migration?** Follow the step-by-step runbook in
+  [`AWS_NEXT_STEPS.md`](./AWS_NEXT_STEPS.md) — this document is the *why/what*
+  (architecture + rationale); that one is the ordered *how* (provision → swap
+  seams → migrate DB → deploy → cut over).
 
 ---
 

@@ -8,6 +8,7 @@ import {
   createObservationSchema,
   createToothRemarkSchema,
   documentCategorySchema,
+  optionalAppointmentIdSchema,
   updateMedHistorySchema,
   updateObservationSchema,
   updateToothRemarkSchema,
@@ -23,10 +24,18 @@ export const recordsController = {
   // --- observations ---------------------------------------------------------
   addObservation: async (req: Request, res: Response) => {
     const clinicId = requireClinicId(req);
-    const { text } = createObservationSchema.parse(req.body);
+    const { text, appointmentId } = createObservationSchema.parse(req.body);
     res
       .status(201)
-      .json(await recordsService.addObservation(clinicId, req.params.patientId, text, req.user!.id));
+      .json(
+        await recordsService.addObservation(
+          clinicId,
+          req.params.patientId,
+          text,
+          req.user!.id,
+          appointmentId,
+        ),
+      );
   },
 
   updateObservation: async (req: Request, res: Response) => {
@@ -69,10 +78,18 @@ export const recordsController = {
   // --- medical history ------------------------------------------------------
   addMed: async (req: Request, res: Response) => {
     const clinicId = requireClinicId(req);
-    const { text } = createMedHistorySchema.parse(req.body);
+    const { text, appointmentId } = createMedHistorySchema.parse(req.body);
     res
       .status(201)
-      .json(await recordsService.addMed(clinicId, req.params.patientId, text, req.user!.id));
+      .json(
+        await recordsService.addMed(
+          clinicId,
+          req.params.patientId,
+          text,
+          req.user!.id,
+          appointmentId,
+        ),
+      );
   },
 
   updateMed: async (req: Request, res: Response) => {
@@ -93,6 +110,8 @@ export const recordsController = {
   addDocument: async (req: Request, res: Response) => {
     const clinicId = requireClinicId(req);
     const category = documentCategorySchema.parse(req.body.category);
+    // Multipart text field — the appointment this upload belongs to (optional).
+    const appointmentId = optionalAppointmentIdSchema.parse(req.body.appointmentId || undefined);
     res
       .status(201)
       .json(
@@ -102,6 +121,7 @@ export const recordsController = {
           category,
           req.file,
           req.user!.id,
+          appointmentId,
         ),
       );
   },

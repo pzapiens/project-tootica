@@ -163,6 +163,10 @@ export const authService = {
     await smsProvider.send({
       to: user.phone,
       body: `Your Tootica login code is ${code}. It expires in ${expiryMinutes} minutes. Do not share it with anyone.`,
+      // Structured vars for template-based gateways (MSG91 DLT); free-form
+      // providers (console/Twilio) use `body` above and ignore these.
+      otp: code,
+      expiryMinutes,
     });
   },
 

@@ -301,6 +301,9 @@ export default function AppointmentsClient() {
       name: string;
       code: string;
       id: string;
+      /** The appointment the Records view was opened from — stamped onto new
+       *  entries so the Patient History Summary can group records per visit. */
+      appointmentId: string;
       message: string;
       appointmentCode: string;
       appointmentDate: string;
@@ -501,6 +504,7 @@ export default function AppointmentsClient() {
         patientName={records.name}
         patientCode={records.code}
         patientId={records.id}
+        appointmentId={records.appointmentId}
         message={records.message}
         appointmentCode={records.appointmentCode}
         appointmentDate={records.appointmentDate}
@@ -683,6 +687,7 @@ export default function AppointmentsClient() {
                     name: row.patientName,
                     code: item.patient.code ?? "—",
                     id: item.patient.id ?? "",
+                    appointmentId: item.id,
                     message: row.message,
                     appointmentCode: row.code,
                     appointmentDate: row.date,

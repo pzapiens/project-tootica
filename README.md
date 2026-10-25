@@ -148,7 +148,12 @@ Browser → localhost:3000 (Next.js UI)
 - `backend/docs/ACCOUNTS.md` — the seeded accounts (credentials + structure) and
   how to reproduce them on another machine.
 - `backend/docs/API_CONTRACT.md` — endpoint request/response shapes.
+- `backend/docs/DEPLOY_PAAS.md` — **go-live guide for Railway / Render** (one
+  clinic, cheapest path, no code changes; email + phone-OTP setup). Start here.
+- `backend/docs/AWS_MIGRATION_GUIDE.md` — **detailed start-to-end AWS migration
+  runbook** (code diffs for the four seams, CDK IaC, exact commands) — for later.
 - `backend/docs/AWS_MIGRATION.md` — architecture + AWS (API Gateway + Lambda) plan.
+- `backend/docs/AWS_NEXT_STEPS.md` — high-level ordered checklist.
 - `backend/postman/` — importable Postman collection.
 
 ## Project layout

@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { apiFetch, type AppointmentListItem, type DoctorSummary, type Patient } from "@/lib/api";
+import { apiFetch, type AppointmentListItem, type Patient } from "@/lib/api";
 import {
   getPatientRecord,
   loadPatientRecord,
@@ -52,6 +52,13 @@ function fmtClock(iso: string): string {
   return `${p2(h)}:${p2(d.getMinutes())} ${period}`;
 }
 
+/** ISO datetime → "dd/mm/yyyy" (local) — matches the record entries' `date`
+ *  field, so legacy (un-stamped) entries can be matched to a visit by day. */
+function fmtDdMmYyyy(iso: string): string {
+  const d = new Date(iso);
+  return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
 /** Upper-case-ish gender code → "Male" / "Female" / title-cased fallback. */
 function titleCase(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
@@ -75,7 +82,8 @@ interface TabEntry {
   text: string;
   /** dd/mm/yyyy of the entry. */
   date: string;
-  /** Resolved "Dr. Name" of the author, or null when unknown. */
+  /** Display name of the user who wrote the comment (any role), or null for
+   *  legacy entries with no recorded author. */
   author: string | null;
 }
 
@@ -91,7 +99,6 @@ export default function PatientHistoryClient() {
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<AppointmentListItem[]>([]);
-  const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   const rev = useRecordsRevision();
@@ -104,13 +111,11 @@ export default function PatientHistoryClient() {
     Promise.all([
       apiFetch<Patient[]>("/patients").catch(() => [] as Patient[]),
       apiFetch<AppointmentListItem[]>("/appointments?limit=500").catch(() => [] as AppointmentListItem[]),
-      apiFetch<DoctorSummary[]>("/doctors").catch(() => [] as DoctorSummary[]),
     ])
-      .then(([ps, as, ds]) => {
+      .then(([ps, as]) => {
         if (!active) return;
         setPatient(ps.find((p) => p.id === id) ?? null);
         setAppointments(as);
-        setDoctors(ds);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -120,47 +125,36 @@ export default function PatientHistoryClient() {
     };
   }, [id]);
 
-  // createdById (a user id) → "Dr. Name", so entry meta can show "Added by …".
-  const authorById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const d of doctors) {
-      const name = d.name ? `Dr. ${d.name}` : null;
-      if (!name) continue;
-      if (d.userId) m.set(d.userId, name);
-      m.set(d.id, name);
-    }
-    return m;
-  }, [doctors]);
-
   // The patient's PAST appointments, newest first (a "previous appointment").
   const pastAppointments = useMemo(() => pastAppointmentsFor(appointments, id), [appointments, id]);
 
-  // Records aren't stored per-appointment, so every card surfaces the patient's
-  // FULL record set per tab — each entry keeps its own input date + author.
-  const tabEntries = useMemo<Record<TabKey, TabEntry[]>>(() => {
-    const authorFor = (createdById: string | null) =>
-      createdById ? authorById.get(createdById) ?? null : null;
-    return {
-      observation: record.observations.map((e) => ({
-        id: e.id,
-        text: e.text,
-        date: e.date,
-        author: authorFor(e.createdById),
-      })),
-      perio: record.teeth.map((e) => ({
-        id: e.id,
-        text: `Tooth ${e.toothNo} : ${e.remarks}`,
-        date: e.date,
-        author: authorFor(e.createdById),
-      })),
-      medical: record.medHistory.map((e) => ({
-        id: e.id,
-        text: e.text,
-        date: e.date,
-        author: authorFor(e.createdById),
-      })),
-    };
-  }, [record, authorById]);
+  // Records are stamped with the appointment they were entered under, so each
+  // card shows only that visit's entries. Legacy rows (no appointmentId) fall
+  // back to matching the visit by day. Returns the three tabs for one appointment.
+  const entriesForAppointment = useCallback(
+    (appt: AppointmentListItem): Record<TabKey, TabEntry[]> => {
+      const apptDay = fmtDdMmYyyy(appt.startTime);
+      const belongs = (appointmentId: string | null, date: string) =>
+        appointmentId === appt.id || (appointmentId == null && date === apptDay);
+      return {
+        observation: record.observations
+          .filter((e) => belongs(e.appointmentId, e.date))
+          .map((e) => ({ id: e.id, text: e.text, date: e.date, author: e.createdByName })),
+        perio: record.teeth
+          .filter((e) => belongs(e.appointmentId, e.date))
+          .map((e) => ({
+            id: e.id,
+            text: `Tooth ${e.toothNo} : ${e.remarks}`,
+            date: e.date,
+            author: e.createdByName,
+          })),
+        medical: record.medHistory
+          .filter((e) => belongs(e.appointmentId, e.date))
+          .map((e) => ({ id: e.id, text: e.text, date: e.date, author: e.createdByName })),
+      };
+    },
+    [record],
+  );
 
   const age = ageFromDob(patient?.dob ?? null);
   const lastVisit = pastAppointments[0] ? fmtDayMonYear(pastAppointments[0].startTime) : "--";
@@ -217,7 +211,7 @@ export default function PatientHistoryClient() {
                 code={appt.code ?? "—"}
                 date={fmtDayMonYear(appt.startTime)}
                 time={noTime ? "" : `${fmtClock(appt.startTime)} - ${fmtClock(appt.endTime)}`}
-                entries={tabEntries}
+                entries={entriesForAppointment(appt)}
               />
             );
           })}
@@ -292,11 +286,17 @@ function AppointmentHistoryCard({
               <div key={e.id} className="flex flex-col gap-[6px]">
                 <p className="font-manrope text-[15px] font-normal leading-[1.4] text-[#1e1e24]">{e.text}</p>
                 <p className="font-manrope text-[11px] leading-[normal] text-[#727783]">
-                  <span className="font-semibold text-[#0077c0]">{e.date}</span>
-                  {e.author && (
+                  {e.author ? (
                     <>
-                      {" | Added by "}
+                      {"Comments by "}
                       <span className="font-semibold text-[#0077c0]">{e.author}</span>
+                      {" on "}
+                      <span className="font-semibold text-[#0077c0]">{e.date}</span>
+                    </>
+                  ) : (
+                    <>
+                      {"Comments on "}
+                      <span className="font-semibold text-[#0077c0]">{e.date}</span>
                     </>
                   )}
                 </p>

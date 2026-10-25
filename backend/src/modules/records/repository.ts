@@ -42,9 +42,17 @@ export const recordsRepository = {
     patientId: string,
     text: string,
     createdBy: { id: string; name: string },
+    appointmentId?: string,
   ) =>
     prisma.observationEntry.create({
-      data: { clinicId, patientId, text, createdById: createdBy.id, createdByName: createdBy.name },
+      data: {
+        clinicId,
+        patientId,
+        text,
+        appointmentId,
+        createdById: createdBy.id,
+        createdByName: createdBy.name,
+      },
     }),
 
   updateObservation: (clinicId: string, id: string, text: string) =>
@@ -82,9 +90,17 @@ export const recordsRepository = {
     patientId: string,
     text: string,
     createdBy: { id: string; name: string },
+    appointmentId?: string,
   ) =>
     prisma.medicalHistoryEntry.create({
-      data: { clinicId, patientId, text, createdById: createdBy.id, createdByName: createdBy.name },
+      data: {
+        clinicId,
+        patientId,
+        text,
+        appointmentId,
+        createdById: createdBy.id,
+        createdByName: createdBy.name,
+      },
     }),
 
   updateMed: (clinicId: string, id: string, text: string) =>
@@ -106,6 +122,7 @@ export const recordsRepository = {
       size: number;
       mimeType: string;
       storageKey: string;
+      appointmentId?: string;
     },
     createdBy: { id: string; name: string },
   ) =>

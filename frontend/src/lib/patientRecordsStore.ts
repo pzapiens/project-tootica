@@ -25,6 +25,12 @@ export interface ToothEntry {
   date: string;
   /** The user who created it — only they may edit/delete (null for legacy rows). */
   createdById: string | null;
+  /** Author's display name (any role), shown as "Comments by <name>" in the
+   *  history summary. Null for legacy rows. */
+  createdByName: string | null;
+  /** The appointment this was entered under (null for legacy rows). The Patient
+   *  History Summary groups by it. */
+  appointmentId: string | null;
 }
 
 export interface MedHistoryEntry {
@@ -34,6 +40,10 @@ export interface MedHistoryEntry {
   date: string;
   /** The user who created it — only they may edit/delete (null for legacy rows). */
   createdById: string | null;
+  /** Author's display name (any role). Null for legacy rows. */
+  createdByName: string | null;
+  /** The appointment this was entered under (null for legacy rows). */
+  appointmentId: string | null;
 }
 
 export interface ObservationEntry {
@@ -43,6 +53,10 @@ export interface ObservationEntry {
   date: string;
   /** The user who created it — only they may edit/delete (null for legacy rows). */
   createdById: string | null;
+  /** Author's display name (any role). Null for legacy rows. */
+  createdByName: string | null;
+  /** The appointment this was entered under (null for legacy rows). */
+  appointmentId: string | null;
 }
 
 /** Which document upload section a file belongs to. */
@@ -62,6 +76,8 @@ export interface DocEntry {
   dateTime: string;
   /** The uploader's display name (null for legacy uploads). */
   createdByName: string | null;
+  /** The appointment this was uploaded under (null for legacy uploads). */
+  appointmentId: string | null;
 }
 
 export interface PatientRecord {
@@ -80,9 +96,17 @@ const cache = new Map<string, PatientRecord>();
 /* -------------------------------------------------- backend bundle → view shape */
 
 interface BundleDto {
-  teeth: { id: string; toothNo: string; remarks: string; createdById: string | null; createdAt: string }[];
-  medHistory: { id: string; text: string; createdById: string | null; createdAt: string }[];
-  observations: { id: string; text: string; createdById: string | null; createdAt: string }[];
+  teeth: {
+    id: string;
+    toothNo: string;
+    remarks: string;
+    createdById: string | null;
+    createdByName: string | null;
+    appointmentId: string | null;
+    createdAt: string;
+  }[];
+  medHistory: { id: string; text: string; createdById: string | null; createdByName: string | null; appointmentId: string | null; createdAt: string }[];
+  observations: { id: string; text: string; createdById: string | null; createdByName: string | null; appointmentId: string | null; createdAt: string }[];
   documents: {
     id: string;
     category: string;
@@ -90,6 +114,7 @@ interface BundleDto {
     size: number;
     mimeType: string;
     createdByName: string | null;
+    appointmentId: string | null;
     createdAt: string;
   }[];
 }
@@ -118,18 +143,24 @@ function toRecord(b: BundleDto): PatientRecord {
       remarks: t.remarks,
       date: fmtDate(t.createdAt),
       createdById: t.createdById,
+      createdByName: t.createdByName,
+      appointmentId: t.appointmentId,
     })),
     medHistory: b.medHistory.map((m) => ({
       id: m.id,
       text: m.text,
       date: fmtDate(m.createdAt),
       createdById: m.createdById,
+      createdByName: m.createdByName,
+      appointmentId: m.appointmentId,
     })),
     observations: b.observations.map((o) => ({
       id: o.id,
       text: o.text,
       date: fmtDate(o.createdAt),
       createdById: o.createdById,
+      createdByName: o.createdByName,
+      appointmentId: o.appointmentId,
     })),
     documents: b.documents.map((d) => ({
       id: d.id,
@@ -140,6 +171,7 @@ function toRecord(b: BundleDto): PatientRecord {
       date: fmtDate(d.createdAt),
       dateTime: fmtDateTime(d.createdAt),
       createdByName: d.createdByName,
+      appointmentId: d.appointmentId,
     })),
   };
 }
@@ -173,11 +205,15 @@ async function mutate(patientId: string, write: () => Promise<unknown>): Promise
 
 /* ---------------------------------------------------------------- observations */
 
-export function addObservation(patientId: string, text: string): Promise<void> {
+export function addObservation(
+  patientId: string,
+  text: string,
+  appointmentId?: string,
+): Promise<void> {
   return mutate(patientId, () =>
     apiFetch(`/patients/${patientId}/records/observations`, {
       method: "POST",
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, appointmentId }),
     }),
   );
 }
@@ -199,11 +235,16 @@ export function removeObservation(patientId: string, id: string): Promise<void> 
 
 /* ------------------------------------------------------------ tooth-wise remarks */
 
-export function addToothEntry(patientId: string, toothNo: string, remarks: string): Promise<void> {
+export function addToothEntry(
+  patientId: string,
+  toothNo: string,
+  remarks: string,
+  appointmentId?: string,
+): Promise<void> {
   return mutate(patientId, () =>
     apiFetch(`/patients/${patientId}/records/teeth`, {
       method: "POST",
-      body: JSON.stringify({ toothNo, remarks }),
+      body: JSON.stringify({ toothNo, remarks, appointmentId }),
     }),
   );
 }
@@ -230,11 +271,15 @@ export function removeToothEntry(patientId: string, id: string): Promise<void> {
 
 /* ------------------------------------------------------------- medical history */
 
-export function addMedHistory(patientId: string, text: string): Promise<void> {
+export function addMedHistory(
+  patientId: string,
+  text: string,
+  appointmentId?: string,
+): Promise<void> {
   return mutate(patientId, () =>
     apiFetch(`/patients/${patientId}/records/medical-history`, {
       method: "POST",
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, appointmentId }),
     }),
   );
 }
@@ -256,11 +301,18 @@ export function removeMedHistory(patientId: string, id: string): Promise<void> {
 
 /* ------------------------------------------------------------------- documents */
 
-/** Upload a document (multipart) under a section. */
-export function addDocument(patientId: string, category: DocCategory, file: File): Promise<void> {
+/** Upload a document (multipart) under a section, stamped with the appointment
+ *  it was uploaded under (so each visit's Records screen shows only its files). */
+export function addDocument(
+  patientId: string,
+  category: DocCategory,
+  file: File,
+  appointmentId?: string,
+): Promise<void> {
   const form = new FormData();
   form.append("category", category);
   form.append("file", file);
+  if (appointmentId) form.append("appointmentId", appointmentId);
   return mutate(patientId, () => apiUpload(`/patients/${patientId}/records/documents`, form));
 }
 

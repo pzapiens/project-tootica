@@ -7,6 +7,12 @@ import { createPortal } from "react-dom";
 import PasswordToggle from "@/components/PasswordToggle";
 import { apiFetch, ApiError, type MessageResponse } from "@/lib/api";
 import { checkPassword, passwordPolicyError } from "@/lib/password";
+import {
+  POLICY_EFFECTIVE_DATE,
+  PRIVACY_SECTIONS,
+  TERMS_SECTIONS,
+  type PolicySection,
+} from "@/lib/policies";
 
 /**
  * "Reset Password" card shown on the first login (Figma "RP Card on login").
@@ -201,7 +207,7 @@ export default function ResetPasswordPopup({ onClose }: { onClose: () => void })
     {policy && (
       <PolicyPopup
         title={policy === "terms" ? "Terms & Conditions" : "Privacy Policy"}
-        paragraphs={policy === "terms" ? TERMS_PARAGRAPHS : PRIVACY_PARAGRAPHS}
+        sections={policy === "terms" ? TERMS_SECTIONS : PRIVACY_SECTIONS}
         onClose={() => setPolicy(null)}
       />
     )}
@@ -250,27 +256,18 @@ function PasswordField({
   );
 }
 
-const TERMS_PARAGRAPHS = [
-  "By using this application, you agree to provide accurate, complete, and valid information whenever required and to use the application only for its intended purpose. You agree not to misuse, modify, copy, disrupt, or attempt to interfere with the application, its features, or services in any unauthorized manner. You are responsible for ensuring that the information provided by you is correct and up to date. Your information and personal data will be collected, processed, stored, and used in accordance with the applicable Privacy Policy and relevant regulations. You also agree to follow all instructions and guidelines provided while using the application.",
-];
-
-const PRIVACY_PARAGRAPHS = [
-  "We respect your privacy and are committed to protecting the personal information you provide while using this application. The information collected may include details required to provide and manage the requested services, verify your identity, process transactions, and improve your overall experience.",
-  "Your information will be handled securely and will only be accessed, processed, or shared where necessary to provide the requested services, comply with applicable laws, or maintain the security and functionality of the application. We take reasonable measures to protect your personal information from unauthorized access, use, or disclosure.",
-  "By using this application, you acknowledge that your information may be collected and processed in accordance with this Privacy Policy and applicable privacy regulations.",
-];
-
 /**
  * Terms & Conditions / Privacy Policy popup (Figma "T&C" / "PP"), opened from
  * the reset-password card. Same card shell; only the title and body differ.
+ * Content lives in `@/lib/policies` and is rendered as headed sections.
  */
 function PolicyPopup({
   title,
-  paragraphs,
+  sections,
   onClose,
 }: {
   title: string;
-  paragraphs: string[];
+  sections: PolicySection[];
   onClose: () => void;
 }) {
   return (
@@ -293,9 +290,19 @@ function PolicyPopup({
             <CloseIcon className="size-6 text-[#1e1e24]" />
           </button>
         </div>
-        <div className="flex min-h-0 flex-col overflow-y-auto px-[30px] pb-[40px] font-inter text-[15px] leading-[24.38px] text-[#1e1e24]">
-          {paragraphs.map((p, i) => (
-            <p key={i}>{p}</p>
+        <div className="flex min-h-0 flex-col gap-[20px] overflow-y-auto px-[30px] pb-[40px] font-inter text-[15px] leading-[24.38px] text-[#1e1e24]">
+          <p className="font-inter text-[13px] text-[#1e1e24]/60">
+            Effective date: {POLICY_EFFECTIVE_DATE}
+          </p>
+          {sections.map((section) => (
+            <section key={section.heading} className="flex flex-col gap-[8px]">
+              <h3 className="font-manrope text-[17px] font-semibold tracking-[-0.3px] text-[#1e1e24]">
+                {section.heading}
+              </h3>
+              {section.body.map((p, i) => (
+                <p key={i}>{p}</p>
+              ))}
+            </section>
           ))}
         </div>
       </div>

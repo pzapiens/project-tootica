@@ -1,0 +1,263 @@
+{
+  "name": "Tootica - WhatsApp booking requests (starter)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "WhatsApp Trigger",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      }
+    },
+    {
+      "id": "Conversation",
+      "name": "Conversation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Embedded into the workflow by build-workflow.py. No external modules.\nconst cfg = {\n  backendUrl: 'https://YOUR-TOOTICA-BACKEND',\n  clinic: 'YOUR CLINIC',\n  staffPhone: '919999999999', // Replace with the staffed clinic number, digits only.\n  phoneNumberId: 'YOUR_META_PHONE_NUMBER_ID',\n  graphVersion: 'v23.0',\n  timezone: 'Asia/Kolkata',\n  utcOffset: '+05:30', // Keep aligned with timezone; this starter targets India.\n};\nconst db = $getWorkflowStaticData('global');\ndb.sessions ??= {};\ndb.seen ??= {};\nconst now = Date.now();\nfor (const [k,v] of Object.entries(db.seen)) if (now - v > 86400000) delete db.seen[k];\nfor (const [k,v] of Object.entries(db.sessions)) if (now - v.updated > 86400000) delete db.sessions[k];\nconst events = $input.all().flatMap((i, index) => {\n  const root = i.json.body ?? i.json;\n  const values = root.entry ? root.entry.flatMap(e => (e.changes ?? []).map(c => c.value)) : [root];\n  return values.map(value => ({...value, __inputIndex:index}));\n});\nconst out = [];\nfor (const event of events) {\n  if (event.metadata?.phone_number_id !== cfg.phoneNumberId) continue;\n  for (const m of event.messages ?? []) {\n    if (!m.id || db.seen[m.id]) continue;\n    db.seen[m.id] = now;\n    const key = cfg.phoneNumberId + ':' + m.from;\n    const existed = !!db.sessions[key];\n    const s = db.sessions[key] ??= { step: 'name', updated: now };\n    s.updated = now;\n    const value = (m.interactive?.button_reply?.id ?? m.interactive?.list_reply?.id ?? m.text?.body ?? '').trim();\n    const cmd = value.toUpperCase();\n    let submit = false, reply;\n    const text = body => ({type:'text', text:{body}});\n    const buttons = (body, choices) => ({type:'interactive', interactive:{type:'button', body:{text:body}, action:{buttons:choices.map(([id,title])=>({type:'reply',reply:{id,title}}))}}});\n    const staff = `Please contact our clinic team: https://wa.me/${cfg.staffPhone}`;\n    const service = () => buttons('What do you need?', [['CHECKUP','Checkup/Cleaning'],['PAIN','Tooth pain'],['OTHER','Other treatment']]);\n    const urgency = () => buttons('Is it an emergency (severe pain, swelling, injury)?', [['YES','Yes'],['NO','No']]);\n    const slots = () => {\n      const day = new Intl.DateTimeFormat('en-CA', {timeZone:cfg.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));\n      const base = new Date(day+'T00:00:00'+cfg.utcOffset);\n      s.options = [];\n      for (const [delta,hour,title] of [[0,17,'Today 5 PM'],[1,10,'Tomorrow 10 AM'],[1,16,'Tomorrow 4 PM']]) {\n        const at = new Date(base.getTime() + (delta*24+hour)*3600000);\n        if (at.getTime() > now) s.options.push({id:'SLOT_'+at.getTime(),title,at:at.toISOString()});\n      }\n      s.step = 'slot';\n      return {type:'interactive',interactive:{type:'list',body:{text:'Pick a preferred time (subject to clinic confirmation):'},action:{button:'Pick a time',sections:[{title:'Preferred times',rows:[...s.options.map(({id,title})=>({id,title})),{id:'MORE',title:'More options'}]}]}}};\n    };\n    if (cmd === 'CANCEL' || cmd === 'RESCHEDULE') {\n      reply = text(`To ${cmd.toLowerCase()} your appointment, ${staff} Your booking has not been changed yet.`);\n    } else if (cmd === 'START' || cmd === 'RESTART') {\n      db.sessions[key] = {step:'name',updated:now};\n      reply = text('Hi! What\\'s your full name?');\n    } else if (!existed) {\n      reply = text('Hi! What\\'s your full name?');\n    } else if (s.step === 'name') {\n      if (!m.text?.body || value.length < 2 || value.length > 100) reply = text('Please type your full name (2-100 characters).');\n      else { s.name = value; s.step = 'service'; reply = service(); }\n    } else if (s.step === 'service') {\n      const names = {CHECKUP:'Checkup/Cleaning',PAIN:'Tooth pain',OTHER:'Other treatment'};\n      if (!names[cmd]) reply = service();\n      else { s.service = names[cmd]; s.step = 'urgency'; reply = urgency(); }\n    } else if (s.step === 'urgency') {\n      if (cmd === 'YES') { s.emergency = true; submit = true; }\n      else if (cmd === 'NO') { s.emergency = false; reply = slots(); }\n      else reply = urgency();\n    } else if (s.step === 'slot') {\n      const selected = s.options?.find(o=>o.id === value);\n      if (cmd === 'MORE') { s.step = 'more'; reply = text('What date and time would you prefer? Our clinic team will check it.'); }\n      else if (!selected || new Date(selected.at).getTime() <= now) reply = slots();\n      else { s.slot = selected.at; s.slotLabel = selected.title; s.step = 'confirm'; }\n    } else if (s.step === 'more') {\n      if (!m.text?.body || !value || value.length > 200) reply = text('Please type your preferred date and time (up to 200 characters).');\n      else { s.slot = null; s.slotLabel = value; s.step = 'confirm'; }\n    } else if (s.step === 'confirm') {\n      if (cmd === 'CHANGE') { s.step = 'service'; reply = service(); }\n      else if (cmd === 'CONFIRM') {\n        if (s.slot && new Date(s.slot).getTime() <= now) reply = slots();\n        else submit = true;\n      }\n    } else {\n      reply = text(`Your request is with our clinic team. ${staff} Reply START for a new request, RESCHEDULE or CANCEL for help.`);\n    }\n    if (!reply && !submit) reply = buttons(`Booking request for ${s.name}, ${s.service}, ${s.slotLabel} at ${cfg.clinic}. Confirm? (Subject to clinic approval.)`, [['CONFIRM','Confirm'],['CHANGE','Change']]);\n    const booking = submit ? {\n      phone: '+'+m.from, name:s.name, consultationType:s.service,\n      notes:JSON.stringify({source:'n8n',messageId:m.id,emergency:!!s.emergency,preferredStart:s.slot??null,preferredTime:s.slotLabel??'Earliest / human triage',clinic:cfg.clinic}),\n    } : null;\n    out.push({pairedItem:{item:event.__inputIndex},json:{cfg,key,submit,booking,emergency:!!s.emergency,payload:reply ? {messaging_product:'whatsapp',to:m.from,...reply} : null,to:m.from}});\n  }\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "Submit request?",
+      "name": "Submit request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "submit",
+              "leftValue": "={{ $json.submit }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "Tootica login",
+      "name": "Tootica login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        -120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.cfg.backendUrl + '/api/auth/login' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Extract session",
+      "name": "Extract session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const ctx = $('Conversation').item.json; const cookies = $json.headers['set-cookie']; const list = Array.isArray(cookies) ? cookies : [cookies || '']; const cookie = list.map(x=>x.split(';')[0]).find(x=>x.startsWith('access_token=')); if (!cookie) throw new Error('Login did not return access_token cookie'); return {json:{...ctx,cookie}};"
+      }
+    },
+    {
+      "id": "Create pending WhatsApp request",
+      "name": "Create pending WhatsApp request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        -120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.cfg.backendUrl + '/api/appointments/whatsapp/inbound' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookie }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.booking) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "Request saved",
+      "name": "Request saved",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const ctx = $('Extract session').item.json; if (!$json.id) throw new Error('Missing appointment id'); const s = $getWorkflowStaticData('global').sessions[ctx.key]; s.step='done'; s.appointmentId=$json.id; const body = ctx.emergency ? 'Your urgent request has been added to our clinic team queue. Please call the clinic now: +' + ctx.cfg.staffPhone + '. Do not wait for a WhatsApp reply.' : 'Request received! Our clinic team will confirm your preferred time on WhatsApp. Reply RESCHEDULE or CANCEL anytime to contact the team.'; return {json:{...ctx,payload:{messaging_product:'whatsapp',to:ctx.to,type:'text',text:{body}}}};"
+      }
+    },
+    {
+      "id": "Send WhatsApp reply",
+      "name": "Send WhatsApp reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/' + $json.cfg.graphVersion + '/' + $json.cfg.phoneNumberId + '/messages' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation": {
+      "main": [
+        [
+          {
+            "node": "Submit request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit request?": {
+      "main": [
+        [
+          {
+            "node": "Tootica login",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send WhatsApp reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tootica login": {
+      "main": [
+        [
+          {
+            "node": "Extract session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract session": {
+      "main": [
+        [
+          {
+            "node": "Create pending WhatsApp request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create pending WhatsApp request": {
+      "main": [
+        [
+          {
+            "node": "Request saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request saved": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "tags": []
+}

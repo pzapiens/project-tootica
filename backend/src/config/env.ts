@@ -43,8 +43,15 @@ export const env = {
     maxResends: Number(process.env.OTP_MAX_RESENDS ?? 5),
   },
   sms: {
-    // Twilio credentials for outbound SMS (login OTP). When any is missing we
-    // fall back to a console provider that logs the code — see smsProvider.ts.
+    // Outbound SMS for the login OTP. Provider is auto-selected in smsProvider.ts:
+    // MSG91 (if its vars are set) → Twilio (if its vars are set) → console logger.
+    // MSG91 is the India path (DLT template-based); Twilio is the global fallback.
+    msg91: {
+      authKey: process.env.MSG91_AUTH_KEY ?? '',
+      // DLT-approved template id registered under MSG91's OTP section (sent via
+      // the OTP API, which fills the reserved ##OTP## variable).
+      templateId: process.env.MSG91_TEMPLATE_ID ?? '',
+    },
     twilio: {
       accountSid: process.env.TWILIO_ACCOUNT_SID ?? '',
       authToken: process.env.TWILIO_AUTH_TOKEN ?? '',

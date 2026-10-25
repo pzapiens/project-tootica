@@ -61,6 +61,7 @@ export default function PatientRecordsView({
   patientName,
   patientCode,
   patientId,
+  appointmentId,
   message = "",
   appointmentCode = "",
   appointmentDate = "",
@@ -70,6 +71,9 @@ export default function PatientRecordsView({
   patientName: string;
   patientCode: string;
   patientId: string;
+  /** The appointment this view was opened from — new entries are stamped with it
+   *  so the Patient History Summary can group records per visit. */
+  appointmentId: string;
   /** The appointment's notes — shown in the Additional Info dialog (Info icon). */
   message?: string;
   /** The appointment this records view was opened from (shown in the header card). */
@@ -80,7 +84,22 @@ export default function PatientRecordsView({
   onClose: () => void;
 }) {
   const rev = useRecordsRevision();
-  const record = useMemo(() => getPatientRecord(patientId), [patientId, rev]);
+  const fullRecord = useMemo(() => getPatientRecord(patientId), [patientId, rev]);
+  // "New per appointment": this editable view shows only entries stamped with the
+  // appointment it was opened from. New entries are stamped on create (below), so
+  // each visit starts blank and fills with just its own data. Legacy rows with no
+  // appointment don't appear here; the read-only History Summary still surfaces
+  // them (by date).
+  const record = useMemo(() => {
+    const mine = <T extends { appointmentId: string | null }>(rows: T[]) =>
+      rows.filter((r) => r.appointmentId === appointmentId);
+    return {
+      teeth: mine(fullRecord.teeth),
+      medHistory: mine(fullRecord.medHistory),
+      observations: mine(fullRecord.observations),
+      documents: mine(fullRecord.documents),
+    };
+  }, [fullRecord, appointmentId]);
   const [showInfo, setShowInfo] = useState(false);
 
   // The edit/delete audit log is admin-only (matches the gated backend endpoint).
@@ -177,6 +196,7 @@ export default function PatientRecordsView({
 
       <ObservationsSection
         patientId={patientId}
+        appointmentId={appointmentId}
         patientName={patientName}
         patientCode={patientCode}
         entries={record.observations}
@@ -187,6 +207,7 @@ export default function PatientRecordsView({
 
       <PerioSection
         patientId={patientId}
+        appointmentId={appointmentId}
         patientName={patientName}
         patientCode={patientCode}
         teeth={record.teeth}
@@ -197,6 +218,7 @@ export default function PatientRecordsView({
 
       <MedicalHistorySection
         patientId={patientId}
+        appointmentId={appointmentId}
         patientName={patientName}
         patientCode={patientCode}
         entries={record.medHistory}
@@ -207,6 +229,7 @@ export default function PatientRecordsView({
 
       <DocumentUploadSection
         patientId={patientId}
+        appointmentId={appointmentId}
         category="consent"
         icon="/dashboard/article.svg"
         title="Patient Consent Form"
@@ -217,6 +240,7 @@ export default function PatientRecordsView({
 
       <DocumentUploadSection
         patientId={patientId}
+        appointmentId={appointmentId}
         category="xray"
         icon="/dashboard/hand_bones.svg"
         title="X-ray Document"
@@ -227,6 +251,7 @@ export default function PatientRecordsView({
 
       <DocumentUploadSection
         patientId={patientId}
+        appointmentId={appointmentId}
         category="other"
         icon="/dashboard/library_books.svg"
         title="Other Documents"
@@ -245,6 +270,7 @@ export default function PatientRecordsView({
  *  then a table (SI No. / Observation / Date / Action) with inline edit + delete. */
 function ObservationsSection({
   patientId,
+  appointmentId,
   patientName,
   patientCode,
   entries,
@@ -253,6 +279,7 @@ function ObservationsSection({
   onOpenLog,
 }: {
   patientId: string;
+  appointmentId: string;
   patientName: string;
   patientCode: string;
   entries: ObservationEntry[];
@@ -270,7 +297,7 @@ function ObservationsSection({
 
   function add() {
     if (!canAdd) return;
-    addObservation(patientId, text.trim());
+    addObservation(patientId, text.trim(), appointmentId);
     setText("");
   }
   function saveEdit() {
@@ -515,6 +542,7 @@ function PerioChart({
 
 function PerioSection({
   patientId,
+  appointmentId,
   patientName,
   patientCode,
   teeth,
@@ -523,6 +551,7 @@ function PerioSection({
   onOpenLog,
 }: {
   patientId: string;
+  appointmentId: string;
   patientName: string;
   patientCode: string;
   teeth: ToothEntry[];
@@ -544,7 +573,7 @@ function PerioSection({
   function submit() {
     if (!canAdd) return;
     if (editingId) updateToothEntry(patientId, editingId, tooth, remarks.trim());
-    else addToothEntry(patientId, tooth, remarks.trim());
+    else addToothEntry(patientId, tooth, remarks.trim(), appointmentId);
     setRemarks("");
     setEditingId(null);
     // Keep `tooth` selected so the table stays filtered to just that tooth after
@@ -751,6 +780,7 @@ function PerioSection({
 
 function MedicalHistorySection({
   patientId,
+  appointmentId,
   patientName,
   patientCode,
   entries,
@@ -759,6 +789,7 @@ function MedicalHistorySection({
   onOpenLog,
 }: {
   patientId: string;
+  appointmentId: string;
   patientName: string;
   patientCode: string;
   entries: MedHistoryEntry[];
@@ -776,7 +807,7 @@ function MedicalHistorySection({
 
   function add() {
     if (!canAdd) return;
-    addMedHistory(patientId, text.trim());
+    addMedHistory(patientId, text.trim(), appointmentId);
     setText("");
   }
   function saveEdit() {
@@ -977,6 +1008,7 @@ function formatSize(bytes: number): string {
  */
 function DocumentUploadSection({
   patientId,
+  appointmentId,
   category,
   icon,
   title,
@@ -985,6 +1017,7 @@ function DocumentUploadSection({
   onOpenLog,
 }: {
   patientId: string;
+  appointmentId: string;
   category: DocCategory;
   icon: string;
   title: string;
@@ -1006,7 +1039,7 @@ function DocumentUploadSection({
         continue;
       }
       // Uploads to the backend; the store reloads the record on success.
-      void addDocument(patientId, category, file);
+      void addDocument(patientId, category, file, appointmentId);
     }
     setError(
       rejected > 0

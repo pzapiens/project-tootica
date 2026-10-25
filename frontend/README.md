@@ -339,11 +339,10 @@ Each popup row shows **Patient Name, Consultation Type, Date, Age / Gender** and
 "Upcoming" with the full edit + overflow actions, and its **Booking Channel**
 reads **WhatsApp** — frozen, same as "Web") / **Reject** (red ✕ → **deletes** the
 appointment; a rejected booking is discarded, not kept as a cancelled row)
-confirm dialogs (Figma "Appts3 - Accept" / "Appts2 - Reject"). For testing this
-flow without a backend, a small set of **dummy bookings is cached in
-`localStorage`** (`lib/whatsappDummyStore.ts`, seeded once per browser) and merged
-into the popup; accepting or rejecting one just clears it from the cache (no API
-call), so the row disappears the same way. An accepted
+confirm dialogs (Figma "Appts3 - Accept" / "Appts2 - Reject"). The popup is fed by
+the real backend — the clinic's **`SCHEDULED`** appointments (`GET /api/appointments`):
+**Accept** is a `PATCH` to `status: CONFIRMED` (which mints the appointment code),
+**Reject** is a `DELETE`. An accepted
 WhatsApp appointment shows **`--`** in place of the doctor and the time; **editing**
 it opens the form with the **doctor unselected** and **"Skip time & availability
 check" pre-ticked** (both fields left empty for staff to fill in). Every other
@@ -353,12 +352,13 @@ status shows **Edit**
 Figma "Appts8 - Records", in place of the table — see below), **Payments** (opens the **"Payment Management"** flow, Figma
 "Appts15/16 - Payments": a payments list with **Mark as complete** + **Add New** →
 the **"New Payment"** form (description + amount) → the row is added with a
-running **Total Amount**, deletable. The record is **cached in `localStorage`**
-per appointment (`lib/paymentsStore.ts`) until a payments backend lands, so it
-survives reloads and drives a **payment-status glyph** in the row's Actions:
+running **Total Amount**, deletable. Payments are **backend-backed** per
+appointment (`lib/paymentsStore.ts` → `/api/appointments/:id/payments`); each entry
+is individually paid/unpaid and an appointment reads as settled once all are paid,
+driving a **payment-status glyph** in the row's Actions:
 an **hourglass** ("Payment Pending") that becomes a **tick** ("Payment Complete")
-when Mark-as-complete is ticked — both black, same size, with a styled dark
-hover tooltip),
+when every entry is paid — both black, same size, with a styled dark
+hover tooltip. These entries are also what the **Revenue** page aggregates),
 **Notify** (opens a **"Notify the Patient"**
 confirmation, Figma "NTP" — the send is a placeholder until the notification
 backend lands), **Call** (opens a **"Proceed to Call?"** confirmation
@@ -398,10 +398,14 @@ inline** (pencil → the row becomes an input with a **save** icon) and
 `DocumentUploadSection` with a drag-and-drop / click **file-upload** drop zone
 (PDF/JPG/JPEG/PNG, ≤10 MB, validated) whose accepted files show under **Uploaded
 Documents** as cards with **download / delete** (each section scopes its own files
-by category). There's no records backend yet, so the note, both tables and the
-document **metadata** are **cached in `localStorage`** per patient
-(`lib/patientRecordsStore.ts`), while the uploaded **file bytes** are persisted in
-**IndexedDB** (`lib/documentFiles.ts`) so **Download** works across reloads. Every
+by category). The whole view is **backend-backed** (`lib/patientRecordsStore.ts` →
+`/api/patients/:patientId/records/...`): every add/edit/delete persists
+immediately, document bytes upload to the backend (and **Download** streams them
+back via a cookie-authorised GET), and the store reloads the bundle after each
+change. **New per appointment:** the Records view is opened from a specific
+appointment and is **scoped to it** — each section shows only the entries recorded
+under that appointment, and every new entry is stamped with it, so a fresh visit
+starts blank (see the Patient History Summary below). Every
 **delete** goes through a confirm prompt (`ConfirmDeleteDialog`). Each of the first
 three sections' **Export**
 downloads its table (dependency-free, via `lib/recordsExport.ts`) as an
@@ -424,6 +428,17 @@ backend enforces this too (`403` otherwise). **Admins and super admins are exemp
 they can edit/delete any entry regardless of creator. Rows created before this was
 tracked have no recorded creator and stay editable by anyone. Each uploaded **document card**
 shows its **upload date & time** and the **uploader's name** alongside the file size.
+
+**`/patients/[id]/history`** (Figma "Appts8 - Records3", `PatientHistoryClient`) —
+the read-only **Patient History Summary**, reached by clicking a patient name in
+the appointments list. It lists the patient's **past appointments** (newest first)
+as cards; each card carries the three record tabs (**Doctor/Clinical observation**,
+**Perio dental chart**, **Medical history**) showing **only the entries recorded
+under that appointment** (matched by the stamped `appointmentId`; legacy entries
+with no stamp fall back to the appointment on the same date). Every entry is
+annotated **"Comments by `<Username>` on `<date>`"**, where the username is the
+record's denormalized author (any role — doctor, receptionist or admin), resolved
+from the backend rather than the doctor list.
 
 **`/analytics`** (Figma "Analytics", `AnalyticsClient`) — the **Analytics
 Summary**: four appointment **stat cards** (Total / Completed / Pending /
@@ -536,6 +551,7 @@ src/
 │           │   ├── page.tsx · PatientsClient.tsx   # table, search, sort, pagination, export
 │           │   ├── FilterPanel.tsx                 # Apply Filter (ID / Alphabetic / Age)
 │           │   ├── EditPatientModal.tsx · DeletePatientDialog.tsx
+│           │   └── [id]/history/    # page.tsx · PatientHistoryClient.tsx (read-only per-appointment record history)
 │           ├── doctors/            # doctor directory: list + filter + create/edit/delete + CSV
 │           │   ├── page.tsx · DoctorsClient.tsx     # table, search, sort, pagination, export
 │           │   ├── constants.ts                     # dental specializations
@@ -558,18 +574,20 @@ src/
 │           ├── profile/    # ProfileClient (Profile Settings — personal info, password, delete, logout)
 │           └── accounts/   # AccountsClient (Accounts Management table + Edit/Reset/Disable/Delete popups, admins only)
 ├── components/
-│   └── PasswordToggle.tsx          # show/hide eye button
+│   ├── PasswordToggle.tsx          # show/hide eye button
+│   ├── HoverTip.tsx                # shared dark hover tooltip (Tip)
+│   ├── BackButton.tsx              # shared back-arrow button
+│   └── DonutChart.tsx              # clickable donut chart (analytics + revenue)
 └── lib/
-    ├── api.ts          # apiFetch(), ApiError, types, displayName/greetingLabel
+    ├── api.ts          # apiFetch()/apiUpload(), ApiError, types, displayName/greetingLabel
     ├── analytics.ts    # timeframe → /analytics query helpers
     ├── appointmentsBus.ts  # tiny event bus to refresh dashboard after a booking
     ├── statusColors.ts # single source of truth for appointment-status colours
-    ├── paymentsStore.ts # localStorage cache for per-appointment payments + status glyph
-    ├── patientRecordsStore.ts # backend-backed cache for Patient Records (observations, tooth-wise remarks, medical history, documents)
-    ├── documentFiles.ts # IndexedDB store for uploaded Patient Records file bytes (download survives reloads)
-    ├── recordsExport.ts # dependency-free exporters: observation → PDF, perio table → .xls
-    ├── bookingChannelStore.ts # localStorage marker: appointments accepted from WhatsApp bookings
-    ├── whatsappDummyStore.ts # localStorage cache of dummy WhatsApp bookings (test the popup's accept/reject with no backend)
+    ├── paymentsStore.ts # backend client for per-appointment payments (+ status glyph helpers)
+    ├── patientRecordsStore.ts # backend-backed store for Patient Records (observations, tooth remarks, medical history, documents) — appointment-scoped
+    ├── recordsExport.ts # dependency-free .xls exporters: observations / perio / medical-history tables
+    ├── shifts.ts       # localStorage store for doctor shifts + blocked slots (frontend-first)
+    ├── whatsapp.ts     # click-to-chat (wa.me) link builder — the Meta WhatsApp seam
     ├── password.ts     # password-policy rules + live checklist helpers
     ├── validation.ts   # phoneError()/emailError() (+91 + 10 digits)
     └── useExclusiveDropdown.ts   # single-open-dropdown-at-a-time hook

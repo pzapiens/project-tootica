@@ -158,15 +158,20 @@ src/
 ├── common/
 │   ├── db/                 # Prisma client singleton (pg driver adapter)
 │   ├── email/              # EmailProvider interface + Nodemailer impl
+│   ├── sms/                # SmsProvider interface (stub; WhatsApp/SMS seam)
+│   ├── storage/            # file storage (local disk now, S3-swappable) for record uploads
 │   ├── middleware/         # auth, tenant, error handler, asyncHandler
 │   ├── types/              # Express Request augmentation (req.user, req.clinicId)
 │   └── utils/              # httpError, password (bcrypt)
 ├── modules/
 │   ├── auth/               # login, tokens, OTP, invites (see Auth below)
 │   ├── patients/
+│   ├── records/            # patient records: observations, tooth remarks, medical history, documents + audit log
 │   ├── doctors/
 │   ├── appointments/
+│   ├── payments/           # per-appointment payment entries (nested under /appointments)
 │   ├── analytics/
+│   ├── revenue/            # clinic-wide revenue transactions (aggregated from payments)
 │   ├── branches/           # per-clinic branch list (tenant-scoped)
 │   └── super-admin/        # cross-tenant clinics, branches & account onboarding
 ├── generated/prisma/       # generated Prisma client (gitignored)
@@ -224,7 +229,7 @@ Full request/response JSON shapes for every endpoint (built and planned) are in
 
 | Method | Path               | Auth | Body                                  |
 | ------ | ------------------ | ---- | ------------------------------------- |
-| POST   | `/login`           | —    | `{ email, password }`                 |
+| POST   | `/login`           | —    | `{ identifier, password }` (identifier = email **or** phone) |
 | GET    | `/me`              | ✅   | —                                     |
 | POST   | `/refresh`         | cookie | —                                   |
 | POST   | `/logout`          | —    | —                                     |
@@ -276,6 +281,23 @@ Full request/response JSON shapes for every endpoint (built and planned) are in
 - `GET /api/branches` — the caller's clinic branches (`{ id, clinicId, code, name, picName, contact }`)
 - `GET /api/analytics/summary?from=&to=` — per-clinic counts plus a `byStatus`
   breakdown (`total`, `completed`, `pending`, `cancelled`).
+- `GET/POST/PATCH/DELETE /api/patients/:patientId/records/...` — the **Patient
+  Records** feature (clinic-scoped, nested under a patient). `GET /records` returns
+  the full bundle `{ teeth, medHistory, observations, documents }`. The three text
+  tables (`observations`, `teeth`, `medical-history`) and the document upload each
+  accept an optional **`appointmentId`** — the visit the entry was recorded under —
+  so the **Patient History Summary** can show each appointment's own records (new
+  per visit). Every row carries a denormalized **`createdByName`** (the author, any
+  role) and **creator-only edit/delete** (admins/super-admins exempt; `403`
+  otherwise). Documents are **multipart** uploads stored via the `storage` module
+  and streamed back on `GET …/download`. An admin-only `GET …/records/logs` returns
+  the **audit log** (Create/Update/Delete for text, Upload/Download/Delete for files).
+- `GET/POST/PATCH/DELETE /api/appointments/:appointmentId/payments` — per-appointment
+  payment entries (`{ description, amount, paid }`); an appointment reads as settled
+  once every entry is paid. Drives the Revenue page.
+- `GET /api/revenue/transactions` — clinic-wide list of every payment (one row per
+  entry, with a per-clinic `…-TT……` transaction code), joined to the appointment's
+  patient / consultation type / date. The client derives the Revenue summary + table.
 
 ### Super Admin (`/api/super-admin`, SUPER_ADMIN only)
 
@@ -313,7 +335,9 @@ The app has two entry points that share the same Express app (`app.ts`):
 - `lambda.ts` — AWS Lambda via `serverless-http` (handler: `dist/lambda.handler`)
 
 For the full current architecture and the AWS API Gateway + Lambda migration
-plan, see [`docs/AWS_MIGRATION.md`](./docs/AWS_MIGRATION.md).
+plan, see [`docs/AWS_MIGRATION.md`](./docs/AWS_MIGRATION.md). When you're ready to
+**execute** the move, follow the ordered runbook in
+[`docs/AWS_NEXT_STEPS.md`](./docs/AWS_NEXT_STEPS.md).
 
 ## Testing with Postman
 

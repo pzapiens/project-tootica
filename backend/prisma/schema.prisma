@@ -327,6 +327,13 @@ model Appointment {
   patient  Patient?  @relation(fields: [patientId], references: [id])
   doctor   Doctor?   @relation(fields: [doctorId], references: [id])
   payments Payment[]
+  // Records entered under this appointment (the Patient History Summary groups
+  // by appointment). SET NULL on delete so these patient-level records survive
+  // an appointment deletion (they fall back to date-matching in the summary).
+  toothRemarks          ToothRemark[]
+  observationEntries    ObservationEntry[]
+  medicalHistoryEntries MedicalHistoryEntry[]
+  patientDocuments      PatientDocument[]
 
   @@index([clinicId, id])
   @@index([clinicId, startTime])
@@ -368,13 +375,18 @@ model ToothRemark {
   // rows created before this was tracked (those stay editable by anyone).
   createdById   String?  @map("created_by_id") @db.Uuid
   createdByName String?  @map("created_by_name")
+  // The appointment this remark was entered under (Patient History Summary
+  // groups by it). Null for legacy rows / after the appointment is deleted.
+  appointmentId String?  @map("appointment_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  clinic  Clinic  @relation(fields: [clinicId], references: [id])
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinic      Clinic       @relation(fields: [clinicId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([clinicId, patientId])
+  @@index([appointmentId])
   @@map("tooth_remarks")
 }
 
@@ -387,12 +399,16 @@ model MedicalHistoryEntry {
   // Creator — only they may edit/delete (null for legacy rows). See ToothRemark.
   createdById   String?  @map("created_by_id") @db.Uuid
   createdByName String?  @map("created_by_name")
+  // The appointment this entry was recorded under. See ToothRemark.appointmentId.
+  appointmentId String?  @map("appointment_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
-  clinic  Clinic  @relation(fields: [clinicId], references: [id])
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinic      Clinic       @relation(fields: [clinicId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([clinicId, patientId])
+  @@index([appointmentId])
   @@map("medical_history_entries")
 }
 
@@ -406,12 +422,16 @@ model ObservationEntry {
   // Creator — only they may edit/delete (null for legacy rows). See ToothRemark.
   createdById   String?  @map("created_by_id") @db.Uuid
   createdByName String?  @map("created_by_name")
+  // The appointment this entry was recorded under. See ToothRemark.appointmentId.
+  appointmentId String?  @map("appointment_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
-  clinic  Clinic  @relation(fields: [clinicId], references: [id])
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinic      Clinic       @relation(fields: [clinicId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([clinicId, patientId])
+  @@index([appointmentId])
   @@map("observation_entries")
 }
 
@@ -432,12 +452,16 @@ model PatientDocument {
   // account deletion); null for legacy uploads. See ToothRemark.
   createdById   String?  @map("created_by_id") @db.Uuid
   createdByName String?  @map("created_by_name")
+  // The appointment this was uploaded under. See ToothRemark.appointmentId.
+  appointmentId String?  @map("appointment_id") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at")
 
-  clinic  Clinic  @relation(fields: [clinicId], references: [id])
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinic      Clinic       @relation(fields: [clinicId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([clinicId, patientId])
+  @@index([appointmentId])
   @@map("patient_documents")
 }
 
