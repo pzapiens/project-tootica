@@ -69,7 +69,9 @@ export const updateBranchSchema = z.object({
 
 // The clinic code is fixed once set (it prefixes all child codes), so it can't
 // be changed via an update.
-export const updateClinicSchema = createClinicSchema.omit({ code: true }).partial();
+export const updateClinicSchema = createClinicSchema.omit({ code: true }).partial().extend({
+  whatsAppEnabled: z.boolean().optional(),
+});
 
 export const createAccountSchema = z.object({
   clinicId: z.string().min(1, 'A clinic must be selected'),

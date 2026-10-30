@@ -20,6 +20,7 @@ import { paymentRoutes } from './modules/payments/routes';
 import { recordsRoutes } from './modules/records/routes';
 import { revenueRoutes } from './modules/revenue/routes';
 import { superAdminRoutes } from './modules/super-admin/routes';
+import { whatsAppAppointmentRoutes, whatsAppRoutes } from './modules/whatsapp/routes';
 
 function healthCheck(_req: Request, res: Response): void {
   res.json({
@@ -60,6 +61,8 @@ export function createApp(): express.Express {
   app.use('/api/appointments', authenticate, requireTenant, resolveBranch, appointmentRoutes);
   // Per-appointment payments — nested under /api/appointments/:appointmentId/payments.
   app.use('/api/appointments', authenticate, requireTenant, resolveBranch, paymentRoutes);
+  app.use('/api/appointments', authenticate, requireTenant, resolveBranch, whatsAppAppointmentRoutes);
+  app.use('/api/whatsapp', authenticate, requireTenant, whatsAppRoutes);
   app.use('/api/analytics', authenticate, requireTenant, resolveBranch, analyticsRoutes);
   // Revenue transactions — clinic-wide (aggregated from the clinic's payments).
   app.use('/api/revenue', authenticate, requireTenant, revenueRoutes);

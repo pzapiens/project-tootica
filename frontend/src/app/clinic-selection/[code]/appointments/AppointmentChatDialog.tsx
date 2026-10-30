@@ -1,97 +1,270 @@
 "use client";
-
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  getAppointmentWhatsApp,
+  openWhatsAppChat,
+  sendAppointmentWhatsApp,
+  type AppointmentWhatsAppBundle,
+  type WhatsAppSubmission,
+} from "@/lib/whatsapp";
 
-import { openWhatsAppChat } from "@/lib/whatsapp";
-
-/**
- * "Proceed to Chat?" dialog (Figma "PTC"). Opened from the row overflow menu's
- * **Chat** action: reminds the user to be logged into WhatsApp Web on this PC,
- * then opens WhatsApp for the patient's number on "Proceed to WhatsApp".
- *
- * The link is built by the shared {@link openWhatsAppChat} helper — the single
- * place that changes when the Meta Cloud API integration replaces wa.me links.
- */
+function submissionLabel(status: string) {
+  if (status === "SUBMITTED")
+    return "Submitted to WhatsApp. Delivery is not confirmed.";
+  if (status === "FAILED")
+    return "WhatsApp rejected this submission. Contact your clinic admin before trying again.";
+  return "Submission outcome is not confirmed. Do not resend; ask your clinic admin to check it.";
+}
 export default function AppointmentChatDialog({
+  appointmentId,
   patientName,
   patientCode,
   phone,
   onClose,
 }: {
+  appointmentId: string;
   patientName: string;
   patientCode: string;
-  /** The patient's contact number as stored (e.g. "+91 0000000000"). */
   phone: string;
   onClose: () => void;
 }) {
+  const [bundle, setBundle] = useState<AppointmentWhatsAppBundle | null>(null);
+  const [parameters, setParameters] = useState<string[]>([]);
+  const [consent, setConsent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<WhatsAppSubmission | null>(null);
+  const submission = useRef<{
+    requestKey: string;
+    parameters: string[];
+    consentConfirmed: true;
+  } | null>(null);
+  const [locked, setLocked] = useState(false);
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
+    let active = true;
+    getAppointmentWhatsApp(appointmentId)
+      .then((data) => {
+        if (!active) return;
+        setBundle(data);
+        setParameters(
+          Array.from(
+            { length: data.connection?.templateParameters ?? 0 },
+            (_, i) => (i === 0 ? patientName : ""),
+          ),
+        );
+      })
+      .catch((e: unknown) => {
+        if (active)
+          setError(
+            e instanceof Error
+              ? e.message
+              : "Unable to load WhatsApp connection",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [appointmentId, patientName]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onClose();
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const digits = phone.replace(/\D/g, "");
-
-  function proceed() {
-    openWhatsAppChat(phone);
-    onClose();
+  }, [onClose, busy]);
+  async function send() {
+    if (busy) return;
+    submission.current ??= {
+      requestKey: crypto.randomUUID(),
+      parameters: parameters.map((p) => p.trim()),
+      consentConfirmed: true,
+    };
+    setLocked(true);
+    setBusy(true);
+    setError("");
+    try {
+      setResult(
+        await sendAppointmentWhatsApp(appointmentId, submission.current),
+      );
+    } catch (e) {
+      setError(
+        (e instanceof Error ? e.message : "Unable to submit") +
+          " Retry below checks the same submission; it will not automatically send a second copy.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
-
+  const connection = bundle?.connection;
+  const unresolved = bundle?.messages.some(
+    (m) => m.status === "PENDING" || m.status === "UNKNOWN",
+  );
+  const preview = connection?.templateBody.replace(
+    /{{(\d+)}}/g,
+    (match, n: string) => parameters[Number(n) - 1]?.trim() || match,
+  );
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !busy) onClose();
       }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="appt-chat-title"
-        className="my-auto flex w-full max-w-[448px] flex-col gap-[16px] rounded-[15px] border border-[#c2c6d4] bg-white p-[24px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#c2c6d4] bg-white p-6 font-inter text-[#1e1e24] shadow-xl"
       >
-        {/* Header */}
-        <div className="flex items-center gap-[12px]">
-          <Image
-            src="/dashboard/chat.svg"
-            alt=""
-            width={24}
-            height={24}
-            className="size-6 shrink-0"
-          />
-          <h2 id="appt-chat-title" className="font-manrope text-[20px] font-semibold leading-[28px] text-[#1e1e24]">
-            Proceed to Chat?
+        <div className="flex items-center gap-3">
+          <Image src="/dashboard/chat.svg" alt="" width={24} height={24} />
+          <h2
+            id="appt-chat-title"
+            className="font-manrope text-xl font-semibold"
+          >
+            WhatsApp message
           </h2>
         </div>
-
-        {/* Body */}
-        <p className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
-          You&rsquo;ll be redirected to WhatsApp Web to chat with{" "}
-          <span className="font-bold text-[#0077c0]">
+        <p className="mt-4 text-sm">
+          To{" "}
+          <strong>
             {patientName} ({patientCode})
-          </span>
-          .
+          </strong>
+          <br />
+          {phone || "No patient phone recorded"}
         </p>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-[12px] pt-[16px]">
+        {!bundle && !error && (
+          <p role="status" className="mt-4 text-sm">
+            Loading clinic connection...
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+        {bundle && !connection?.connected && (
+          <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm">
+            WhatsApp API sending is not configured. Ask your clinic admin to
+            check Clinic settings.
+          </p>
+        )}
+        {connection?.connected && (
+          <>
+            <p className="mt-4 text-sm">
+              From <strong>{connection.displayNumber}</strong>
+            </p>
+            <p className="mt-2 text-xs text-gray-600">
+              Template: {connection.templateName} ({connection.templateLanguage}
+              )
+            </p>
+            {parameters.map((value, i) => (
+              <label key={i} className="mt-3 block text-sm">
+                Template variable {i + 1}
+                <input
+                  value={value}
+                  disabled={locked || !!unresolved}
+                  maxLength={500}
+                  onChange={(e) =>
+                    setParameters((values) =>
+                      values.map((v, j) => (j === i ? e.target.value : v)),
+                    )
+                  }
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 disabled:bg-gray-100"
+                />
+              </label>
+            ))}
+            <p className="mt-4 text-xs font-semibold uppercase text-gray-600">
+              Template body preview
+            </p>
+            <p className="mt-2 whitespace-pre-wrap rounded-xl bg-sky-50 p-4 text-sm">
+              {preview}
+            </p>
+            <label className="mt-4 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={consent}
+                disabled={locked || !!unresolved}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-1"
+              />
+              I confirm this patient agreed to receive this message on WhatsApp.
+            </label>
+            {unresolved && (
+              <p role="status" className="mt-3 text-sm text-amber-800">
+                A previous submission has an unconfirmed outcome. Ask your
+                clinic admin to check it before sending another message.
+              </p>
+            )}
+            {result && (
+              <p
+                role="status"
+                className={`mt-4 text-sm ${result.status === "SUBMITTED" ? "text-green-800" : "text-amber-800"}`}
+              >
+                {submissionLabel(result.status)}
+                {result.metaMessageId && (
+                  <span className="mt-1 block break-all text-xs">
+                    Reference: {result.metaMessageId}
+                  </span>
+                )}
+                {result.errorCode && (
+                  <span className="block text-xs">
+                    Meta error code: {result.errorCode}
+                  </span>
+                )}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={send}
+              disabled={
+                busy ||
+                !!result ||
+                !!unresolved ||
+                !consent ||
+                !phone ||
+                parameters.some((p) => !p.trim())
+              }
+              className="mt-5 w-full rounded-full bg-[#0077c0] px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busy
+                ? "Submitting..."
+                : locked
+                  ? "Check / retry submission"
+                  : "Send template"}
+            </button>
+          </>
+        )}
+        {!!bundle?.messages.length && (
+          <details className="mt-5 text-sm">
+            <summary className="cursor-pointer">Recent submissions</summary>
+            <ul className="mt-2 space-y-2">
+              {bundle.messages.map((m) => (
+                <li key={m.id} className="rounded-lg bg-gray-50 p-2">
+                  {new Date(m.createdAt).toLocaleString()} ? {m.status}
+                  {m.errorCode && ` (Meta ${m.errorCode})`}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <div className="mt-6 flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-full border border-[#1e1e24] px-[21px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:border-[#0077c0] hover:text-[#0077c0]"
+            disabled={!phone.replace(/\D/g, "")}
+            onClick={() => openWhatsAppChat(phone)}
+            className="text-sm text-[#0077c0] underline disabled:opacity-50"
           >
-            Cancel
+            Open WhatsApp Web
           </button>
           <button
             type="button"
-            onClick={proceed}
-            disabled={!digits}
-            className="rounded-full bg-[#0077c0] px-[20px] py-[10px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#0069a8] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={busy}
+            onClick={onClose}
+            className="rounded-full border border-gray-400 px-5 py-2 text-sm disabled:opacity-50"
           >
-            Proceed to WhatsApp
+            Close
           </button>
         </div>
       </div>

@@ -800,6 +800,7 @@ export default function AppointmentsClient() {
       )}
       {dialog?.kind === "chat" && (
         <AppointmentChatDialog
+          appointmentId={dialog.row.id}
           patientName={dialog.row.patientName}
           patientCode={dialog.row.code}
           phone={dialog.row.phone}
@@ -1115,7 +1116,7 @@ function MoreMenu({
               onClick={() => run(onCall)}
             />
             <MenuItem
-              label="Chat"
+              label="WhatsApp message"
               disabled={!phoneDigits}
               onClick={() => run(onChat)}
             />

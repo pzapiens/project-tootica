@@ -256,6 +256,7 @@ export interface BranchSummary {
 
 /** A clinic in the super-admin cross-tenant list (`GET /api/super-admin/clinics`). */
 export interface SuperAdminClinic {
+  whatsAppEnabled: boolean;
   id: string;
   /** Human-friendly code, e.g. "CL-000123". */
   code: string | null;

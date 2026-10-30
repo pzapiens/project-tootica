@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { apiFetch, ApiError, displayName, greetingLabel, roleAvatar, ROLE_LABELS, type MeResponse } from "@/lib/api";
+import WhatsAppSettingsPanel from "./WhatsAppSettingsPanel";
 import BackButton from "@/components/BackButton";
 
 import { useAvatar, useMe, useUpdateMe } from "../session";
@@ -253,6 +254,8 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
           </div>
         </div>
       </div>
+
+      {(me.user.role === "CLIENT_ADMIN" || (me.user.role === "SUPER_ADMIN" && !onBack)) && <WhatsAppSettingsPanel />}
 
       {/* Reset Your Password */}
       <div className={CARD}>

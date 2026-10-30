@@ -729,3 +729,19 @@ doctors also get a `Doctor` profile. **201** → PublicUser-shaped account.
 | Appointments         | ✅     | Tenant-scoped CRUD, time-range validation           |
 | Analytics            | ✅     | Per-clinic summary counts                           |
 | User columns         | ✅     | `first_name` / `last_name` / `title` / `phone` added |
+
+
+## WhatsApp outbound messaging (Phase 1)
+
+All routes require cookie authentication and tenant resolution. No Meta credential is returned to clients. Clinic admins configure metadata through a server provisioning script, not a browser token form; see [WHATSAPP_PHASE1.md](WHATSAPP_PHASE1.md).
+
+- `GET /api/whatsapp/connection` (CLIENT_ADMIN / SUPER_ADMIN): `{ enabled: boolean, connection: null | { connected, displayNumber, templateName, templateLanguage, templateBody, templateParameters } }`.
+- `POST /api/whatsapp/disconnect` (CLIENT_ADMIN / SUPER_ADMIN, active account with completed onboarding and active clinic): 204; disconnects and clears encrypted token for the resolved clinic. Does not revoke Meta credentials or recall in-flight messages.
+- `GET /api/appointments/:appointmentId/whatsapp`: `{ connection, messages }`. Validates tenant/active branch access to the appointment. Includes up to ten most recent submission summaries.
+- `POST /api/appointments/:appointmentId/whatsapp/messages`: body `{ requestKey: UUID, parameters: string[], consentConfirmed: true }`. Strict schema rejects extra fields. Recipient and clinic connection are resolved server-side. Active account, completed onboarding and active clinic required. Branch-assigned staff cannot target another branch's doctor appointment; unassigned appointments follow the existing clinic-wide visibility convention.
+
+POST returns 200 with a summary `{ id, requestKey, status, metaMessageId, errorCode, createdAt }`. `status` is PENDING, SUBMITTED, FAILED or UNKNOWN; 200 means the attempt was recorded, not necessarily delivered or even accepted. PENDING/UNKNOWN must not trigger an automatic resend. Same key and content returns the existing result without sending again; changed content with the same key is 409. New submissions limited to 10 per clinic per minute (429). Invalid patient phone/parameter count is 400; inaccessible appointments 404; unconfigured connection 409; unavailable credential encryption 503. `parameters` allows at most ten nonempty single-line strings of up to 500 characters. Consent confirmation is an audited staff attestation.
+
+Provisioning requires `npm run whatsapp:provision`; encrypted credentials stay server-side. No public outbound endpoint or n8n access was added.
+
+WhatsApp account access: superadmins set `whatsAppEnabled` (boolean) through `PATCH /api/super-admin/clinics/:id`; clinic summaries include this flag. New clinics default to disabled. Disabled or inactive clinics receive 403 for appointment WhatsApp reads/sends and incoming WhatsApp bookings. Connection inspection and disconnect remain available to clinic admins.

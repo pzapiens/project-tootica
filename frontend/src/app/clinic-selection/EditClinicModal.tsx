@@ -34,6 +34,7 @@ export default function EditClinicModal({
   onSaved: () => void;
 }) {
   const [name, setName] = useState(clinic.name);
+  const [whatsAppEnabled, setWhatsAppEnabled] = useState(clinic.whatsAppEnabled);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [contact, setContact] = useState("");
@@ -89,10 +90,10 @@ export default function EditClinicModal({
 
     setSubmitting(true);
     try {
-      if (name.trim() !== clinic.name) {
+      if (name.trim() !== clinic.name || whatsAppEnabled !== clinic.whatsAppEnabled) {
         await apiFetch(`/super-admin/clinics/${clinic.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ name: name.trim() }),
+          body: JSON.stringify({ name: name.trim(), whatsAppEnabled }),
         });
       }
       if (adminId) {
@@ -129,6 +130,14 @@ export default function EditClinicModal({
           placeholder="Clinic name"
           error={errors.name}
         />
+
+        <div className="rounded-xl border border-field-border p-4">
+          <label className="flex items-center gap-3 font-inter text-sm font-semibold text-ink">
+            <input type="checkbox" checked={whatsAppEnabled} onChange={(e) => setWhatsAppEnabled(e.target.checked)} disabled={submitting} className="size-4 accent-[#0077c0]" />
+            Enable WhatsApp usage
+          </label>
+          <p className="mt-2 text-sm text-ink/60">Allow this account to send WhatsApp templates and receive WhatsApp bookings across all branches. Disabling keeps its saved connection.</p>
+        </div>
 
         <div className="flex flex-col gap-5 border-t border-field-border pt-5">
           <p className="font-manrope text-[15px] font-semibold text-ink">Person in Charge (PIC)</p>

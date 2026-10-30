@@ -91,6 +91,7 @@ model Clinic {
   name      String
   status    ClinicStatus @default(ACTIVE)
   plan      ClinicPlan   @default(FREE)
+  whatsAppEnabled Boolean @default(false) @map("whatsapp_enabled")
   createdAt DateTime     @default(now()) @map("created_at")
 
   users          User[]
@@ -105,6 +106,8 @@ model Clinic {
   observations   ObservationEntry[]
   documents      PatientDocument[]
   recordAuditLogs RecordAuditLog[]
+  whatsAppConnection WhatsAppConnection?
+  whatsAppMessages WhatsAppMessage[]
 
   @@map("clinics")
 }
@@ -334,6 +337,7 @@ model Appointment {
   observationEntries    ObservationEntry[]
   medicalHistoryEntries MedicalHistoryEntry[]
   patientDocuments      PatientDocument[]
+  whatsAppMessages      WhatsAppMessage[]
 
   @@index([clinicId, id])
   @@index([clinicId, startTime])
@@ -493,4 +497,50 @@ model RecordAuditLog {
 
   @@index([clinicId, patientId, createdAt])
   @@map("record_audit_logs")
+}
+
+// Provisioned server-side until Embedded Signup is implemented.
+model WhatsAppConnection {
+  id                 String   @id @default(uuid()) @db.Uuid
+  clinicId           String   @unique @map("clinic_id") @db.Uuid
+  wabaId             String   @map("waba_id")
+  phoneNumberId      String   @unique @map("phone_number_id")
+  displayNumber      String   @map("display_number")
+  encryptedToken     String   @map("encrypted_token")
+  status             String   @default("CONNECTED")
+  templateName       String   @map("template_name")
+  templateLanguage   String   @map("template_language")
+  templateBody       String   @map("template_body")
+  templateParameters Int      @map("template_parameters")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  clinic             Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  @@map("whatsapp_connections")
+}
+
+// Audit of submission attempts; no delivery status is implied.
+model WhatsAppMessage {
+  id                 String       @id @default(uuid()) @db.Uuid
+  clinicId           String       @map("clinic_id") @db.Uuid
+  appointmentId      String?      @map("appointment_id") @db.Uuid
+  sentByUserId       String       @map("sent_by_user_id") @db.Uuid
+  connectionId       String       @map("connection_id") @db.Uuid
+  requestKey         String       @map("request_key") @db.Uuid
+  requestHash        String       @map("request_hash")
+  recipient          String
+  templateName       String       @map("template_name")
+  templateLanguage   String       @map("template_language")
+  parameters         Json
+  consentConfirmedAt DateTime     @map("consent_confirmed_at")
+  status             String       @default("PENDING")
+  metaMessageId      String?      @map("meta_message_id")
+  errorCode          String?      @map("error_code")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+  clinic             Clinic       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointment        Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  @@unique([clinicId, requestKey])
+  @@index([clinicId, createdAt])
+  @@index([clinicId, appointmentId])
+  @@map("whatsapp_messages")
 }

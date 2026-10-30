@@ -9,6 +9,8 @@ import {
   whatsappInboundSchema,
 } from './schema';
 import { appointmentService } from './service';
+import { whatsAppRepository } from '../whatsapp/repository';
+import { HttpError } from '../../common/utils/httpError';
 
 export const appointmentController = {
   list: async (req: Request, res: Response) => {
@@ -38,6 +40,11 @@ export const appointmentController = {
   // the real Meta Cloud API webhook will parse its own payload into this shape.
   whatsappInbound: async (req: Request, res: Response) => {
     const clinicId = requireClinicId(req);
+    if (!(await whatsAppRepository.usageEnabled(clinicId)))
+      throw new HttpError(
+        403,
+        'WhatsApp usage is disabled for this account. Contact your superadmin.',
+      );
     const data = whatsappInboundSchema.parse(req.body);
     res.status(201).json(await appointmentService.whatsappInbound(clinicId, data));
   },

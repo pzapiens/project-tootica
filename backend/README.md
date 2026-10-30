@@ -378,3 +378,8 @@ See `.env.example`. Copy it to `.env` and adjust. JWT secrets are **required**
 | `OTP_MAX_ATTEMPTS`           | `5`                       | Failed verifications before lockout         |
 | `OTP_MAX_RESENDS`            | `5`                       | Max OTP sends per window                    |
 | `SUPER_ADMIN_DELETE_CODE`    | `246810`                  | Code required to confirm destructive deletes |
+
+
+## WhatsApp outbound templates
+
+Clinic admins can view connection status under Clinic settings; staff send the configured approved template from an appointment's Chat action. See [WhatsApp Phase 1 setup, provisioning and review recording](docs/WHATSAPP_PHASE1.md). Apply the new migration and provision the connection before sending.

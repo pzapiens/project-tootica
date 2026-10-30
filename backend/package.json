@@ -26,7 +26,10 @@
     "db:seed:appointments": "tsx prisma/seed-appointments.ts",
     "db:seed:whatsapp": "tsx prisma/seed-whatsapp.ts",
     "db:reset": "prisma migrate reset",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "whatsapp:provision": "tsx scripts/provision-whatsapp.ts",
+    "test:whatsapp": "tsx --test tests/whatsapp.test.ts",
+    "test:whatsapp:db": "tsx --test tests/whatsapp-db.test.ts"
   },
   "engines": {
     "node": ">=20"

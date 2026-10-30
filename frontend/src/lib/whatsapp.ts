@@ -79,3 +79,36 @@ export function postWhatsAppBooking(input: WhatsAppBookingInput): Promise<Appoin
 export function bookingChannelLabel(channel: AppointmentListItem["bookingChannel"]): "Web" | "WhatsApp" {
   return channel === "WHATSAPP" ? "WhatsApp" : "Web";
 }
+
+
+/** Safe server-side connection metadata; credentials never enter browser state. */
+export interface WhatsAppConnectionSummary {
+  connected: boolean;
+  displayNumber: string;
+  templateName: string;
+  templateLanguage: string;
+  templateBody: string;
+  templateParameters: number;
+}
+export interface WhatsAppSubmission {
+  id: string;
+  requestKey: string;
+  status: string;
+  metaMessageId: string | null;
+  errorCode: string | null;
+  createdAt: string;
+}
+export interface AppointmentWhatsAppBundle {
+  connection: WhatsAppConnectionSummary | null;
+  messages: WhatsAppSubmission[];
+}
+export function getAppointmentWhatsApp(appointmentId: string) {
+  return apiFetch<AppointmentWhatsAppBundle>(`/appointments/${appointmentId}/whatsapp`);
+}
+export function sendAppointmentWhatsApp(appointmentId: string, input: {
+  requestKey: string; parameters: string[]; consentConfirmed: true;
+}) {
+  return apiFetch<WhatsAppSubmission>(`/appointments/${appointmentId}/whatsapp/messages`, {
+    method: "POST", body: JSON.stringify(input),
+  });
+}

@@ -1,4 +1,4 @@
-# Tootica WhatsApp booking workflow
+ # Tootica WhatsApp booking workflow
 
 Import `tootica-whatsapp-booking.json` into n8n. It is inactive and contains no credentials. This is a low-volume booking-request starter using the existing repo API, not a live appointment reservation system.
 
@@ -70,3 +70,8 @@ Edit `conversation.js`, then run `python backend/integrations/n8n/build-workflow
 - [n8n static data limitations](https://docs.n8n.io/code/cookbook/builtin/get-workflow-static-data/)
 - [HTTP custom authentication](https://docs.n8n.io/integrations/builtin/credentials/httprequest/)
 - [Meta interactive message formats](https://whatsapp.github.io/WhatsApp-Nodejs-SDK/api-reference/messages/interactive/)
+
+
+## Sending from the Tootica UI
+
+Phase 1 outbound template messaging now lives in the appointment Chat dialog, with connection status under Clinic settings. It uses the backend directly and does not use this workflow. See [the Phase 1 setup and recording guide](../../docs/WHATSAPP_PHASE1.md).
