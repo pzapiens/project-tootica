@@ -1,5 +1,7 @@
 "use client";
 
+import { CalendarSkeleton } from "@/components/loading/PageSkeletons";
+
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -72,6 +74,7 @@ export default function FullCalendarView() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(linkedDay);
   const [selectedAppt, setSelectedAppt] = useState<CalAppointment | null>(null);
   const [monthAppts, setMonthAppts] = useState<Record<number, CalAppointment[]>>({});
+  const [loading, setLoading] = useState(true);
 
   const cells = useMemo(() => buildCells(view.year, view.month), [view]);
 
@@ -95,6 +98,9 @@ export default function FullCalendarView() {
       })
       .catch(() => {
         if (active) setMonthAppts({});
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -116,6 +122,8 @@ export default function FullCalendarView() {
   }
 
   const dayAppts = selectedDay ? monthAppts[selectedDay.getDate()] ?? [] : [];
+
+  if (loading) return <CalendarSkeleton />;
 
   return (
     <div className="relative flex min-h-[720px] flex-col gap-[19px]">

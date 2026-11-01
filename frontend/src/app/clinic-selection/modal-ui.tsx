@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { phoneDigits } from "@/lib/validation";
+import PhoneNumberInput from "@/components/PhoneNumberInput";
 
 /** Shared modal building blocks (design-system styled) used by the add/edit forms. */
 
@@ -132,14 +132,10 @@ export function LabeledPhone({
           error ? "border-red-500 focus-within:border-red-500" : "border-field-border focus-within:border-brand"
         }`}
       >
-        <span className="shrink-0 font-inter text-[14px] text-ink">+91</span>
-        <span className="h-5 w-px shrink-0 bg-field-border" />
-        <input
+        <PhoneNumberInput
           id={id}
-          type="tel"
-          inputMode="numeric"
           value={value}
-          onChange={(e) => onChange(phoneDigits(e.target.value))}
+          onChange={onChange}
           placeholder="10-digit mobile number"
           aria-invalid={error ? true : undefined}
           className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none placeholder:text-field-placeholder"

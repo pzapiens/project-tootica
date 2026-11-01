@@ -7,6 +7,8 @@ import { useRef, useState } from "react";
 import { apiFetch, ApiError, displayName, greetingLabel, roleAvatar, ROLE_LABELS, type MeResponse } from "@/lib/api";
 import WhatsAppSettingsPanel from "./WhatsAppSettingsPanel";
 import BackButton from "@/components/BackButton";
+import PhoneNumberInput from "@/components/PhoneNumberInput";
+import { phoneDigitsError, phoneLocalPart, phoneWithCc } from "@/lib/validation";
 
 import { useAvatar, useMe, useUpdateMe } from "../session";
 import { SPECIALIZATIONS } from "../doctors/constants";
@@ -26,7 +28,7 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
   // Personal information (seeded from the session).
   const [fullName, setFullName] = useState(displayName(me.user));
   const [specialization, setSpecialization] = useState(me.specialization ?? "");
-  const [phone, setPhone] = useState(me.user.phone ?? "");
+  const [phone, setPhone] = useState(phoneLocalPart(me.user.phone));
   const [email, setEmail] = useState(me.user.email);
   const [savedName, setSavedName] = useState(greetingLabel(me.user));
 
@@ -53,6 +55,11 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
   const [dangerMsg, setDangerMsg] = useState("");
 
   async function saveProfile() {
+    const phoneError = phoneDigitsError(phone);
+    if (phoneError) {
+      setProfileMsg({ ok: false, text: phoneError });
+      return;
+    }
     setSavingProfile(true);
     setProfileMsg(null);
     const parts = fullName.trim().split(/\s+/);
@@ -61,7 +68,7 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
     try {
       const updated = await apiFetch<MeResponse>("/auth/profile", {
         method: "PATCH",
-        body: JSON.stringify({ firstName, lastName, phone, email, specialization }),
+        body: JSON.stringify({ firstName, lastName, phone: phoneWithCc(phone), email, specialization }),
       });
       setSavedName(greetingLabel(updated.user));
       // Push the new session to the shell so the sidebar name/role update instantly.
@@ -225,9 +232,9 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
               </div>
             </Labeled>
             <Labeled label="Phone Number">
-              <div className="relative">
-                <PhoneIcon className="pointer-events-none absolute left-[16px] top-1/2 size-5 -translate-y-1/2 text-[#727783]" />
-                <input className={`${FIELD} pl-[46px]`} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" />
+              <div className="flex h-[48px] items-center gap-3 rounded-lg border border-field-border px-4 focus-within:border-brand">
+                <PhoneIcon className="pointer-events-none size-5 shrink-0 text-[#727783]" />
+                <PhoneNumberInput value={phone} onChange={setPhone} />
               </div>
             </Labeled>
             <Labeled label="Email Address">

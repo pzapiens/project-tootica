@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import PatientHistoryClient from "./PatientHistoryClient";
+import { PatientHistorySkeleton } from "@/components/loading/PageSkeletons";
 
 export const metadata: Metadata = {
   title: "Patient History Summary — Tootica",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
  */
 export default function PatientHistoryPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<PatientHistorySkeleton />}>
       <PatientHistoryClient />
     </Suspense>
   );

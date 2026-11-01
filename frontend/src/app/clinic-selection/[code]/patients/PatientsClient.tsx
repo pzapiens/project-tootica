@@ -1,5 +1,7 @@
 "use client";
 
+import { PatientsSkeleton } from "@/components/loading/PageSkeletons";
+
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -241,6 +243,8 @@ export default function PatientsClient() {
   }
 
   // The Apply Filter panel replaces the whole content area (Figma "Patients - Filter").
+  if (loading) return <PatientsSkeleton />;
+
   if (filterOpen) {
     return (
       <FilterPanel

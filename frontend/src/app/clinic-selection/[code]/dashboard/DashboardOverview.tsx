@@ -9,6 +9,7 @@ import { useAppointmentsRevision } from "@/lib/appointmentsBus";
 import DashboardHeader from "./DashboardHeader";
 import { type StatCounts, type Timeframe } from "./mock";
 import StatCards from "./StatCards";
+import { StatsSkeleton } from "@/components/loading/PageSkeletons";
 
 const EMPTY_COUNTS: StatCounts = { total: 0, completed: 0, pending: 0, cancelled: 0 };
 
@@ -26,6 +27,7 @@ export default function DashboardOverview({
   onTimeframeChange: (t: Timeframe) => void;
 }) {
   const [counts, setCounts] = useState<StatCounts>(EMPTY_COUNTS);
+  const [loading, setLoading] = useState(true);
   const rev = useAppointmentsRevision();
 
   useEffect(() => {
@@ -36,6 +38,9 @@ export default function DashboardOverview({
       })
       .catch(() => {
         if (active) setCounts(EMPTY_COUNTS);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -45,7 +50,7 @@ export default function DashboardOverview({
   return (
     <>
       <DashboardHeader timeframe={timeframe} onTimeframeChange={onTimeframeChange} />
-      <StatCards counts={counts} />
+      {loading ? <StatsSkeleton /> : <StatCards counts={counts} />}
     </>
   );
 }

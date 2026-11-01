@@ -1,3 +1,4 @@
+import { AppointmentsSkeleton } from "@/components/loading/PageSkeletons";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
  */
 export default function AppointmentsPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<AppointmentsSkeleton />}>
       <AppointmentsClient />
     </Suspense>
   );

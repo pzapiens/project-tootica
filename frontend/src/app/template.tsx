@@ -1,6 +1,7 @@
-// A `template.tsx` re-mounts on every navigation (unlike `layout.tsx`, which
-// persists), so this wrapper replays its entrance animation on each route
-// change — the standard App Router spot for a page transition.
+import DocumentTransition from "@/components/loading/DocumentTransition";
+
+// The client wrapper keys transitions by the complete destination pathname,
+// including changes below a persistent root template.
 export default function Template({ children }: { children: React.ReactNode }) {
-  return <div className="animate-page-in">{children}</div>;
+  return <DocumentTransition>{children}</DocumentTransition>;
 }

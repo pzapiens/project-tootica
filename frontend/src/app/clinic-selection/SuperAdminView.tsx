@@ -23,6 +23,7 @@ import EditClinicModal from "./EditClinicModal";
 import ManageAccountsModal from "./ManageAccountsModal";
 import { ConfirmDialog } from "./modal-ui";
 import SelectBranchSection from "./SelectBranchSection";
+import { ClinicSelectionSkeleton } from "@/components/loading/PageSkeletons";
 
 /** Which accounts a Manage Accounts modal should show. */
 type ManageTarget = {
@@ -51,6 +52,7 @@ export default function SuperAdminView({
   const router = useRouter();
   const [clinics, setClinics] = useState<SuperAdminClinic[]>([]);
   const [branches, setBranches] = useState<BranchSummary[]>([]);
+  const [loading, setLoading] = useState(true);
   // null → the clinic list; otherwise the branches of the drilled-in clinic.
   const [selectedClinicId, setSelectedClinicId] = useState<string | null>(null);
 
@@ -79,12 +81,15 @@ export default function SuperAdminView({
 
   useEffect(() => {
     let active = true;
-    apiFetch<SuperAdminClinic[]>("/super-admin/clinics")
-      .then((l) => active && setClinics(l))
-      .catch(() => {});
-    apiFetch<BranchSummary[]>("/super-admin/branches")
-      .then((l) => active && setBranches(l))
-      .catch(() => {});
+    Promise.all([
+      apiFetch<SuperAdminClinic[]>("/super-admin/clinics").catch(() => []),
+      apiFetch<BranchSummary[]>("/super-admin/branches").catch(() => []),
+    ]).then(([clinicList, branchList]) => {
+      if (!active) return;
+      setClinics(clinicList);
+      setBranches(branchList);
+      setLoading(false);
+    });
     return () => {
       active = false;
     };
@@ -167,6 +172,8 @@ export default function SuperAdminView({
 
   // Super admins have no personal name by default → greet with the brand.
   const greetingName = me.user.firstName ? greetingLabel(me.user) : "Tootica";
+
+  if (loading) return <ClinicSelectionSkeleton variant="super" />;
 
   return (
     <div className="flex min-h-dvh flex-col bg-white lg:h-dvh lg:overflow-hidden">

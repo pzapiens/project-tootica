@@ -9,6 +9,7 @@ import { bookingChannelLabel } from "@/lib/whatsapp";
 import { statusColor, statusDropdownBadgeClass, statusDropdownColor } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
+import { DashboardTableSkeleton } from "@/components/loading/PageSkeletons";
 
 import { type Time } from "./AppointmentFormStep";
 import NewAppointmentModal, { type EditAppointment } from "./NewAppointmentModal";
@@ -302,6 +303,10 @@ export default function AppointmentsTable({
   );
   const firstRow = rows.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const lastRow = Math.min(safePage * PAGE_SIZE, rows.length);
+
+  if (loading && !isNoneFilter) {
+    return <div className="min-w-0 flex-1"><DashboardTableSkeleton /></div>;
+  }
 
   return (
     <section

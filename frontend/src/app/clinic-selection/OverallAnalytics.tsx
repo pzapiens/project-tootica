@@ -1,5 +1,7 @@
 "use client";
 
+import { OverallAnalyticsSkeleton } from "@/components/loading/PageSkeletons";
+
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -165,6 +167,8 @@ export default function OverallAnalytics({ branches }: { branches: Branch[] }) {
     ].filter((d) => d.value > 0);
   }, [filteredTx]);
 
+  if (loading) return <OverallAnalyticsSkeleton />;
+
   return (
     <section className="mt-4 flex shrink-0 flex-col gap-[24px] md:mt-8">
       <h2 className="font-inter text-[23.333px] font-semibold leading-[32.667px] text-ink">
@@ -251,7 +255,7 @@ function ChartCard({
   emptyLabel?: string;
 }) {
   return (
-    <div className="flex flex-col gap-[24px] rounded-[28px] border-[1.2px] border-field-border bg-white p-[28px]">
+    <div className="flex min-h-[420px] min-w-0 flex-col gap-[24px] rounded-[28px] border-[1.2px] border-field-border bg-white p-5 sm:p-6">
       <div>
         <h3 className="font-inter text-[18px] font-bold uppercase leading-[24px] tracking-[0.4px] text-ink">
           {title}

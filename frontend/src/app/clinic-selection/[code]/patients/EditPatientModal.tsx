@@ -4,7 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 import { apiFetch, ApiError } from "@/lib/api";
-import { phoneDigits, phoneLocalPart } from "@/lib/validation";
+import { phoneLocalPart } from "@/lib/validation";
+import PhoneNumberInput from "@/components/PhoneNumberInput";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
 import { DateInput, parseDmy, toIso } from "../dashboard/DateInput";
@@ -116,11 +117,9 @@ export default function EditPatientModal({
           </Field>
           <Field label="Phone" required>
             <div className="flex items-center gap-2 border-b border-[#c2c6d4] pb-2 pt-1 focus-within:border-[#0077c0]">
-              <span className="shrink-0 font-inter text-[15px] text-[#1e1e24]">+91</span>
-              <input
+              <PhoneNumberInput
                 value={phone}
-                onChange={(e) => setPhone(phoneDigits(e.target.value))}
-                inputMode="numeric"
+                onChange={setPhone}
                 className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none"
               />
             </div>

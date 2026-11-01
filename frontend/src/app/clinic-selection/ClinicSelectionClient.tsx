@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { apiFetch, ApiError, type BranchSummary, type MeResponse } from "@/lib/api";
+import { ClinicSelectionSkeleton } from "@/components/loading/PageSkeletons";
 
 import ClinicAdminView from "./ClinicAdminView";
 import ResetPasswordPopup from "./ResetPasswordPopup";
@@ -65,10 +66,15 @@ export default function ClinicSelectionClient() {
     };
   }, [router]);
 
-  if (loading || !me) {
+  if (loading) return <ClinicSelectionSkeleton />;
+
+  if (!me) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-white">
-        <p className="font-inter text-[16px] text-ink/60">Loading…</p>
+        <div role="alert" className="flex flex-col items-center gap-4 text-ink">
+          <p>Couldn’t load your account. Please try again.</p>
+          <button type="button" onClick={() => window.location.reload()} className="rounded-full bg-brand px-6 py-3 text-white">Try again</button>
+        </div>
       </div>
     );
   }

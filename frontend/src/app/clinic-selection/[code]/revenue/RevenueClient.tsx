@@ -1,5 +1,7 @@
 "use client";
 
+import { RevenueSkeleton } from "@/components/loading/PageSkeletons";
+
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
@@ -19,6 +21,7 @@ import RevenueFilterPanel, {
   type FilterOption,
   type RevenueFilters,
 } from "./RevenueFilterPanel";
+import RevenueTrendChart from "./RevenueTrendChart";
 
 const inr = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -93,7 +96,14 @@ export default function RevenueClient() {
     let active = true;
     apiFetch<RevenueTransaction[]>("/revenue/transactions")
       .then((list) => {
-        if (active) setItems(list);
+        if (active) {
+          // Keep displayed dates, filtering, sorting and exports on the same
+          // payment-entry date used by the revenue trend.
+          setItems(list.map((transaction) => ({
+            ...transaction,
+            date: transaction.recordedAt ?? transaction.date,
+          })));
+        }
       })
       .catch(() => {
         if (active) setItems([]);
@@ -186,6 +196,8 @@ export default function RevenueClient() {
     URL.revokeObjectURL(url);
   }
 
+  if (loading) return <RevenueSkeleton />;
+
   // The Apply Filter panel replaces the whole content area (Figma "Revenue2 - Filter").
   if (filterOpen) {
     return (
@@ -206,33 +218,39 @@ export default function RevenueClient() {
           Revenue Summary
         </h1>
         <IconButton label="Export revenue to CSV" tip="Export" onClick={exportCsv} icon="/dashboard/download.svg" />
-        <TimeframeFilter timeframe={cardsTf} onChange={setCardsTf} />
       </div>
 
-      {/* Revenue breakdown pie (replaces the summary cards). A single chart, so it
-          sits on the left at a bounded width rather than stretching the page. */}
-      <div className="flex w-full max-w-[680px] shrink-0 flex-col gap-[24px] rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white p-[28px]">
-        <div>
-          <h2 className="font-inter text-[18px] font-bold uppercase leading-[24px] tracking-[0.4px] text-[#1e1e24]">
-            Revenue Breakdown :
-          </h2>
-          <p className="mt-[3px] font-inter text-[14px] leading-[20px] text-[#727783]">
-            Breakdown of received and pending revenue
-          </p>
-        </div>
-        {loading ? (
-          <p className="py-6 font-inter text-[15px] text-[#94a3b8]">Loading…</p>
-        ) : (
-          <DonutChart
-            data={revenuePie}
-            onSelect={(key) => setPieStatus((s) => (s === key ? null : key))}
-            formatValue={(n) => inr.format(n)}
-            formatCenter={inrCompact}
-            totalLabel="Total Revenue"
-            selectedKey={pieStatus}
-            size={300}
-          />
-        )}
+      <div className="grid shrink-0 grid-cols-1 gap-6 xl:grid-cols-2">
+        <RevenueTrendChart transactions={items} loading={loading} />
+        <section aria-label="Revenue breakdown" className="flex h-[420px] min-w-0 flex-col rounded-[24px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-inter text-[16px] font-bold text-[#1e1e24]">
+                Revenue Breakdown
+              </h2>
+              <p className="mt-1 font-inter text-[12px] leading-5 text-[#727783]">
+                Received and pending revenue
+              </p>
+            </div>
+            <TimeframeFilter timeframe={cardsTf} onChange={setCardsTf} />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col justify-start pt-3">
+            {loading ? (
+              <p className="py-6 font-inter text-[15px] text-[#94a3b8]">Loading…</p>
+            ) : (
+              <DonutChart
+                data={revenuePie}
+                onSelect={(key) => setPieStatus((s) => (s === key ? null : key))}
+                formatValue={(n) => inr.format(n)}
+                formatCenter={inrCompact}
+                totalLabel="Total Revenue"
+                selectedKey={pieStatus}
+                size={300}
+                compact
+              />
+            )}
+          </div>
+        </section>
       </div>
 
       {/* Recent Transactions */}

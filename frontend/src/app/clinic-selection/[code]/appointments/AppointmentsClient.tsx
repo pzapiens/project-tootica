@@ -1,5 +1,7 @@
 "use client";
 
+import { AppointmentsSkeleton } from "@/components/loading/PageSkeletons";
+
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -495,6 +497,8 @@ export default function AppointmentsClient() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  if (loading) return <AppointmentsSkeleton />;
 
   // The Patient Records view replaces the whole content area (Figma "Appts8 -
   // Records"), reached from a row's ⋮ → Records.

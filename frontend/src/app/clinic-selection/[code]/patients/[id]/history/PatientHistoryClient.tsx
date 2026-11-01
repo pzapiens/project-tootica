@@ -1,5 +1,7 @@
 "use client";
 
+import { PatientHistorySkeleton } from "@/components/loading/PageSkeletons";
+
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -106,11 +108,11 @@ export default function PatientHistoryClient() {
 
   useEffect(() => {
     let active = true;
-    // Hydrate the patient's records into the store (read synchronously below).
-    loadPatientRecord(id).catch(() => {});
+    // Include records in initial loading so appointment cards arrive complete.
     Promise.all([
       apiFetch<Patient[]>("/patients").catch(() => [] as Patient[]),
       apiFetch<AppointmentListItem[]>("/appointments?limit=500").catch(() => [] as AppointmentListItem[]),
+      loadPatientRecord(id).catch(() => {}),
     ])
       .then(([ps, as]) => {
         if (!active) return;
@@ -155,6 +157,8 @@ export default function PatientHistoryClient() {
     },
     [record],
   );
+
+  if (loading) return <PatientHistorySkeleton />;
 
   const age = ageFromDob(patient?.dob ?? null);
   const lastVisit = pastAppointments[0] ? fmtDayMonYear(pastAppointments[0].startTime) : "--";

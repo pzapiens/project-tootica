@@ -16,6 +16,7 @@ import DashboardTop from "./DashboardTop";
 import ManageAccountsModal from "./ManageAccountsModal";
 import OverallAnalytics from "./OverallAnalytics";
 import SelectBranchSection from "./SelectBranchSection";
+import { ClinicSelectionSkeleton } from "@/components/loading/PageSkeletons";
 
 /**
  * The per-clinic view (CLIENT_ADMIN / DOCTOR / etc.): greeting + stat cards +
@@ -34,6 +35,7 @@ export default function ClinicAdminView({
 }) {
   const router = useRouter();
   const [branchList, setBranchList] = useState<BranchSummary[]>([]);
+  const [loading, setLoading] = useState(true);
   // The branch whose doctors + receptionists the admin is managing (modal open).
   const [managing, setManaging] = useState<Branch | null>(null);
 
@@ -45,6 +47,9 @@ export default function ClinicAdminView({
       })
       .catch(() => {
         // Leave empty → fall back to a single clinic-derived row below.
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -81,6 +86,8 @@ export default function ClinicAdminView({
             },
           ]
         : [];
+
+  if (loading) return <ClinicSelectionSkeleton variant="clinic" />;
 
   return (
     <div className="flex min-h-dvh flex-col bg-white">

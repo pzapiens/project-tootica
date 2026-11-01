@@ -675,10 +675,16 @@ stable per-clinic transaction code:
     "consultationType": "GENERAL CONSULTATION / XRAY",
     "amount": 1250,
     "paid": true,
-    "date": "2026-10-24T04:00:00.000Z"
+    "date": "2026-10-24T04:00:00.000Z",
+    "recordedAt": "2026-10-23T10:00:00.000Z"
   }
 ]
 ```
+
+`date` is the appointment start time. `recordedAt` is when the payment entry was
+created; the revenue trend groups received entries by this date so advance
+payments appear before their appointment takes place. It is not a separate
+timestamp for when an existing pending entry was marked received.
 
 ---
 

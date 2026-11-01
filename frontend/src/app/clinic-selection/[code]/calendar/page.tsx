@@ -1,3 +1,4 @@
+import { CalendarSkeleton } from "@/components/loading/PageSkeletons";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
  */
 export default function CalendarPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<CalendarSkeleton />}>
       <FullCalendarView />
     </Suspense>
   );

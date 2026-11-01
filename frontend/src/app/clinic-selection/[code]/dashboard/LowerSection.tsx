@@ -7,6 +7,7 @@ import { useAppointmentsRevision } from "@/lib/appointmentsBus";
 
 import AppointmentsTable from "./AppointmentsTable";
 import MiniCalendar from "./MiniCalendar";
+import { CalendarGridSkeleton, LoadingFrame } from "@/components/loading/PageSkeletons";
 
 /**
  * Lower dashboard row: the appointments table and the mini calendar side by
@@ -33,6 +34,7 @@ export default function LowerSection({
   // Full list (recent) — only used to mark which days have appointments and to
   // pick the initial calendar month. The table fetches its own filtered slice.
   const [allAppointments, setAllAppointments] = useState<AppointmentListItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const rev = useAppointmentsRevision();
 
   useEffect(() => {
@@ -43,6 +45,9 @@ export default function LowerSection({
       })
       .catch(() => {
         if (active) setAllAppointments([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -90,7 +95,9 @@ export default function LowerSection({
         onStatusChange={onStatusChange}
       />
       <div ref={calRef} className="shrink-0 self-start">
-        <MiniCalendar appointments={allAppointments} initialMonth={initialMonth} />
+        {loading ? (
+          <LoadingFrame name="appointment calendar" className="w-[360px] max-w-full"><CalendarGridSkeleton compact /></LoadingFrame>
+        ) : <MiniCalendar appointments={allAppointments} initialMonth={initialMonth} />}
       </div>
     </div>
   );

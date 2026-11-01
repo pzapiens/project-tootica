@@ -406,6 +406,9 @@ export interface RevenueTransaction {
   paid: boolean;
   /** The appointment's start time (ISO) — the transaction's date. */
   date: string;
+  /** When the payment entry was recorded (ISO), used for the revenue trend.
+   *  Optional for compatibility with API responses from earlier versions. */
+  recordedAt?: string;
   /** Branch of the appointment's doctor (null when unassigned) — for scoping
    *  the clinic-selection overview's revenue by branch. */
   branchId: string | null;

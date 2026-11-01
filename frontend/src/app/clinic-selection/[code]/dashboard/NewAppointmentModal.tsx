@@ -13,7 +13,8 @@ import {
 } from "@/lib/api";
 import { notifyAppointmentsChanged } from "@/lib/appointmentsBus";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
-import { emailError, phoneDigits, phoneLocalPart, phoneWithCc } from "@/lib/validation";
+import { emailError, phoneLocalPart, phoneWithCc } from "@/lib/validation";
+import PhoneNumberInput from "@/components/PhoneNumberInput";
 
 import AppointmentFormStep, {
   type AppointmentEditResult,
@@ -654,14 +655,10 @@ function NewPatientStep({
         </Field>
         <Field label="Phone" required>
           <div className="flex items-center gap-2 border-b border-[#c2c6d4] pb-2 pt-1 focus-within:border-[#0077c0]">
-            <span className="font-inter text-[15px] text-[#1e1e24]">+91</span>
-            <span className="h-4 w-px bg-[#c2c6d4]" />
-            <input
+            <PhoneNumberInput
               value={phone}
-              onChange={(e) => setPhone(phoneDigits(e.target.value))}
+              onChange={setPhone}
               placeholder="10-digit mobile number"
-              inputMode="numeric"
-              type="tel"
               className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]"
             />
           </div>

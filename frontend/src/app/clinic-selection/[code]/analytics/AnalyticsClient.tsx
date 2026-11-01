@@ -1,5 +1,7 @@
 "use client";
 
+import { AnalyticsSkeleton } from "@/components/loading/PageSkeletons";
+
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -266,6 +268,8 @@ export default function AnalyticsClient() {
     URL.revokeObjectURL(url);
   }
 
+  if (loading) return <AnalyticsSkeleton />;
+
   return (
     <div className="flex flex-1 flex-col gap-[48px]">
       {/* Header */}
@@ -529,7 +533,7 @@ function ChartCard({
   onSelect: (key: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-[24px] rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white p-[28px]">
+    <div className="flex min-h-[420px] min-w-0 flex-col gap-[24px] rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6">
       <div>
         <h3 className="font-inter text-[18px] font-bold uppercase leading-[24px] tracking-[0.4px] text-[#1e1e24]">
           {title}

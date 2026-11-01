@@ -7,9 +7,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Revenue (Figma "Revenues1"): the clinic's Revenue Summary — two revenue stat
- * cards (Total Generated / Pending, each with a Review link that filters the
- * table), a CSV export, a per-timeframe "Recent Transactions" table (search +
+ * Revenue: received-revenue trends alongside an interactive received/pending
+ * breakdown, a CSV export, and a per-timeframe "Recent Transactions" table (search +
  * Apply Filter: ID sort, payment status, consultation type). Totals + rows are
  * derived client-side from `GET /api/revenue/transactions`. State lives in
  * RevenueClient.

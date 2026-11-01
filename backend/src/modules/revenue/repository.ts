@@ -17,6 +17,7 @@ export const revenueRepository = {
         id: true,
         amount: true,
         paid: true,
+        createdAt: true,
         appointment: {
           select: {
             startTime: true,

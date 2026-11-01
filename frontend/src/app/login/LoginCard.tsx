@@ -7,13 +7,15 @@ import { useEffect, useState } from "react";
 
 import { apiFetch, ApiError, type AuthResponse, type MessageResponse } from "@/lib/api";
 import PasswordToggle from "@/components/PasswordToggle";
+import PhoneNumberInput from "@/components/PhoneNumberInput";
+import { phoneDigitsError, phoneWithCc } from "@/lib/validation";
 
 /**
  * Login card — the interactive form from the Figma "Login" frame.
  *
- * Two ways to sign in, shown one at a time and swapped by a link at the bottom:
- *  - "Password": identifier (email OR phone) + password → `POST /auth/login`.
- *  - "Code (OTP)": identifier → `POST /auth/login/request-otp` sends a 6-digit
+ * Two ways to sign in, selected by the tabs above the fields:
+ *  - "Password": email + password → `POST /auth/login`.
+ *  - "Code (OTP)": phone → `POST /auth/login/request-otp` sends a 6-digit
  *    SMS code to the phone on the account, then `POST /auth/login/verify-otp`
  *    establishes the session.
  *
@@ -21,27 +23,13 @@ import PasswordToggle from "@/components/PasswordToggle";
  * the Clinic Selection screen (which renders the right view per role).
  */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// A loose "looks like a contact" check: an email, or something with enough
-// digits to be a phone. The server does the authoritative lookup.
-const PHONE_RE = /^\+?[\d\s()-]{6,}$/;
 // Mirror the backend resend cooldown (OTP_RESEND_COOLDOWN_SECONDS default).
 const RESEND_COOLDOWN_SECONDS = 60;
 
-// Indian numbers are the common case, so a bare local number is assumed to be
-// +91. Users outside India type the full "+<code>…" international number.
-const DEFAULT_COUNTRY_CODE = "+91";
-
-/**
- * Build the identifier to send to the backend. Emails go through untouched; a
- * bare phone number gets the default (+91) country code, unless the user
- * already typed a full "+…" international number.
- */
+/** Keep emails unchanged and compose Indian phone identifiers from local digits. */
 function buildIdentifier(raw: string): string {
   const value = raw.trim();
-  if (value.includes("@")) return value; // email
-  if (value.startsWith("+")) return value; // already international
-  const digits = value.replace(/\D/g, "");
-  return digits ? `${DEFAULT_COUNTRY_CODE}${digits}` : value;
+  return value.includes("@") ? value : phoneWithCc(value);
 }
 
 type Mode = "password" | "otp";
@@ -63,6 +51,10 @@ export default function LoginCard() {
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
 
+  useEffect(() => {
+    router.prefetch("/clinic-selection");
+  }, [router]);
+
   // Tick the resend cooldown down to zero.
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -79,8 +71,7 @@ export default function LoginCard() {
       return "";
     }
     if (!value) return "Please enter your phone number.";
-    if (!PHONE_RE.test(value)) return "Please enter a valid phone number.";
-    return "";
+    return phoneDigitsError(value, true) ?? "";
   }
 
   function onIdentifierChange(v: string) {
@@ -97,8 +88,9 @@ export default function LoginCard() {
 
   // Switch between password / OTP sign-in. The identifier means different
   // things in each (email vs phone), so clear it along with the OTP state.
-  function switchMode() {
-    setMode((m) => (m === "password" ? "otp" : "password"));
+  function switchMode(nextMode: Mode) {
+    if (nextMode === mode || submitting) return;
+    setMode(nextMode);
     setIdentifier("");
     setPassword("");
     setCode("");
@@ -199,7 +191,7 @@ export default function LoginCard() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-[460px] max-w-[460px] flex-col gap-8 overflow-hidden rounded-3xl bg-white p-10 shadow-[0_10px_40px_rgba(0,0,0,0.12)]"
+      className="flex w-[460px] max-w-[460px] flex-col gap-6 overflow-hidden rounded-3xl bg-white px-10 py-8 shadow-[0_10px_40px_rgba(0,0,0,0.12)]"
     >
       {/* Brand logo */}
       <div className="flex flex-col items-center">
@@ -214,19 +206,64 @@ export default function LoginCard() {
       </div>
 
       {/* Header */}
-      <div className="-mt-4 flex flex-col items-center gap-[11px]">
+      <div className="-mt-2 flex flex-col items-center gap-2">
         <h1 className="font-manrope text-[36px] leading-[44px] tracking-[-0.72px] text-ink">
           Welcome
         </h1>
         <p className="max-w-[280px] text-center font-inter text-[15px] leading-[24px] text-ink">
-          {mode === "password"
-            ? "Sign in to continue to your account"
-            : "Enter your phone number to receive a verification code."}
+          Sign in to continue to your account
         </p>
       </div>
 
+      {/* Sign-in method */}
+      <div role="tablist" aria-label="Sign-in method" className="-mt-2 flex border-b border-field-border/30">
+        {([
+          { value: "password", label: "Email address" },
+          { value: "otp", label: "Phone number" },
+        ] as const).map(({ value, label }) => (
+          <button
+            key={value}
+            id={`login-${value}-tab`}
+            type="button"
+            role="tab"
+            aria-selected={mode === value}
+            aria-controls={`login-${value}-panel`}
+            tabIndex={mode === value ? 0 : -1}
+            disabled={submitting}
+            onClick={() => switchMode(value)}
+            onKeyDown={(event) => {
+              let nextMode: Mode;
+              if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                nextMode = value === "password" ? "otp" : "password";
+              } else if (event.key === "Home") {
+                nextMode = "password";
+              } else if (event.key === "End") {
+                nextMode = "otp";
+              } else {
+                return;
+              }
+              event.preventDefault();
+              switchMode(nextMode);
+              document.getElementById(`login-${nextMode}-tab`)?.focus();
+            }}
+            className={`-mb-px flex h-11 flex-1 items-center justify-center whitespace-nowrap border-b-2 font-inter text-[12px] font-semibold uppercase leading-4 tracking-[1.2px] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50 ${
+              mode === value
+                ? "border-brand text-brand"
+                : "border-transparent text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Fields */}
-      <div className="flex flex-col gap-6 pt-2">
+      <div
+        id={`login-${mode}-panel`}
+        role="tabpanel"
+        aria-labelledby={`login-${mode}-tab`}
+        className="flex flex-col gap-5"
+      >
         {mode === "password" ? (
           <Field
             id="identifier"
@@ -245,11 +282,11 @@ export default function LoginCard() {
             label="Phone Number"
             icon="/auth/phone.svg"
             type="tel"
-            placeholder="Enter your phone number"
+            placeholder="10-digit mobile number"
             value={identifier}
             onChange={onIdentifierChange}
-            autoComplete="tel"
-            inputMode="tel"
+            autoComplete="tel-national"
+            description="Enter your registered mobile number and click Send Code to receive a six-digit verification code via SMS."
             error={identifierError}
           />
         )}
@@ -293,7 +330,7 @@ export default function LoginCard() {
         )}
 
         {notice && (
-          <p role="status" className="-mt-2 px-1 font-inter text-[13px] leading-5 text-brand">
+          <p role="status" className="-mt-2 px-1 font-inter text-[13px] leading-5 text-black">
             {notice}
           </p>
         )}
@@ -322,33 +359,28 @@ export default function LoginCard() {
       </div>
 
       {/* Secondary actions */}
-      <div className="flex flex-col items-center gap-3">
-        {mode === "otp" && codeSent && (
-          <button
-            type="button"
-            onClick={() => cooldown === 0 && void handleSendCode()}
-            disabled={cooldown > 0 || submitting}
-            className="cursor-pointer font-inter text-[14px] font-medium leading-5 text-brand disabled:cursor-not-allowed disabled:text-field-placeholder"
-          >
-            {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={switchMode}
-          className="cursor-pointer font-inter text-[14px] font-medium leading-5 text-ink"
-        >
-          {mode === "password" ? "Sign in with single-use code" : "Sign in with password"}
-        </button>
-        {mode === "password" && (
-          <Link
-            href="/forgot-password"
-            className="font-inter text-[14px] font-medium leading-5 text-brand"
-          >
-            Forgot password?
-          </Link>
-        )}
-      </div>
+      {(mode === "password" || codeSent) && (
+        <div className="-mt-2 flex flex-col items-center gap-3">
+          {mode === "otp" && codeSent && (
+            <button
+              type="button"
+              onClick={() => cooldown === 0 && void handleSendCode()}
+              disabled={cooldown > 0 || submitting}
+              className="cursor-pointer font-inter text-[14px] font-medium leading-5 text-brand disabled:cursor-not-allowed disabled:text-field-placeholder"
+            >
+              {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+            </button>
+          )}
+          {mode === "password" && (
+            <Link
+              href="/forgot-password"
+              className="font-inter text-[14px] font-medium leading-5 text-brand"
+            >
+              Forgot password?
+            </Link>
+          )}
+        </div>
+      )}
     </form>
   );
 }
@@ -371,6 +403,7 @@ type FieldProps = {
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   maxLength?: number;
   error?: string;
+  description?: string;
 };
 
 function Field({
@@ -385,6 +418,7 @@ function Field({
   inputMode,
   maxLength,
   error,
+  description,
 }: FieldProps) {
   const isPassword = type === "password";
   const [show, setShow] = useState(false);
@@ -403,21 +437,38 @@ function Field({
         }`}
       >
         <Image src={icon} alt="" width={24} height={24} className="size-6 shrink-0" />
-        <input
-          id={id}
-          type={inputType}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          autoComplete={autoComplete}
-          inputMode={inputMode}
-          maxLength={maxLength}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : undefined}
-          className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none placeholder:text-field-placeholder"
-        />
+        {type === "tel" ? (
+          <PhoneNumberInput
+            id={id}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            autoComplete={autoComplete}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={[error ? `${id}-error` : "", description ? `${id}-description` : ""].filter(Boolean).join(" ") || undefined}
+          />
+        ) : (
+          <input
+            id={id}
+            type={inputType}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            autoComplete={autoComplete}
+            inputMode={inputMode}
+            maxLength={maxLength}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none placeholder:text-field-placeholder"
+          />
+        )}
         {isPassword && <PasswordToggle visible={show} onToggle={() => setShow((s) => !s)} />}
       </div>
+      {description && (
+        <p id={`${id}-description`} className="pl-1 pt-1 font-inter text-[12px] leading-5 text-ink/60">
+          {description}
+        </p>
+      )}
       {error && (
         <p id={`${id}-error`} role="alert" className="pl-1 font-inter text-[13px] leading-5 text-red-500">
           {error}

@@ -16,6 +16,9 @@ import {
 } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
+import RouteSkeleton from "@/components/loading/RouteSkeleton";
+import PageTransition from "@/components/loading/PageTransition";
+import { SidebarSkeleton } from "@/components/loading/PageSkeletons";
 
 import ResetPasswordPopup from "../ResetPasswordPopup";
 import { DashboardSessionProvider, useLocalAvatar } from "./session";
@@ -92,6 +95,7 @@ export default function DashboardShell({
   const [branchName, setBranchName] = useState<string | null>(null);
   const [clinicName, setClinicName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [branchLoading, setBranchLoading] = useState(true);
   const [showReset, setShowReset] = useState(false);
 
   // Locally-uploaded avatar, shared with the Profile page via context and shown
@@ -144,26 +148,31 @@ export default function DashboardShell({
       })
       .catch(() => {
         // No branch access → just omit the identifier line.
+      })
+      .finally(() => {
+        if (active) setBranchLoading(false);
       });
     return () => {
       active = false;
     };
   }, [code]);
 
-  if (loading || !me) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#1e1e24]">
-        <p className="font-inter text-[16px] text-white/60">Loading…</p>
-      </div>
-    );
-  }
+  if (!loading && !me) return <SessionError />;
 
-  const role = me.user.role;
-  const items = NAV.filter((item) => canSee(item, role));
+  const items = me ? NAV.filter((item) => canSee(item, me.user.role)) : [];
 
   return (
     <div className="flex h-dvh overflow-hidden bg-[#1e1e24]">
-      <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarValue.url} branchName={branchName} clinicName={clinicName} />
+      {/* This transition mounts with the shell and stays mounted across page
+          changes, so navigation gets a smooth wireframe only on its first load. */}
+      <div className="w-[243.9px] shrink-0">
+        <PageTransition
+          loading={loading || branchLoading}
+          fallback={<SidebarSkeleton itemCount={me ? items.length : 6} />}
+        >
+          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarValue.url} branchName={branchName} clinicName={clinicName} />}
+        </PageTransition>
+      </div>
       <main className="min-w-0 flex-1 p-[19px]">
         {/* Fixed white panel; only the inner region scrolls. */}
         <div className="h-full overflow-hidden rounded-[28px] bg-white">
@@ -175,14 +184,27 @@ export default function DashboardShell({
                 content fits; the page only scrolls when the rows genuinely
                 overflow. */}
             <div className="flex min-h-full origin-top flex-col [zoom:0.9]">
-              <DashboardSessionProvider me={me} setMe={setMe} avatar={avatarValue}>
-                {children}
-              </DashboardSessionProvider>
+              {me ? (
+                <DashboardSessionProvider me={me} setMe={setMe} avatar={avatarValue}>
+                  <PageTransition key={pathname} fallback={<RouteSkeleton />}>
+                    {children}
+                  </PageTransition>
+                </DashboardSessionProvider>
+              ) : <RouteSkeleton />}
             </div>
           </div>
         </div>
       </main>
       {showReset && <ResetPasswordPopup onClose={() => setShowReset(false)} />}
+    </div>
+  );
+}
+
+function SessionError() {
+  return (
+    <div role="alert" className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-white px-6 text-center text-ink">
+      <p>Couldn’t load your account. Please try again.</p>
+      <button type="button" onClick={() => window.location.reload()} className="rounded-full bg-brand px-6 py-3 text-white">Try again</button>
     </div>
   );
 }

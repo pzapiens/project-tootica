@@ -12,6 +12,7 @@ import {
   type ClinicAccount,
 } from "@/lib/api";
 import { passwordPolicyError } from "@/lib/password";
+import { AccountsSkeleton } from "@/components/loading/PageSkeletons";
 
 import { useMe } from "../session";
 
@@ -70,6 +71,8 @@ export default function AccountsClient() {
   function upsertAccount(updated: ClinicAccount) {
     setAccounts((list) => (list ?? []).map((a) => (a.id === updated.id ? updated : a)));
   }
+
+  if (isAdmin && accounts === null) return <AccountsSkeleton />;
 
   if (!isAdmin) {
     return (

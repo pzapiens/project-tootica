@@ -1022,7 +1022,7 @@ function TimeRange({
 }
 
 const TIME_BOX =
-  "h-[38px] w-[34px] rounded-[8px] border border-[#c2c6d4] bg-white text-center font-inter text-[13px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]";
+  "h-[38px] w-[34px] rounded-[8px] border border-[#c2c6d4] bg-white text-center font-inter text-[13px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] placeholder:opacity-50 focus:border-[#0077c0]";
 
 function TimeGroup({ label, value, onChange }: { label: string; value: Time; onChange: (t: Time) => void }) {
   const two = (s: string, max: number) => {
