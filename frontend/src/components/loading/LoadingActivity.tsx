@@ -6,6 +6,9 @@ import { createContext, useContext, useEffect } from "react";
 // visible overlay sits outside this provider so it cannot wait on itself.
 export const LoadingActivityContext = createContext<(() => () => void) | null>(null);
 
+// Charts outside a page transition can animate as soon as they mount.
+export const PageRevealContext = createContext(true);
+
 export function useLoadingActivity() {
   const register = useContext(LoadingActivityContext);
   useEffect(() => register?.(), [register]);

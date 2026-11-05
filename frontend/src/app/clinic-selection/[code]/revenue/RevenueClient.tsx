@@ -222,8 +222,8 @@ export default function RevenueClient() {
 
       <div className="grid shrink-0 grid-cols-1 gap-6 xl:grid-cols-2">
         <RevenueTrendChart transactions={items} loading={loading} />
-        <section aria-label="Revenue breakdown" className="flex h-[420px] min-w-0 flex-col rounded-[24px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <section aria-label="Revenue breakdown" className="flex h-[420px] min-h-0 min-w-0 flex-col overflow-hidden rounded-[24px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6">
+          <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="font-inter text-[16px] font-bold text-[#1e1e24]">
                 Revenue Breakdown

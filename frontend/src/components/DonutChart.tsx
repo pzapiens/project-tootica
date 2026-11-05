@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useContext, useLayoutEffect, useRef, useState } from "react";
+import { PageRevealContext } from "./loading/LoadingActivity";
 
 export interface DonutDatum {
   /** Value passed to `onSelect` (a filter value / id). */
@@ -18,6 +19,13 @@ const DONUT_COLORS = [
   "#65a30d", "#9333ea", "#dc2626", "#0d9488", "#ca8a04",
 ];
 
+const CX = 110;
+const CY = 110;
+const R_OUTER = 100;
+const R_INNER = 62;
+const DRAW_DELAY_MS = 240;
+const DRAW_DURATION_MS = 1400;
+
 /** Point on a circle for `angle` degrees, measured clockwise from the top. */
 function polar(cx: number, cy: number, r: number, angle: number): [number, number] {
   const a = ((angle - 90) * Math.PI) / 180;
@@ -26,6 +34,11 @@ function polar(cx: number, cy: number, r: number, angle: number): [number, numbe
 
 /** SVG path for a donut segment between two angles (clockwise). */
 function donutSlice(cx: number, cy: number, rOuter: number, rInner: number, start: number, end: number): string {
+  if (end <= start) return "";
+  // SVG needs two arcs for a complete circle, including a single-category chart.
+  if (end - start >= 360 - 1e-7) {
+    return `M ${cx} ${cy - rOuter} A ${rOuter} ${rOuter} 0 1 1 ${cx} ${cy + rOuter} A ${rOuter} ${rOuter} 0 1 1 ${cx} ${cy - rOuter} Z M ${cx} ${cy - rInner} A ${rInner} ${rInner} 0 1 0 ${cx} ${cy + rInner} A ${rInner} ${rInner} 0 1 0 ${cx} ${cy - rInner} Z`;
+  }
   const large = end - start > 180 ? 1 : 0;
   const [ox1, oy1] = polar(cx, cy, rOuter, start);
   const [ox2, oy2] = polar(cx, cy, rOuter, end);
@@ -36,7 +49,7 @@ function donutSlice(cx: number, cy: number, rOuter: number, rInner: number, star
 
 /**
  * A clickable donut chart: the donut sits on the left, with colour-coded legend
- * rows on the right that expand to show every item. The centre shows the total, swapping
+ * rows on the right that scroll within the card. The centre shows the total, swapping
  * to the hovered (or selected) slice's readout. Every slice + legend row calls
  * `onSelect` with its `key`.
  *
@@ -74,18 +87,56 @@ export default function DonutChart({
   compact?: boolean;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const revealed = useContext(PageRevealContext);
+  const segmentsRef = useRef<SVGGElement>(null);
+  const animationKey = JSON.stringify(data.map(({ key, label, value }) => [key, label, value]));
   const total = data.reduce((s, d) => s + d.value, 0);
   const fmtCenter = formatCenter ?? formatValue;
   const pct = (f: number) => Math.round(f * 100);
 
+  useLayoutEffect(() => {
+    const group = segmentsRef.current;
+    if (!group) return;
+    const segments = Array.from(group.querySelectorAll<SVGPathElement>("path")).map((element) => ({
+      element,
+      start: Number(element.dataset.start),
+      end: Number(element.dataset.end),
+    }));
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frame = 0;
+
+    function draw(progress: number) {
+      for (const { element, start, end } of segments) {
+        // Match the reference: every slice grows together, opening from 3 o'clock.
+        element.setAttribute("d", donutSlice(CX, CY, R_OUTER, R_INNER, 90 - end * progress, 90 - start * progress));
+      }
+    }
+
+    function finish() {
+      window.cancelAnimationFrame(frame);
+      draw(1);
+    }
+
+    draw(motion.matches ? 1 : 0);
+    if (!revealed || motion.matches) return;
+
+    const startTime = performance.now() + DRAW_DELAY_MS;
+    function tick(now: number) {
+      const elapsed = Math.max(0, Math.min(1, (now - startTime) / DRAW_DURATION_MS));
+      draw(1 - (1 - elapsed) ** 3);
+      if (elapsed < 1) frame = window.requestAnimationFrame(tick);
+    }
+    frame = window.requestAnimationFrame(tick);
+    motion.addEventListener("change", finish);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      motion.removeEventListener("change", finish);
+    };
+  }, [animationKey, revealed]);
+
   if (data.length === 0 || total === 0) {
     return <p className="py-6 font-inter text-[15px] text-[#94a3b8]">{emptyLabel}</p>;
   }
-
-  const CX = 110;
-  const CY = 110;
-  const R_OUTER = 100;
-  const R_INNER = 62;
 
   const slices = data.map((d, i) => {
     // Cumulative values before / including this slice → its angular span.
@@ -100,42 +151,25 @@ export default function DonutChart({
     };
   });
 
-  const single = slices.length === 1;
   const hovered = hover !== null ? slices[hover] : null;
   const selected = selectedKey != null ? slices.find((s) => s.key === selectedKey) ?? null : null;
   const active = hovered ?? selected;
   const activeKey = active?.key ?? null;
 
   return (
-    <div className={compact
-      ? "flex w-full min-w-0 items-center gap-4"
+    <div key={animationKey} data-chart-ready={revealed} className={compact
+      ? "flex min-h-0 w-full min-w-0 flex-1 items-center gap-4"
       : "flex flex-col items-center gap-[24px] sm:flex-row sm:items-center sm:gap-[32px]"}>
       {/* Donut — left */}
-      <div className={`relative w-full ${compact ? "min-w-0 flex-[1.4]" : "shrink-0"}`} style={{ maxWidth: size }}>
-        <svg viewBox="0 0 220 220" className="block aspect-square w-full" role="img" aria-label="Distribution chart">
-          {single ? (
-            <>
-              <circle cx={CX} cy={CY} r={R_OUTER} fill={slices[0].color} />
-              <circle cx={CX} cy={CY} r={R_INNER} fill="white" />
-              {/* Invisible hit area so the lone slice is still clickable. */}
-              <circle
-                cx={CX}
-                cy={CY}
-                r={(R_OUTER + R_INNER) / 2}
-                fill="none"
-                stroke="transparent"
-                strokeWidth={R_OUTER - R_INNER}
-                onClick={() => onSelect(slices[0].key)}
-                onMouseEnter={() => setHover(0)}
-                onMouseLeave={() => setHover((h) => (h === 0 ? null : h))}
-                style={{ cursor: "pointer", outline: "none" }}
-              />
-            </>
-          ) : (
-            slices.map((s) => (
+      <div className={`relative aspect-square w-full ${compact ? "max-h-full min-w-0 flex-[1.4]" : "shrink-0"}`} style={{ maxWidth: size }}>
+        <svg viewBox="0 0 220 220" className="absolute inset-0 h-full w-full" role="img" aria-label="Distribution chart">
+          <g ref={segmentsRef}>
+            {slices.map((s) => (
               <path
                 key={s.key}
-                d={donutSlice(CX, CY, R_OUTER, R_INNER, s.start, s.end)}
+                d=""
+                data-start={s.start}
+                data-end={s.end}
                 fill={s.color}
                 stroke="white"
                 strokeWidth={2}
@@ -158,12 +192,12 @@ export default function DonutChart({
                   transition: "opacity 150ms",
                 }}
               />
-            ))
-          )}
+            ))}
+          </g>
         </svg>
 
         {/* Centre readout: total by default; hovered / selected slice otherwise. */}
-        <div className="pointer-events-none absolute inset-[24%] flex flex-col items-center justify-center text-center">
+        <div className="chart-readout pointer-events-none absolute inset-[24%] flex flex-col items-center justify-center text-center">
           {active ? (
             <>
               <span className="line-clamp-2 font-inter text-[13px] font-semibold leading-[16px] text-[#1e1e24]">
@@ -185,10 +219,15 @@ export default function DonutChart({
         </div>
       </div>
 
-      {/* Legend / indication — all colour-coded rows remain visible. */}
-      <ul className={`flex min-w-0 flex-1 flex-col gap-[10px] ${compact ? "" : "w-full"}`}>
+      {/* Scroll long legends independently, keeping the donut and card in place. */}
+      <ul
+        aria-label="Chart legend"
+        tabIndex={0}
+        className={`flex min-h-0 min-w-0 flex-1 flex-col gap-[10px] overflow-y-auto overscroll-contain p-1 pr-2 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0] ${compact ? "max-h-full" : "w-full"}`}
+        style={compact ? undefined : { maxHeight: size }}
+      >
         {slices.map((s) => (
-          <li key={s.key}>
+          <li key={s.key} className="chart-legend-item shrink-0" style={{ animationDelay: `${120 + Math.min(s.i, 10) * 45}ms` }}>
             <button
               type="button"
               onClick={() => onSelect(s.key)}

@@ -40,12 +40,10 @@ const RECURRENCES = [
 const DAY_PRESETS = [
   { label: "Mon to Sat", days: [1, 2, 3, 4, 5, 6] },
   { label: "Sat to Sun", days: [6, 0] },
-  { label: "Sun", days: [0] },
 ];
 const TIME_PRESETS = [
   { label: "9AM to 6PM", start: "09", end: "06", period: "AM" as const },
-  { label: "2PM to 6PM", start: "02", end: "06", period: "PM" as const },
-  { label: "6PM to 10PM", start: "06", end: "10", period: "PM" as const },
+  { label: "10AM to 7PM", start: "10", end: "07", period: "AM" as const },
 ];
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /** How many years past the present the calendar's year picker offers. */

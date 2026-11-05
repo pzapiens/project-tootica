@@ -21,6 +21,8 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:all": "tsx prisma/seed-all.ts",
+    "db:seed:demo": "tsx prisma/seed-demo.ts",
+    "db:seed:demo:check": "tsx prisma/seed-demo.ts --check",
     "db:seed:minimal": "tsx prisma/seed-minimal.ts",
     "db:provision": "tsx prisma/provision.ts",
     "db:seed:appointments": "tsx prisma/seed-appointments.ts",

@@ -54,6 +54,15 @@ Health check: `GET http://localhost:4000/health` (also `/api/health` for the fro
 
 Seed scripts (all refuse to run with `NODE_ENV=production`):
 
+- **`npm run db:seed:demo`** — adds demo data to **all 17 application tables**
+  without deleting existing data or resetting existing passwords. Covers every
+  branch, appointment status, paid/partial/unpaid bills, patient records,
+  downloadable sample documents, availability blocks, guest doctors, account
+  onboarding, and simulated WhatsApp history. Safe to repeat: existing demo edits
+  and dates are preserved. Also works on a migrated empty database. Run
+  **`npm run db:seed:demo:check`** to verify table coverage, patient/visit links,
+  and document files. See [the demo walkthrough](./docs/DEMO-DATA.md) for accounts
+  and scenarios. Prefer this command when adding samples to an existing database.
 - **`npm run db:seed:all`** — **the easiest one-command setup for a fresh
   machine.** Wipes, then creates the whole dataset in one go: the super admin,
   **2 clinics × 2 branches** with admins / doctors / receptionists, **doctor

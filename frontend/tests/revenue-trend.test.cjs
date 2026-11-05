@@ -55,13 +55,14 @@ test("revenue axes have a minimum ₹5K ceiling and scale higher with revenue", 
   }
 });
 
-test("weekly revenue runs Monday to Sunday and compares today with yesterday", () => {
+test("weekly revenue runs Monday to Sunday and compares weekly totals", () => {
   const result = buildRevenueTrend([
     payment(new Date(2026, 9, 31, 0), 0.1),
     payment(new Date(2026, 9, 31, 23, 59), 0.2),
     payment(new Date(2026, 9, 30), 0.2),
-    payment(new Date(2026, 9, 25), 50),
-    payment(new Date(2026, 9, 24), 1000),
+    payment(new Date(2026, 9, 25), 0.2),
+    payment(new Date(2026, 9, 24), 0.8),
+    payment(new Date(2026, 9, 18), 1000),
     payment(new Date(2026, 9, 31), 500, false),
     payment(new Date(2026, 10, 1), 800),
   ], "week", now);
@@ -72,10 +73,13 @@ test("weekly revenue runs Monday to Sunday and compares today with yesterday", (
   assert.equal(result.currentBucketKey, "2026-10-31");
   assert.equal(result.buckets[6].amount, 0);
   assert.equal(result.buckets[1].amount, 0);
-  assert.equal(result.current, 0.3);
-  assert.equal(result.previous, 0.2);
-  assert.equal(result.direction, "up");
-  assert.ok(Math.abs(result.percentage - 50) < 1e-8);
+  assert.equal(result.current, 0.5);
+  assert.equal(result.previous, 1);
+  assert.equal(result.difference, -0.5);
+  assert.equal(result.direction, "down");
+  assert.equal(result.percentage, -50);
+  assert.equal(result.metricLabel, "This week's revenue");
+  assert.equal(result.comparisonLabel, "last week");
 });
 
 test("received advance payments appear by payment entry date in every chart period", () => {
@@ -91,7 +95,12 @@ test("received advance payments appear by payment entry date in every chart peri
     const result = buildRevenueTrend(transactions, period, today);
     assert.equal(result.buckets.reduce((sum, bucket) => sum + bucket.amount, 0), period === "month" ? 200 : 3200);
     assert.equal(result.buckets.find((bucket) => bucket.key === result.currentBucketKey).amount, 200);
-    if (period !== "year") {
+    if (period === "week") {
+      assert.equal(result.current, 3200);
+      assert.equal(result.previous, 0);
+      assert.equal(result.difference, 3200);
+      assert.equal(result.direction, "up");
+    } else if (period === "month") {
       assert.equal(result.current, 200);
       assert.equal(result.previous, 3000);
       assert.equal(result.difference, -2800);
@@ -204,18 +213,44 @@ test("previous weeks exclude later payments from historical totals and compariso
   const result = buildRevenueTrend([
     payment(new Date(2026, 9, 25), 100),
     payment(new Date(2026, 9, 24), 50),
+    payment(new Date(2026, 9, 18), 75),
+    payment(new Date(2026, 9, 12), 25),
+    payment(new Date(2026, 9, 11), 5000),
     payment(new Date(2026, 9, 31), 9000),
   ], "week", now, 1);
   assert.equal(result.buckets[0].key, "2026-10-19");
   assert.equal(result.buckets.at(-1).key, "2026-10-25");
-  assert.equal(result.current, 100);
-  assert.equal(result.previous, 50);
+  assert.equal(result.current, 150);
+  assert.equal(result.previous, 100);
+  assert.equal(result.difference, 50);
+  assert.equal(result.percentage, 50);
   assert.equal(result.isCurrentPeriod, false);
-  assert.match(result.metricLabel, /25 Oct 2026/);
-  assert.match(result.comparisonLabel, /24 Oct 2026/);
+  assert.equal(result.metricLabel, "Selected week's revenue");
+  assert.equal(result.comparisonLabel, "previous week");
   const earlier = buildRevenueTrend([], "week", now, 2);
   assert.equal(earlier.buckets[0].key, "2026-10-12");
   assert.equal(earlier.buckets.at(-1).key, "2026-10-18");
+});
+
+test("weekly comparisons separate Sunday and Monday across year boundaries", () => {
+  const transactions = [
+    payment(new Date(2026, 11, 20), 9000),
+    payment(new Date(2026, 11, 21), 100),
+    payment(new Date(2026, 11, 27, 23, 59), 200),
+    payment(new Date(2026, 11, 28), 400),
+    payment(new Date(2027, 0, 1), 500),
+    payment(new Date(2027, 0, 3), 600),
+    payment(new Date(2027, 0, 4), 700),
+  ];
+  const current = buildRevenueTrend(transactions, "week", new Date(2027, 0, 1, 12));
+  assert.equal(current.current, 900);
+  assert.equal(current.previous, 300);
+  assert.equal(current.difference, 600);
+  assert.equal(current.percentage, 200);
+  const completed = buildRevenueTrend(transactions, "week", new Date(2027, 0, 4), 1);
+  assert.equal(completed.current, 1500);
+  assert.equal(completed.previous, 300);
+  assert.equal(completed.difference, 1200);
 });
 
 test("month navigation selects complete months and compares the preceding month", () => {
@@ -262,7 +297,7 @@ function nodes(tree) {
   return [tree, ...nodes(tree.props?.children)];
 }
 
-test("period controls highlight today's bucket while keeping revenue blue and axis labels neutral", () => {
+test("period controls keep bars blue and color the comparison by its direction", () => {
   const cells = [];
   let cursor = 0;
   const react = {
@@ -274,10 +309,12 @@ test("period controls highlight today's bucket while keeping revenue blue and ax
       }];
     },
     useEffect() {},
+    useContext: () => true,
     useMemo: (calculate) => calculate(),
   };
   const Chart = load("app/clinic-selection/[code]/revenue/RevenueTrendChart.tsx", {
     react,
+    "@/components/loading/LoadingActivity": load("components/loading/LoadingActivity.tsx"),
     "@/lib/revenueTrend": {
       buildRevenueAxis,
       buildRevenueTrend: (items, period, _now, offset) => buildRevenueTrend(items, period, now, offset),
@@ -294,23 +331,24 @@ test("period controls highlight today's bucket while keeping revenue blue and ax
     return Chart({ transactions, loading });
   };
   const bars = (tree) => nodes(tree).filter((node) =>
-    node.type === "rect" && ["#0077c0", "#16a34a", "#dc2626"].includes(node.props.fill),
+    node.type === "rect" && node.props.className === "chart-bar",
   );
   const yLabels = () => nodes(render())
     .filter((node) => node.type === "text" && node.props.textAnchor === "end")
     .map((node) => node.props.children);
   let weekStep;
-  for (const [period, count, highlightedIndex, color] of [
-    ["week", 7, 5, "#16a34a"],
-    ["month", 31, 30, "#dc2626"],
-    ["year", 12, 9, "#16a34a"],
+  for (const [period, count, changeStyle] of [
+    ["week", 7, "text-red-700"],
+    ["month", 31, "text-red-700"],
+    ["year", 12, "text-green-700"],
   ]) {
     nodes(render()).find((node) => node.type === "select").props.onChange({ target: { value: period } });
     const tree = render();
     const columns = bars(tree);
     assert.equal(columns.length, count);
-    assert.ok(columns.every((node, index) => index === highlightedIndex || node.props.fill === "#0077c0"));
-    assert.equal(columns[highlightedIndex].props.fill, color);
+    assert.ok(columns.every((node) => node.props.fill === "#0077c0"));
+    const change = nodes(tree).find((node) => node.type === "p" && node.props.title);
+    assert.ok(change.props.className.includes(changeStyle));
     const summary = nodes(tree).find((node) => node.type === "p" && node.props.style?.color);
     assert.equal(summary.props.style.color, "#0077c0");
     const xLabels = nodes(tree).filter((node) => node.type === "text" && node.props.textAnchor === "middle");

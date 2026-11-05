@@ -7,19 +7,20 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 const root = path.resolve(__dirname, "../src");
-function load(relative, imports = {}, browserWindow) {
+function load(relative, imports = {}, browserWindow, clockPerformance = performance) {
   const code = ts.transpileModule(fs.readFileSync(path.join(root, relative), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText;
   const module = { exports: {} };
-  new Function("require", "module", "exports", "window", code)(
-    (name) => Object.hasOwn(imports, name) ? imports[name] : require(name), module, module.exports, browserWindow,
+  new Function("require", "module", "exports", "window", "performance", code)(
+    (name) => Object.hasOwn(imports, name) ? imports[name] : require(name), module, module.exports, browserWindow, clockPerformance,
   );
   return module.exports;
 }
 
 const loadingActivity = load("components/loading/LoadingActivity.tsx");
 const skeletons = load("components/loading/PageSkeletons.tsx", { "./LoadingActivity": loadingActivity });
+const DonutChart = load("components/DonutChart.tsx", { "./loading/LoadingActivity": loadingActivity }).default;
 const destinations = {
   dashboard: "DashboardSkeleton", appointments: "AppointmentsSkeleton", patients: "PatientsSkeleton",
   doctors: "DoctorsSkeleton", analytics: "AnalyticsSkeleton", revenue: "RevenueSkeleton",
@@ -170,6 +171,115 @@ test("fast pages retain the wireframe for 800ms and then crossfade for 240ms", (
   transition.advance(1);
   assert.equal(transition.render().props.children[1], false);
   assert.equal(transition.timerCount(), 0);
+});
+
+test("chart entrances wait for page reveal, including when data is slower than the overlay", () => {
+  const transition = transitionHarness();
+  const revealProvider = (tree) => tree.props.children[0].props.children.props.children;
+  let tree = transition.render({ loading: true });
+  assert.equal(revealProvider(tree).type, loadingActivity.PageRevealContext.Provider);
+  assert.equal(revealProvider(tree).props.value, false);
+  transition.advance(1500);
+  assert.equal(revealProvider(transition.render({ loading: true })).props.value, false);
+  transition.render({ loading: false });
+  transition.advance(0);
+  tree = transition.render();
+  assert.equal(revealProvider(tree).props.value, true);
+  transition.unmount();
+});
+
+test("donut charts inherit reveal timing and include every category in the drawing", () => {
+  const data = [{ key: "received", label: "Received", value: 20 }, { key: "pending", label: "Pending", value: 10 }];
+  const markup = renderToStaticMarkup(React.createElement(loadingActivity.PageRevealContext.Provider, { value: false },
+    React.createElement(DonutChart, { data, onSelect() {} }),
+    React.createElement(DonutChart, { data: data.slice(0, 1), onSelect() {} }),
+  ));
+  assert.equal((markup.match(/data-chart-ready="false"/g) ?? []).length, 2);
+  assert.equal((markup.match(/data-start=/g) ?? []).length, 3);
+  assert.equal((markup.match(/aria-label="Received: 20/g) ?? []).length, 4);
+  const standalone = renderToStaticMarkup(React.createElement(DonutChart, { data, onSelect() {} }));
+  assert.ok(standalone.includes('data-chart-ready="true"'));
+  const empty = renderToStaticMarkup(React.createElement(DonutChart, { data: [], onSelect() {} }));
+  assert.ok(empty.includes("No data to chart yet."));
+  assert.ok(!empty.includes("<svg"));
+});
+
+function donutDrawing({ revealed = true, reduced = false, single = false } = {}) {
+  const segments = (single ? [[0, 360]] : [[0, 240], [240, 360]]).map(([start, end]) => ({
+    dataset: { start, end }, d: "",
+    setAttribute(name, value) { this[name] = value; },
+  }));
+  const frames = new Map();
+  let sequence = 0;
+  let effect;
+  let motionChange;
+  const Chart = load("components/DonutChart.tsx", {
+    "./loading/LoadingActivity": loadingActivity,
+    react: {
+      useState: (initial) => [initial, () => {}],
+      useContext: () => revealed,
+      useRef: () => ({ current: { querySelectorAll: () => segments } }),
+      useLayoutEffect: (callback) => { effect = callback; },
+    },
+  }, {
+    matchMedia: () => ({
+      matches: reduced,
+      addEventListener: (_name, callback) => { motionChange = callback; },
+      removeEventListener: () => { motionChange = undefined; },
+    }),
+    requestAnimationFrame(callback) { frames.set(++sequence, callback); return sequence; },
+    cancelAnimationFrame(id) { frames.delete(id); },
+  }, { now: () => 0 }).default;
+  Chart({ data: single ? [{ key: "a", label: "A", value: 30 }] : [{ key: "a", label: "A", value: 20 }, { key: "b", label: "B", value: 10 }], onSelect() {} });
+  const cleanup = effect();
+  return {
+    segments, frames, cleanup,
+    reduceMotion() { motionChange(); },
+    advance(now) {
+      const callbacks = [...frames.values()];
+      frames.clear();
+      callbacks.forEach((callback) => callback(now));
+    },
+  };
+}
+
+test("all pie slices expand together from an empty ring and finish without a seam", () => {
+  const drawing = donutDrawing();
+  assert.ok(drawing.segments.every(({ d }) => d === ""));
+  drawing.advance(239);
+  assert.ok(drawing.segments.every(({ d }) => d === ""), "wait for the page crossfade");
+  drawing.advance(600);
+  const partial = drawing.segments.map(({ d }) => d);
+  assert.ok(partial.every((d) => d.startsWith("M ")), "every category participates during the sweep");
+  drawing.advance(1640);
+  drawing.segments.forEach(({ d }, index) => assert.notEqual(d, partial[index], "slice angles expand, rather than revealing finished slices"));
+  assert.equal(drawing.frames.size, 0);
+  drawing.cleanup();
+
+  const single = donutDrawing({ single: true });
+  single.advance(1640);
+  assert.equal((single.segments[0].d.match(/ A /g) ?? []).length, 4, "full rings use two outer and two inner arcs");
+  assert.ok(single.segments[0].d.endsWith(" Z"));
+  single.cleanup();
+});
+
+test("pie drawing waits for reveal, cancels on navigation, and respects reduced motion", () => {
+  const hidden = donutDrawing({ revealed: false });
+  assert.equal(hidden.frames.size, 0);
+  assert.ok(hidden.segments.every(({ d }) => d === ""));
+  const reduced = donutDrawing({ reduced: true });
+  assert.equal(reduced.frames.size, 0);
+  assert.ok(reduced.segments.every(({ d }) => d !== ""));
+  const interrupted = donutDrawing();
+  interrupted.advance(500);
+  interrupted.cleanup();
+  assert.equal(interrupted.frames.size, 0);
+  const changed = donutDrawing();
+  changed.advance(500);
+  changed.reduceMotion();
+  assert.equal(changed.frames.size, 0);
+  assert.deepEqual(changed.segments.map(({ d }) => d), reduced.segments.map(({ d }) => d));
+  changed.cleanup();
 });
 
 test("slow pages wait for all sections; later refreshes do not replay the preloader", () => {
@@ -355,6 +465,56 @@ for (const branchFailure of [false, true]) test(`navbar transition persists thro
   assert.equal(transition.key, initialKey);
   pathname = "/clinic-selection/branch-123/patients";
   assert.equal(navbar(shell.render()).key, initialKey, "page navigation does not remount the navbar transition");
+});
+
+for (const [role, count] of [["CLIENT_ADMIN", 6], ["DOCTOR", 4]]) test(`sidebar collapses and stays compact across navigation for ${role}`, async () => {
+  const PageTransition = () => null;
+  let pathname = "/clinic-selection/branch-123/dashboard";
+  const shell = pageHarness("app/clinic-selection/[code]/DashboardShell.tsx", {
+    "@/components/loading/PageTransition": PageTransition,
+    "next/navigation": { useRouter: () => ({ replace() {} }), usePathname: () => pathname },
+    "./session": { useLocalAvatar: () => ({ url: null }), DashboardSessionProvider: () => null },
+  });
+  shell.render();
+  shell.requests.find(({ url }) => url === "/auth/me").resolve({ user: { id: "me", role, mustResetPassword: false } });
+  shell.requests.find(({ url }) => url === "/branches").resolve([]);
+  await settle();
+  const sidebar = (tree) => findElement(tree, (element) => element.type === PageTransition && element.props.fallback.type === skeletons.SidebarSkeleton).props.children;
+  const toggle = (tree) => findElement(tree, (element) => element.props?.["aria-controls"] === "clinic-sidebar");
+  let tree = shell.render();
+  assert.equal(toggle(tree).props["aria-expanded"], true);
+  assert.equal(sidebar(tree).props.collapsed, false);
+  toggle(tree).props.onClick();
+  tree = shell.render();
+  assert.equal(toggle(tree).props["aria-label"], "Expand sidebar");
+  assert.equal(toggle(tree).props["aria-expanded"], false);
+  const compact = sidebar(tree);
+  assert.equal(compact.props.collapsed, true);
+  assert.equal(compact.props.items.length, count, "role-based visibility stays intact");
+  const aside = compact.type(compact.props);
+  assert.equal(aside.props.id, "clinic-sidebar");
+  assert.ok(aside.props.className.includes("w-[80px]"));
+  const nav = findElement(aside, (element) => element.type === "nav");
+  const links = React.Children.toArray(nav.props.children);
+  assert.equal(links.length, count);
+  for (const link of links) {
+    assert.ok(link.props.href.startsWith("/clinic-selection/branch-123/"));
+    assert.equal(link.props.title, link.props["aria-label"]);
+    assert.ok(React.Children.toArray(link.props.children)[1].props.className.includes("sr-only"));
+  }
+  assert.equal(links[0].props["aria-current"], "page");
+  const userChip = findElement(aside, (element) => element.props?.me && element.props?.collapsed === true);
+  assert.ok(userChip, "account controls remain available in the compact rail");
+  pathname = "/clinic-selection/branch-123/patients";
+  tree = shell.render();
+  assert.equal(sidebar(tree).props.collapsed, true);
+  const changed = sidebar(tree);
+  const changedNav = findElement(changed.type(changed.props), (element) => element.type === "nav");
+  assert.equal(React.Children.toArray(changedNav.props.children)[2].props["aria-current"], "page");
+  toggle(tree).props.onClick();
+  tree = shell.render();
+  assert.equal(toggle(tree).props["aria-label"], "Collapse sidebar");
+  assert.equal(sidebar(tree).props.collapsed, false);
 });
 
 for (const [file, skeleton] of [

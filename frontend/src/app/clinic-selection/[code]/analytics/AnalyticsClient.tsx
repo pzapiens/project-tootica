@@ -533,8 +533,8 @@ function ChartCard({
   onSelect: (key: string) => void;
 }) {
   return (
-    <div className="flex min-h-[420px] min-w-0 flex-col gap-[24px] rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6">
-      <div>
+    <div className="flex h-[420px] min-h-0 min-w-0 flex-col gap-[24px] overflow-hidden rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6">
+      <div className="shrink-0">
         <h3 className="font-inter text-[18px] font-bold uppercase leading-[24px] tracking-[0.4px] text-[#1e1e24]">
           {title}
         </h3>

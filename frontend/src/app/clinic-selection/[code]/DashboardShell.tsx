@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   apiFetch,
@@ -97,6 +98,7 @@ export default function DashboardShell({
   const [loading, setLoading] = useState(true);
   const [branchLoading, setBranchLoading] = useState(true);
   const [showReset, setShowReset] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Locally-uploaded avatar, shared with the Profile page via context and shown
   // in the sidebar chip. Seeded from sessionStorage once the user is known.
@@ -165,18 +167,37 @@ export default function DashboardShell({
     <div className="flex h-dvh overflow-hidden bg-[#1e1e24]">
       {/* This transition mounts with the shell and stays mounted across page
           changes, so navigation gets a smooth wireframe only on its first load. */}
-      <div className="w-[243.9px] shrink-0">
+      <div
+        className="shrink-0 transition-[width] duration-300 ease-in-out motion-reduce:transition-none"
+        style={{ width: sidebarCollapsed ? 72 : 243.9 }}
+      >
         <PageTransition
           loading={loading || branchLoading}
-          fallback={<SidebarSkeleton itemCount={me ? items.length : 6} />}
+          fallback={<SidebarSkeleton itemCount={me ? items.length : 6} collapsed={sidebarCollapsed} />}
         >
-          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarValue.url} branchName={branchName} clinicName={clinicName} />}
+          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarValue.url} branchName={branchName} clinicName={clinicName} collapsed={sidebarCollapsed} />}
         </PageTransition>
       </div>
-      <main className="min-w-0 flex-1 p-[19px]">
+      <main className="relative min-w-0 flex-1 p-[19px]">
+        {/* Float in the existing gutter, outside navigation and content flow. */}
+        <button
+          type="button"
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!sidebarCollapsed}
+          aria-controls="clinic-sidebar"
+          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          className="absolute left-[3px] top-[38px] z-20 flex size-8 items-center justify-center rounded-full border border-[#0077c0] bg-[#0077c0] text-white shadow-[0_2px_8px_rgba(16,24,40,0.12)] transition-[color,background-color,border-color,box-shadow,transform] duration-200 hover:border-[#0069a8] hover:bg-[#0069a8] hover:shadow-[0_3px_12px_rgba(16,24,40,0.16)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0] active:scale-95 motion-reduce:transition-none"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M9 4v16" />
+            <path d={sidebarCollapsed ? "m13 9 3 3-3 3" : "m16 9-3 3 3 3"} />
+          </svg>
+        </button>
         {/* Fixed white panel; only the inner region scrolls. */}
-        <div className="h-full overflow-hidden rounded-[28px] bg-white">
-          <div className="h-full overflow-y-auto px-[24px] py-[24px] md:px-[42px] md:py-[42px]">
+        <div className="flex h-full flex-col overflow-hidden rounded-[28px] bg-white">
+          <div className="min-h-0 flex-1 overflow-y-auto px-[24px] py-[24px] md:px-[42px] md:py-[32px]">
             {/* min-h-full fills the scroll viewport so pages can push a footer
                 to the page bottom via mt-auto (flex-col lets a page's root
                 stretch to this height). It's capped at 100% — never taller than
@@ -217,6 +238,7 @@ function Sidebar({
   avatarUrl,
   branchName,
   clinicName,
+  collapsed,
 }: {
   code: string;
   items: NavItem[];
@@ -225,16 +247,17 @@ function Sidebar({
   avatarUrl: string | null;
   branchName: string | null;
   clinicName: string | null;
+  collapsed: boolean;
 }) {
   // zoom 0.9 shrinks the sidebar width + all contents by 10%; the height is
   // pre-divided by 0.9 so it still fills the viewport after the zoom.
   return (
-    <aside className="flex h-[calc(100dvh/0.9)] w-[271px] shrink-0 flex-col justify-between overflow-y-auto px-[16px] py-[32px] [zoom:0.9]">
-      {/* Logo (mark + wordmark) — links back to the dashboard from anywhere. */}
+    <aside id="clinic-sidebar" aria-label="Clinic navigation" className={`flex h-[calc(100dvh/0.9)] shrink-0 flex-col justify-between overflow-x-hidden overflow-y-auto px-[16px] py-[32px] transition-[width] duration-300 ease-in-out motion-reduce:transition-none [zoom:0.9] ${collapsed ? "w-[80px]" : "w-[271px]"}`}>
+      {/* Logo links back to the dashboard from anywhere. */}
       <Link
         href={`/clinic-selection/${code}/dashboard`}
         aria-label="Go to dashboard"
-        className="flex items-center gap-[8px] pb-[48px] pl-[15px] transition-opacity hover:opacity-80"
+        className={`flex shrink-0 items-center gap-[8px] pb-[48px] transition-opacity hover:opacity-80 ${collapsed ? "justify-center" : "pl-[15px]"}`}
       >
         <Image
           src="/auth/logo.png"
@@ -242,15 +265,15 @@ function Sidebar({
           width={40}
           height={40}
           priority
-          className="size-[40px]"
+          className="size-[40px] shrink-0"
         />
-        <span className="font-inter text-[28px] font-bold leading-none tracking-[-0.5px] text-[#0077c0]">
+        <span className={`${collapsed ? "sr-only" : ""} font-inter text-[28px] font-bold leading-none tracking-[-0.5px] text-[#0077c0]`}>
           Tootica
         </span>
       </Link>
 
       {/* Navigation */}
-      <nav className="flex flex-1 flex-col gap-[24px]">
+      <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-[24px]">
         {items.map((item) => {
           const href = `/clinic-selection/${code}/${item.segment}`;
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -259,8 +282,10 @@ function Sidebar({
               key={item.key}
               href={href}
               aria-current={active ? "page" : undefined}
+              aria-label={item.label}
+              title={collapsed ? item.label : undefined}
               className={[
-                "flex items-center px-[16px] py-[12px] transition-colors",
+                `flex items-center py-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-white ${collapsed ? "justify-center px-3" : "px-[16px]"}`,
                 active
                   ? "rounded-[50px] bg-white/5"
                   : "rounded-[12px] hover:bg-white/5",
@@ -284,7 +309,7 @@ function Sidebar({
                 }}
               />
               <span
-                className={`pl-[16px] font-inter text-[16px] font-medium leading-[24px] ${
+                className={`${collapsed ? "sr-only" : "pl-[16px]"} font-inter text-[16px] font-medium leading-[24px] ${
                   active ? "text-white" : "text-[#94a3b8]"
                 }`}
               >
@@ -296,8 +321,8 @@ function Sidebar({
       </nav>
 
       {/* User chip + footer */}
-      <UserChip code={code} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} />
-      <div className="pt-[16px]">
+      <UserChip code={code} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} collapsed={collapsed} />
+      <div className={collapsed ? "sr-only" : "pt-[16px]"}>
         <p className="font-inter whitespace-nowrap text-[12px] font-medium leading-[18px] text-[#94a3b8]">
           © 2026 Tootica. All Rights Reserved.
         </p>
@@ -312,25 +337,66 @@ function UserChip({
   avatarUrl,
   branchName,
   clinicName,
+  collapsed,
 }: {
   code: string;
   me: MeResponse;
   avatarUrl: string | null;
   branchName: string | null;
   clinicName: string | null;
+  collapsed: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useExclusiveDropdown();
   const [active, setActive] = useState<"profile" | "accounts" | "switch" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ left: 0, bottom: 0, width: 236 });
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [setOpen]);
+
+  useEffect(() => {
+    if (!open) return;
+    menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const close = () => setOpen(false);
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+    function onScroll(event: Event) {
+      if (!menuRef.current?.contains(event.target as Node)) close();
+    }
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", onScroll, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, setOpen]);
+
+  function toggleMenu() {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const width = Math.min(236, window.innerWidth - 24);
+      setMenuPosition({
+        left: Math.max(12, Math.min(collapsed ? rect.right + 8 : rect.left, window.innerWidth - width - 12)),
+        bottom: Math.max(12, window.innerHeight - (collapsed ? rect.bottom : rect.top) + (collapsed ? 0 : 8)),
+        width,
+      });
+    }
+    setOpen((value) => !value);
+  }
 
   // Side-panel account name shows the FIRST name only — no salutation (that's
   // reserved for the title-area greeting on the dashboard / clinic-selection
@@ -377,9 +443,9 @@ function UserChip({
   }
 
   return (
-    <div ref={ref} className="relative">
-      {open && (
-        <div className="absolute bottom-[calc(100%+8px)] left-0 flex w-full flex-col gap-[10px] rounded-[15px] border border-[rgba(194,198,212,0.5)] bg-white/10 p-[17px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] backdrop-blur-md">
+    <div ref={ref} className={`relative shrink-0 ${collapsed ? "flex justify-center" : ""}`}>
+      {open && createPortal(
+        <div ref={menuRef} id="sidebar-account-menu" aria-label="Account menu" style={menuPosition} className="fixed z-50 flex max-h-[calc(100dvh-24px)] flex-col gap-[10px] overflow-y-auto rounded-[15px] border border-[rgba(194,198,212,0.5)] bg-[#2b2b31] p-[17px] shadow-lg">
           <div className="flex flex-col gap-[4px]">
             {menuItems.map((item) => {
               const selected = active === item.key;
@@ -413,12 +479,18 @@ function UserChip({
             <Image src="/clinic/logout.svg" alt="" width={24} height={24} className="size-6" />
             <span className="font-manrope text-[14px] font-medium leading-[20px] text-white">Log Out</span>
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center rounded-[50px] bg-white/10 px-[16px] py-[12px] text-left transition-colors hover:bg-white/[0.14]"
+        ref={buttonRef}
+        aria-label={`${label}: open account menu`}
+        title={collapsed ? `${label} — ${roleLabel(me.user.role)}` : undefined}
+        aria-expanded={open}
+        aria-controls={open ? "sidebar-account-menu" : undefined}
+        onClick={toggleMenu}
+        className={`flex shrink-0 items-center bg-white/10 text-left transition-colors hover:bg-white/[0.14] focus-visible:outline-2 focus-visible:outline-white ${collapsed ? "size-[56px] justify-center rounded-full p-0" : "w-full rounded-[50px] py-[12px] pl-[12px] pr-[16px]"}`}
       >
         <span className="relative flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
           {avatarUrl ? (
@@ -429,7 +501,7 @@ function UserChip({
           )}
           <Tip label={roleLabel(me.user.role)} />
         </span>
-        <span className="ml-[10px] min-w-0 flex-1 truncate font-inter text-[16px] font-medium leading-[16px] text-white">
+        <span className={`${collapsed ? "sr-only" : "ml-[10px] min-w-0 flex-1 truncate"} font-inter text-[16px] font-medium leading-[16px] text-white`}>
           {label}
         </span>
         <Image
@@ -437,12 +509,12 @@ function UserChip({
           alt=""
           width={24}
           height={24}
-          className={`size-6 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          className={`${collapsed ? "hidden" : "size-6"} transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
       {/* Full clinic + branch shown under the account box so long names wrap. */}
       {subLabel && (
-        <p className="mt-[8px] px-[16px] font-inter text-[11px] font-normal leading-[14px] text-white/50">
+        <p className={`${collapsed ? "sr-only" : "mt-[8px] px-[16px]"} font-inter text-[11px] font-normal leading-[14px] text-white/50`}>
           {subLabel}
         </p>
       )}

@@ -228,31 +228,29 @@ export function AuthSkeleton({ reset = false }: { reset?: boolean }) {
 }
 
 /** Matches the sidebar's scaled width, logo, icon/label rows and account chip. */
-export function SidebarSkeleton({ itemCount = 6 }: { itemCount?: number }) {
+export function SidebarSkeleton({ itemCount = 6, collapsed = false }: { itemCount?: number; collapsed?: boolean }) {
   const labelWidths = ["w-24", "w-28", "w-20", "w-20", "w-20", "w-20"];
   return (
-    <aside className="flex h-[calc(100dvh/0.9)] w-[271px] shrink-0 flex-col overflow-y-auto px-[16px] py-[32px] [zoom:0.9]">
+    <aside className={`flex h-[calc(100dvh/0.9)] shrink-0 flex-col overflow-x-hidden overflow-y-auto px-[16px] py-[32px] transition-[width] duration-300 ease-in-out motion-reduce:transition-none [zoom:0.9] ${collapsed ? "w-[80px]" : "w-[271px]"}`}>
       <LoadingFrame name="navigation" className="h-full [&>div]:h-full">
         <div className="flex h-full flex-col">
-          <div className="flex items-center gap-2 pb-[48px] pl-[15px]">
+          <div className={`flex items-center gap-2 pb-[48px] ${collapsed ? "justify-center" : "pl-[15px]"}`}>
             <Skeleton className="size-10 shrink-0 rounded-xl opacity-20" />
-            <Skeleton className="h-7 w-[118px] opacity-20" />
+            {!collapsed && <Skeleton className="h-7 w-[118px] opacity-20" />}
           </div>
           <div className="flex flex-1 flex-col gap-[24px]">
             {Array.from({ length: itemCount }, (_, i) => (
-              <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <div key={i} className={`flex items-center gap-4 py-3 ${collapsed ? "justify-center px-3" : "px-4"}`}>
                 <Skeleton className="size-6 shrink-0 opacity-20" />
-                <Skeleton className={`h-4 opacity-20 ${labelWidths[i] ?? "w-20"}`} />
+                {!collapsed && <Skeleton className={`h-4 opacity-20 ${labelWidths[i] ?? "w-20"}`} />}
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-[10px] rounded-full bg-white/5 px-4 py-3">
+          <div className={`flex items-center gap-[10px] rounded-full bg-white/5 py-3 ${collapsed ? "justify-center px-1" : "px-4"}`}>
             <Skeleton className="size-[37px] shrink-0 rounded-full opacity-20" />
-            <Skeleton className="h-4 flex-1 opacity-20" />
-            <Skeleton className="size-4 opacity-20" />
+            {!collapsed && <><Skeleton className="h-4 flex-1 opacity-20" /><Skeleton className="size-4 opacity-20" /></>}
           </div>
-          <Skeleton className="ml-4 mt-2 h-[14px] w-40 opacity-15" />
-          <Skeleton className="mt-4 h-[18px] w-full opacity-15" />
+          {!collapsed && <><Skeleton className="ml-4 mt-2 h-[14px] w-40 opacity-15" /><Skeleton className="mt-4 h-[18px] w-full opacity-15" /></>}
         </div>
       </LoadingFrame>
     </aside>

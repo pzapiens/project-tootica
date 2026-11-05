@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 
+import { PageRevealContext } from "@/components/loading/LoadingActivity";
 import type { RevenueTransaction } from "@/lib/api";
 import { buildRevenueAxis, buildRevenueTrend, type RevenuePeriod } from "@/lib/revenueTrend";
 
@@ -24,7 +25,6 @@ const changeCurrency = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 2,
 });
 const BLUE = "#0077c0";
-const COLORS = { up: "#16a34a", down: "#dc2626", flat: BLUE };
 const CHANGE_STYLES = {
   up: "text-green-700",
   down: "text-red-700",
@@ -42,6 +42,7 @@ export default function RevenueTrendChart({
   const [now, setNow] = useState(() => new Date());
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [periodOffset, setPeriodOffset] = useState(0);
+  const revealed = useContext(PageRevealContext);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
@@ -51,7 +52,6 @@ export default function RevenueTrendChart({
     () => buildRevenueTrend(transactions, period, now, periodOffset),
     [transactions, period, now, periodOffset],
   );
-  const color = COLORS[trend.direction];
   const active = trend.buckets.find((bucket) => bucket.key === activeKey);
   const axis = buildRevenueAxis(trend.buckets.map((bucket) => bucket.amount));
   const plotWidth = 500;
@@ -60,6 +60,7 @@ export default function RevenueTrendChart({
   const step = plotWidth / trend.buckets.length;
   const barWidth = Math.min(9, step * 0.25);
   const periodName = period === "week" ? "week" : period === "month" ? "month" : "year";
+  const animationKey = JSON.stringify([period, periodOffset, trend.buckets.map(({ key, amount }) => [key, amount])]);
 
   function movePeriod(delta: number) {
     setPeriodOffset((offset) => Math.max(0, offset + delta));
@@ -76,6 +77,7 @@ export default function RevenueTrendChart({
     <section
       aria-label="Revenue trend"
       aria-busy={loading}
+      data-chart-ready={revealed}
       className="flex h-[420px] min-w-0 flex-col rounded-[24px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -161,6 +163,7 @@ export default function RevenueTrendChart({
               </div>
             )}
             <svg
+              key={animationKey}
               viewBox="0 0 560 176"
               preserveAspectRatio="none"
               className="h-full w-full overflow-visible"
@@ -204,7 +207,9 @@ export default function RevenueTrendChart({
                       width={barWidth}
                       height={height}
                       rx={barWidth / 2}
-                      fill={highlighted ? color : BLUE}
+                      fill={BLUE}
+                      className="chart-bar"
+                      style={{ animationDelay: `${Math.min(index * 35, 350)}ms` }}
                     />
                     {showLabel && (
                       <text x={x} y={173} textAnchor="middle" fontSize="10" fill="#9298a4" fontFamily="Arial, sans-serif">

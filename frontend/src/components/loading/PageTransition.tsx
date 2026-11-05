@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { LoadingActivityContext } from "./LoadingActivity";
+import { LoadingActivityContext, PageRevealContext } from "./LoadingActivity";
 
 export const MINIMUM_PRELOADER_MS = 800;
 export const PRELOADER_FADE_MS = 240;
@@ -45,7 +45,9 @@ export default function PageTransition({ children, fallback, loading = false }: 
           inert={!revealed}
           className={`flex min-w-0 flex-col [grid-area:1/1] transition-opacity duration-[240ms] ease-in-out motion-reduce:transition-none ${revealed ? "opacity-100" : "opacity-0"}`}
         >
-          {children}
+          <PageRevealContext.Provider value={revealed}>
+            {children}
+          </PageRevealContext.Provider>
         </div>
       </LoadingActivityContext.Provider>
       {overlayMounted && (

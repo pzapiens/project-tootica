@@ -85,14 +85,12 @@ export function buildRevenueTrend(
       ? new Date(rangeStart.getFullYear(), index, 1)
       : dayOffset(rangeStart, index),
   );
-  const currentStart = period === "week"
-    ? offset === 0 ? today : endDay
-    : rangeStart;
+  const currentStart = rangeStart;
   const previousStart = monthly
     ? new Date(rangeStart.getFullYear() - 1, 0, 1)
     : period === "month"
       ? new Date(rangeStart.getFullYear(), rangeStart.getMonth() - 1, 1)
-      : dayOffset(currentStart, -1);
+      : dayOffset(rangeStart, -7);
   const keyFor = monthly ? monthKey : dayKey;
   const totals = new Map(starts.map((start) => [keyFor(start), 0]));
   let currentCents = 0;
@@ -134,12 +132,12 @@ export function buildRevenueTrend(
       ? offset === 0 ? "This year's revenue" : `${rangeStart.getFullYear()} revenue`
       : period === "month"
         ? offset === 0 ? "This month's revenue" : `${rangeStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} revenue`
-        : offset === 0 ? "Today's revenue" : `Revenue on ${endDay.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
+        : offset === 0 ? "This week's revenue" : "Selected week's revenue",
     comparisonLabel: monthly
       ? offset === 0 ? "last year" : String(previousStart.getFullYear())
       : period === "month"
         ? offset === 0 ? "last month" : previousStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
-        : offset === 0 ? "yesterday" : previousStart.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        : offset === 0 ? "last week" : "previous week",
     rangeLabel: `${starts[0].toLocaleDateString("en-GB", monthly
       ? { month: "short", year: "numeric" }
       : { day: "numeric", month: "short", ...(starts[0].getFullYear() !== endDay.getFullYear() ? { year: "numeric" as const } : {}) })} – ${endDay.toLocaleDateString("en-GB", monthly
