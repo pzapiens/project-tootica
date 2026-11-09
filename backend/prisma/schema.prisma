@@ -92,6 +92,7 @@ model Clinic {
   status    ClinicStatus @default(ACTIVE)
   plan      ClinicPlan   @default(FREE)
   whatsAppEnabled Boolean @default(false) @map("whatsapp_enabled")
+  treatmentFavourites String[] @default(["NEW PATIENT CONSULTATION / EXAMINATION","REVIEW CONSULTATION / FOLLOW-UP","SCALING / PROPHYLAXIS","COMPOSITE FILLING - POSTERIOR","ROOT CANAL TREATMENT - MOLAR"]) @map("treatment_favourites")
   createdAt DateTime     @default(now()) @map("created_at")
 
   users          User[]
@@ -161,6 +162,7 @@ model User {
   // Nullable: invite-onboarded users (Client Admins, Doctors) exist before they
   // set a password via the /auth/set-password invite link.
   passwordHash      String?    @map("password_hash")
+  avatarKey         String?    @map("avatar_key")
   role              Role
   status            UserStatus @default(ACTIVE)
   // True until the user completes the forced first-login reset (set a new

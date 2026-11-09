@@ -4,13 +4,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
-import { apiFetch, ApiError, displayName, greetingLabel, roleAvatar, ROLE_LABELS, type MeResponse } from "@/lib/api";
+import { apiFetch, apiUpload, ApiError, displayName, greetingLabel, roleAvatar, ROLE_LABELS, type MeResponse } from "@/lib/api";
 import WhatsAppSettingsPanel from "./WhatsAppSettingsPanel";
 import BackButton from "@/components/BackButton";
 import PhoneNumberInput from "@/components/PhoneNumberInput";
 import { phoneDigitsError, phoneLocalPart, phoneWithCc } from "@/lib/validation";
 
-import { useAvatar, useMe, useUpdateMe } from "../session";
+import { useMe, useUpdateMe } from "../session";
 import { SPECIALIZATIONS } from "../doctors/constants";
 import ConfirmDeleteDialog from "../appointments/ConfirmDeleteDialog";
 
@@ -32,9 +32,9 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
   const [email, setEmail] = useState(me.user.email);
   const [savedName, setSavedName] = useState(greetingLabel(me.user));
 
-  // Avatar is shared with the sidebar chip via the shell, so an upload/remove
-  // reflects in the left panel instantly.
-  const { url: avatar, setUrl: setAvatar } = useAvatar();
+  const avatar = me.user.avatarUrl;
+  const [savingAvatar, setSavingAvatar] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [savingProfile, setSavingProfile] = useState(false);
@@ -131,15 +131,40 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
     }
   }
 
-  function pickImage(file: File | undefined) {
-    if (!file) return;
-    // Read as a data URL so it can be shared with the sidebar and survive a
-    // refresh via sessionStorage (a blob: URL wouldn't).
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") setAvatar(reader.result);
-    };
-    reader.readAsDataURL(file);
+  async function pickImage(file: File | undefined) {
+    if (!file || savingAvatar) return;
+    setAvatarMsg(null);
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setAvatarMsg({ ok: false, text: "Please choose a JPG, PNG, or WebP image." });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarMsg({ ok: false, text: "Profile photos must be 2 MB or smaller." });
+      return;
+    }
+    setSavingAvatar(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const updated = await apiUpload<MeResponse>("/auth/avatar", form);
+      updateMe(updated);
+      setAvatarMsg({ ok: true, text: "Profile photo saved." });
+    } catch (err) {
+      setAvatarMsg({ ok: false, text: errText(err, "Couldn't upload your profile photo.") });
+    } finally { setSavingAvatar(false); }
+  }
+
+  async function removeImage() {
+    if (savingAvatar || !avatar) return;
+    setSavingAvatar(true);
+    setAvatarMsg(null);
+    try {
+      const updated = await apiFetch<MeResponse>("/auth/avatar", { method: "DELETE" });
+      updateMe(updated);
+      setAvatarMsg({ ok: true, text: "Profile photo removed." });
+    } catch (err) {
+      setAvatarMsg({ ok: false, text: errText(err, "Couldn't remove your profile photo.") });
+    } finally { setSavingAvatar(false); }
   }
 
   return (
@@ -167,13 +192,15 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
+              disabled={savingAvatar}
               className="flex items-center justify-center gap-[8px] whitespace-nowrap rounded-[10px] border border-[#0077c0] px-[16px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.5px] text-[#0077c0] transition-colors hover:bg-[#e6f2fb]"
             >
-              <UploadIcon className="size-5" /> Upload Image
+              <UploadIcon className="size-5" /> {savingAvatar ? "Saving..." : "Upload Image"}
             </button>
             <button
               type="button"
-              onClick={() => setAvatar(null)}
+              onClick={() => void removeImage()}
+              disabled={savingAvatar || !avatar}
               className="flex items-center justify-center gap-[8px] whitespace-nowrap rounded-[10px] border border-[#ab2222] px-[16px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.5px] text-[#ab2222] transition-colors hover:bg-[#f9f1f1]"
             >
               <TrashIcon className="size-5" /> Remove Image
@@ -181,14 +208,17 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={savingAvatar}
               className="hidden"
               onChange={(e) => {
-                pickImage(e.target.files?.[0]);
+                void pickImage(e.target.files?.[0]);
                 e.target.value = "";
               }}
             />
           </div>
+          <p className="text-center font-inter text-[12px] text-[#64748b]">JPG, PNG or WebP. Maximum 2 MB.</p>
+          {avatarMsg && <p role={avatarMsg.ok ? "status" : "alert"} className={`text-center font-inter text-[13px] ${avatarMsg.ok ? "text-[#166534]" : "text-[#ba1a1a]"}`}>{avatarMsg.text}</p>}
           <div className="flex flex-col items-center gap-[4px] pt-[4px]">
             <div className="flex items-center gap-[8px]">
               <span className="flex size-[22px] items-center justify-center rounded-full bg-[#0077c0]">

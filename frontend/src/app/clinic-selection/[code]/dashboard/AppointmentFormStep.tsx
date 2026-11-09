@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import TreatmentPicker from "@/components/TreatmentPicker";
+export { CONSULTATION_TYPES } from "@/lib/treatments";
 import { useEffect, useRef, useState } from "react";
 
 import { apiFetch, type AvailabilityResponse } from "@/lib/api";
@@ -74,26 +76,6 @@ export interface AppointmentEditResult {
   status: string;
 }
 
-/** The canonical consultation types offered when creating an appointment. */
-export const CONSULTATION_TYPES = [
-  "GENERAL CONSULTATION / XRAY",
-  "ROOT CANAL TREATMENT",
-  "RE ROOT CANAL TREATMENT",
-  "CROWN / VENEER / FPD",
-  "EXTRACTION / SURGICAL EXTRACTION",
-  "SCALING",
-  "RESTORATION",
-  "TEETH WHITENING",
-  "ORTHODONTIC TREATMENT BRACES / ALIGNERS",
-  "PEDODONTIC TREATMENT",
-  "RPD / CD",
-  "IMPLANTS",
-  "TMJ DISORDERS",
-  "GUM RELATED TREATMENTS",
-  "INTRAORAL SCANNING",
-  "OTHER LASER TREATMENTS",
-  "OTHERS",
-];
 // Source of enquiry — the marketing lead source (how the patient heard of the
 // clinic). Distinct from the booking channel (Web / WhatsApp), which is how the
 // booking was actually made.
@@ -449,18 +431,13 @@ export default function AppointmentFormStep({
     <>
       <div className="flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto px-[32px] py-[28px]">
         {/* Patient details — auto-filled, read-only */}
-        <div className="grid grid-cols-2 gap-x-[32px] gap-y-[20px]">
+        <div className="grid grid-cols-1 gap-x-[32px] gap-y-[20px] sm:grid-cols-2">
           <ReadonlyField label="Patient Name" value={patient.name} />
           <ReadonlyField label="Date of Birth" value={patient.dob} icon="calendar" />
           <ReadonlyField label="Gender" value={patient.gender} icon="block" />
           <ReadonlyField label="Phone" value={`+91 ${patient.phone}`} />
           <ReadonlyField label="Email" value={patient.email || "--"} />
-          <MultiSelectDropdown
-            label="Consultation Type"
-            values={consultation}
-            options={CONSULTATION_TYPES}
-            onChange={setConsultation}
-          />
+          <TreatmentPicker values={consultation} onChange={setConsultation} />
           <BoxedDropdown
             label="Source of Enquiry"
             required={false}
@@ -871,89 +848,6 @@ function BoxedDropdown({
                     </span>
                   ) : (
                     <span className="size-3 shrink-0 rounded-full border border-[#1e1e24]" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Multi-select boxed dropdown (checkbox rows) for Consultation Type. The trigger
- * shows every picked option; selecting toggles it without closing the panel.
- */
-function MultiSelectDropdown({
-  label,
-  values,
-  options,
-  onChange,
-}: {
-  label: string;
-  values: string[];
-  options: string[];
-  onChange: (v: string[]) => void;
-}) {
-  const [open, setOpen] = useExclusiveDropdown();
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [setOpen]);
-
-  function toggle(opt: string) {
-    onChange(values.includes(opt) ? values.filter((v) => v !== opt) : [...values, opt]);
-  }
-
-  const display = values.length ? values.map(titleCase).join(", ") : "Select";
-
-  return (
-    <div className="flex flex-col gap-2">
-      <span className={LABEL}>{label} {REQ}</span>
-      <div ref={ref} className="relative">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-2 border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
-        >
-          <span className="truncate font-inter text-[15px] text-[#1e1e24]">
-            {display}
-          </span>
-          <Image
-            src="/dashboard/chevron_dark.svg"
-            alt=""
-            width={20}
-            height={20}
-            className={`size-5 shrink-0 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
-          />
-        </button>
-        {open && (
-          <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex max-h-[260px] w-full flex-col gap-[5px] overflow-y-auto rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
-            {options.map((opt) => {
-              const selected = values.includes(opt);
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => toggle(opt)}
-                  className="flex w-full items-center justify-between gap-3 rounded-[8px] bg-[#f1f5f9] px-[16px] py-[10px] text-left transition-colors hover:bg-[#e9eef4]"
-                >
-                  <span className="font-inter text-[14px] text-[#1e1e24]">{titleCase(opt)}</span>
-                  {selected ? (
-                    <span className="flex size-3 shrink-0 items-center justify-center rounded-[2px] border border-[#1e1e24]">
-                      <svg viewBox="0 0 12 12" fill="none" stroke="#1e1e24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-2" aria-hidden>
-                        <path d="M2.5 6l2 2 5-5" />
-                      </svg>
-                    </span>
-                  ) : (
-                    <span className="size-3 shrink-0 rounded-[2px] border border-[#1e1e24]" />
                   )}
                 </button>
               );

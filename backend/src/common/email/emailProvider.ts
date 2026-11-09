@@ -24,7 +24,8 @@ class NodemailerEmailProvider implements EmailProvider {
     this.transporter = nodemailer.createTransport({
       host: env.smtp.host,
       port: env.smtp.port,
-      secure: false,
+      secure: env.smtp.port === 465,
+      requireTLS: env.smtp.port === 587,
       auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.password } : undefined,
     });
   }

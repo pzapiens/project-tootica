@@ -22,7 +22,7 @@ import PageTransition from "@/components/loading/PageTransition";
 import { SidebarSkeleton } from "@/components/loading/PageSkeletons";
 
 import ResetPasswordPopup from "../ResetPasswordPopup";
-import { DashboardSessionProvider, useLocalAvatar } from "./session";
+import { DashboardSessionProvider } from "./session";
 
 /**
  * The app shell for the per-clinic dashboard (Figma "Sidebar" + white content
@@ -100,9 +100,8 @@ export default function DashboardShell({
   const [showReset, setShowReset] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Locally-uploaded avatar, shared with the Profile page via context and shown
-  // in the sidebar chip. Seeded from sessionStorage once the user is known.
-  const avatarValue = useLocalAvatar(me?.user.id);
+  // Loaded from the backend session so the photo survives browser and device changes.
+  const avatarUrl = me?.user.avatarUrl ?? null;
 
   useEffect(() => {
     let active = true;
@@ -175,7 +174,7 @@ export default function DashboardShell({
           loading={loading || branchLoading}
           fallback={<SidebarSkeleton itemCount={me ? items.length : 6} collapsed={sidebarCollapsed} />}
         >
-          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarValue.url} branchName={branchName} clinicName={clinicName} collapsed={sidebarCollapsed} />}
+          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} collapsed={sidebarCollapsed} />}
         </PageTransition>
       </div>
       <main className="relative min-w-0 flex-1 p-[19px]">
@@ -206,7 +205,7 @@ export default function DashboardShell({
                 overflow. */}
             <div className="flex min-h-full origin-top flex-col [zoom:0.9]">
               {me ? (
-                <DashboardSessionProvider me={me} setMe={setMe} avatar={avatarValue}>
+                <DashboardSessionProvider me={me} setMe={setMe}>
                   <PageTransition key={pathname} fallback={<RouteSkeleton />}>
                     {children}
                   </PageTransition>

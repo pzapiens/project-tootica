@@ -205,6 +205,8 @@ export interface PublicUser {
   firstName: string | null;
   lastName: string | null;
   phone: string | null;
+  /** Authenticated URL of the user's persisted profile photo, if set. */
+  avatarUrl: string | null;
   role: Role;
   clinicId: string | null;
   /** Branch a doctor/receptionist is pinned to (null for clinic-wide admins). */

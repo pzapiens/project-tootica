@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authenticate } from '../../common/middleware/auth.middleware';
 import { asyncHandler } from '../../common/middleware/asyncHandler';
 import { authController } from './controller';
+import { avatarRoutes } from './avatar.routes';
 
 export const authRoutes = Router();
 
@@ -20,6 +21,7 @@ authRoutes.post('/set-password', asyncHandler(authController.setPassword));
 
 // Authenticated endpoints.
 authRoutes.get('/me', authenticate, asyncHandler(authController.me));
+authRoutes.use('/avatar', authenticate, avatarRoutes);
 authRoutes.patch('/profile', authenticate, asyncHandler(authController.updateProfile));
 authRoutes.delete('/account', authenticate, asyncHandler(authController.deleteAccount));
 authRoutes.post('/change-password', authenticate, asyncHandler(authController.changePassword));

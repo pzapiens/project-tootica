@@ -14,7 +14,7 @@ import {
 
 import AccountsClient from "./[code]/accounts/AccountsClient";
 import ProfileClient from "./[code]/profile/ProfileClient";
-import { DashboardSessionProvider, useLocalAvatar } from "./[code]/session";
+import { DashboardSessionProvider } from "./[code]/session";
 
 /**
  * Account chip + dropdown for the clinic-selection ("Switch Branch") page —
@@ -43,9 +43,8 @@ export default function AccountMenu({
   const [showProfile, setShowProfile] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // One avatar state shared by the chip and the Profile popup (via the provider),
-  // so an upload reflects in the chip immediately and in the sidebar later.
-  const avatar = useLocalAvatar(me.user.id);
+  // Profile updates replace the shared session, including its persisted photo URL.
+  const avatarUrl = me.user.avatarUrl;
 
   const label = me.user.firstName?.trim() || displayName(me.user).split(" ")[0];
 
@@ -86,9 +85,9 @@ export default function AccountMenu({
           className="flex h-[55px] items-center gap-[10px] rounded-full border-[1.5px] border-[#c2c6d4] bg-white pl-[8px] pr-[18px] transition-colors hover:border-[#0077c0]"
         >
           <span className="flex size-[39px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
-            {avatar.url ? (
+            {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatar.url} alt="" className="size-full object-cover" />
+              <img src={avatarUrl} alt="" className="size-full object-cover" />
             ) : (
               <Image src={roleAvatar(me.user.role)} alt="" width={24} height={24} className="size-6" />
             )}
@@ -107,9 +106,9 @@ export default function AccountMenu({
             {/* Identity header — avatar + name with a divider underneath */}
             <div className="flex items-center gap-[10px] border-b border-[rgba(0,0,0,0.2)] px-[16px] py-[10px]">
               <span className="flex size-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
-                {avatar.url ? (
+                {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatar.url} alt="" className="size-full object-cover" />
+                  <img src={avatarUrl} alt="" className="size-full object-cover" />
                 ) : (
                   <Image src={roleAvatar(me.user.role)} alt="" width={18} height={18} className="size-[18px]" />
                 )}
@@ -142,7 +141,7 @@ export default function AccountMenu({
 
       {showProfile && (
         <ProfilePage onBack={() => setShowProfile(false)}>
-          <DashboardSessionProvider me={me} setMe={setMe} avatar={avatar}>
+          <DashboardSessionProvider me={me} setMe={setMe}>
             <ProfileClient onBack={() => setShowProfile(false)} />
           </DashboardSessionProvider>
         </ProfilePage>
@@ -150,7 +149,7 @@ export default function AccountMenu({
 
       {popup && (
         <PagePopup onClose={() => setPopup(null)}>
-          <DashboardSessionProvider me={me} setMe={setMe} avatar={avatar}>
+          <DashboardSessionProvider me={me} setMe={setMe}>
             <AccountsClient />
           </DashboardSessionProvider>
         </PagePopup>

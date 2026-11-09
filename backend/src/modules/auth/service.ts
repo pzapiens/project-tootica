@@ -6,6 +6,7 @@ import { HttpError } from '../../common/utils/httpError';
 import { rethrowUserUniqueViolation } from '../../common/utils/prismaErrors';
 import { env } from '../../config/env';
 import { authRepository } from './repository';
+import { avatarStorage } from '../../common/storage/avatarStorage';
 import {
   signAccessToken,
   signActionToken,
@@ -27,6 +28,7 @@ function toPublicUser(user: UserRecord) {
     firstName: user.firstName,
     lastName: user.lastName,
     phone: user.phone,
+    avatarUrl: user.avatarKey ? '/api/auth/avatar?v=' + encodeURIComponent(user.avatarKey.split('/').pop()!) : null,
     role: user.role,
     clinicId: user.clinicId,
     // Branch a doctor/receptionist is pinned to (null for clinic-wide admins).
@@ -127,15 +129,23 @@ export const authService = {
 
   /**
    * Passwordless login step 1: send a one-time code by SMS to the account's
-   * phone. Mirrors forgotPassword's anti-enumeration stance — the controller
-   * always returns a generic success, so we silently no-op when the account
-   * doesn't exist, isn't active, or has no phone on file. Reuses the OTP
+   * phone. Reject unavailable accounts before issuing a code so the login form
+   * can display an error without advancing to code entry. Reuses the OTP
    * throttling policy (resend cooldown + send cap).
    */
   requestLoginOtp: async (identifier: string): Promise<void> => {
     const user = await resolveLoginUser(identifier);
-    if (!user || user.status !== 'ACTIVE' || !user.phone) {
-      return;
+    if (!user) {
+      throw new HttpError(
+        404,
+        looksLikeEmail(identifier.trim())
+          ? 'No account found with this email address.'
+          : 'No account found with this phone number.',
+      );
+    }
+    assertActive(user);
+    if (!user.phone) {
+      throw new HttpError(400, 'This account has no phone number. Please contact your administrator.');
     }
 
     const key = loginOtpKey(user.id);
@@ -259,6 +269,7 @@ export const authService = {
       }
     }
     await authRepository.deleteAccount(userId);
+    if (user.avatarKey) await avatarStorage.remove(user.avatarKey);
   },
 
   refresh: async (refreshToken: string | undefined) => {

@@ -193,12 +193,15 @@ Errors: `400` validation · `401 { "error": "Invalid credentials" }` ·
 ### 1a. `POST /api/auth/login/request-otp` — public
 Passwordless login step 1. Request `{ "identifier": "admin@tootica.local" }`
 (email or phone). Sends a 6-digit code by **SMS** to the phone on the account.
-**200** (always, to avoid account enumeration):
+**200** after the code is sent successfully:
 
 ```json
-{ "message": "If an account matches, a login code has been sent by SMS." }
+{ "message": "A 6-digit login code has been sent by SMS." }
 ```
 
+`404` when no account matches the phone number or email address.
+`403` when the account is inactive or outside its access dates.
+`400` when the account has no phone number.
 `429` when the resend cooldown / send cap is hit.
 
 ### 1b. `POST /api/auth/login/verify-otp` — public
@@ -759,3 +762,25 @@ POST returns 200 with a summary `{ id, requestKey, status, metaMessageId, errorC
 Provisioning requires `npm run whatsapp:provision`; encrypted credentials stay server-side. No public outbound endpoint or n8n access was added.
 
 WhatsApp account access: superadmins set `whatsAppEnabled` (boolean) through `PATCH /api/super-admin/clinics/:id`; clinic summaries include this flag. New clinics default to disabled. Disabled or inactive clinics receive 403 for appointment WhatsApp reads/sends and incoming WhatsApp bookings. Connection inspection and disconnect remain available to clinic admins.
+
+
+## Clinic treatment favourites
+
+`GET /api/treatments/preferences` returns `{ favourites: string[], canManage: boolean }` for the authenticated clinic (super admins use `X-Clinic-Id`).
+
+`PATCH /api/treatments/preferences` accepts `{ favourites: string[] }` with up to 5 unique treatment values. Only `CLIENT_ADMIN` and `SUPER_ADMIN` can change clinic favourites. Empty arrays are allowed. The order supplied is preserved and shared across the clinic's branches.
+
+Appointment `consultationType` continues to store selected treatment values joined by `, `; historical values remain valid. The booking picker offers 14 categories from the supplied catalogue, searches names/categories and common abbreviations, and includes a treatment-to-be-decided option.
+
+
+## Profile photos
+
+Public auth user responses include `avatarUrl: string | null`.
+
+- `POST /api/auth/avatar`: authenticated multipart upload with one `file` field. Accepts actual JPG/PNG/non-animated WebP images up to 2 MB and 25 megapixels; re-encodes them as 256 x 256 WebP without original metadata. Returns the updated `/auth/me` response.
+- `GET /api/auth/avatar`: returns only the signed-in user's image as `image/webp`, with private revalidation. No user id is accepted. Missing images return 404.
+- `DELETE /api/auth/avatar`: clears the reference, removes the file, and returns the updated `/auth/me` response. Safe to repeat.
+
+Files use `UPLOAD_DIR/avatars/<userId>/<random-id>.webp`; PostgreSQL stores `users.avatar_key`. Replacements remove the previous file after the database update succeeds; failed updates remove the newly written file. Concurrent changes return 409 rather than deleting a newer photo. There is no public static uploads directory.
+
+Keep `UPLOAD_DIR` on persistent storage and back it up with the database. For AWS, replace `src/common/storage/avatarStorage.ts` with an S3 adapter implementing save/read/remove; existing object keys, routes, and database references can remain unchanged. Existing browser-only photos need to be uploaded once to persist on the server.

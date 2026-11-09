@@ -32,7 +32,9 @@
     "whatsapp:provision": "tsx scripts/provision-whatsapp.ts",
     "test:appointments": "tsx --test tests/appointments.test.ts",
     "test:whatsapp": "tsx --test tests/whatsapp.test.ts",
-    "test:whatsapp:db": "tsx --test tests/whatsapp-db.test.ts"
+    "test:whatsapp:db": "tsx --test tests/whatsapp-db.test.ts",
+    "test:treatments": "tsx --test tests/treatments.test.ts",
+    "test:avatars": "tsx --test tests/avatars.test.ts"
   },
   "engines": {
     "node": ">=20"
@@ -53,6 +55,7 @@
     "nodemailer": "^9.0.5",
     "pg": "^8.23.0",
     "serverless-http": "^4.0.0",
+    "sharp": "^0.35.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -1,0 +1,884 @@
+[
+  {
+    "id": "1",
+    "name": "Consultation, Diagnosis & Preventive",
+    "keywords": "consultation examination prevention cleaning hygiene checkup",
+    "treatments": [
+      {
+        "value": "AIR POLISHING",
+        "label": "Air polishing"
+      },
+      {
+        "value": "DESENSITISATION TREATMENT",
+        "label": "Desensitisation treatment"
+      },
+      {
+        "value": "DIET COUNSELLING / CARIES-RISK ASSESSMENT",
+        "label": "Diet counselling / caries-risk assessment"
+      },
+      {
+        "value": "FLUORIDE APPLICATION / VARNISH",
+        "label": "Fluoride application / varnish"
+      },
+      {
+        "value": "NEW PATIENT CONSULTATION / EXAMINATION",
+        "label": "New patient consultation / examination"
+      },
+      {
+        "value": "ORAL HYGIENE INSTRUCTION",
+        "label": "Oral hygiene instruction"
+      },
+      {
+        "value": "PIT AND FISSURE SEALANT",
+        "label": "Pit and fissure sealant"
+      },
+      {
+        "value": "REVIEW CONSULTATION / FOLLOW-UP",
+        "label": "Review consultation / follow-up"
+      },
+      {
+        "value": "SCALING / PROPHYLAXIS",
+        "label": "Scaling / prophylaxis"
+      },
+      {
+        "value": "SECOND OPINION",
+        "label": "Second opinion"
+      },
+      {
+        "value": "TOPICAL REMINERALISATION THERAPY",
+        "label": "Topical remineralisation therapy"
+      },
+      {
+        "value": "TREATMENT PLANNING",
+        "label": "Treatment planning"
+      }
+    ]
+  },
+  {
+    "id": "2",
+    "name": "Restorative Dentistry",
+    "keywords": "restoration filling cavity cavities repair",
+    "treatments": [
+      {
+        "value": "AMALGAM RESTORATION",
+        "label": "Amalgam restoration"
+      },
+      {
+        "value": "CERVICAL ABRASION / NCCL RESTORATION",
+        "label": "Cervical abrasion / NCCL restoration"
+      },
+      {
+        "value": "CLASS I / II / III / IV / V RESTORATION",
+        "label": "Class I / II / III / IV / V restoration"
+      },
+      {
+        "value": "COMPOSITE FILLING - ANTERIOR",
+        "label": "Composite filling - anterior"
+      },
+      {
+        "value": "COMPOSITE FILLING - POSTERIOR",
+        "label": "Composite filling - posterior"
+      },
+      {
+        "value": "CORE BUILD-UP",
+        "label": "Core build-up"
+      },
+      {
+        "value": "DIASTEMA CLOSURE",
+        "label": "Diastema closure"
+      },
+      {
+        "value": "GIC RESTORATION",
+        "label": "GIC restoration"
+      },
+      {
+        "value": "INDIRECT INLAY",
+        "label": "Indirect inlay"
+      },
+      {
+        "value": "INDIRECT ONLAY",
+        "label": "Indirect onlay"
+      },
+      {
+        "value": "OVERLAY",
+        "label": "Overlay"
+      },
+      {
+        "value": "POST AND CORE",
+        "label": "Post and core"
+      },
+      {
+        "value": "RECONTOURING / RESHAPING",
+        "label": "Recontouring / reshaping"
+      },
+      {
+        "value": "REPAIR OF EXISTING RESTORATION",
+        "label": "Repair of existing restoration"
+      },
+      {
+        "value": "RMGIC RESTORATION",
+        "label": "RMGIC restoration"
+      },
+      {
+        "value": "TEMPORARY FILLING",
+        "label": "Temporary filling"
+      },
+      {
+        "value": "VENEER - CERAMIC",
+        "label": "Veneer - ceramic"
+      },
+      {
+        "value": "VENEER - DIRECT COMPOSITE",
+        "label": "Veneer - direct composite"
+      }
+    ]
+  },
+  {
+    "id": "3",
+    "name": "Endodontics",
+    "keywords": "rct root canal pulp endo",
+    "treatments": [
+      {
+        "value": "APEXIFICATION / APICAL BARRIER",
+        "label": "Apexification / apical barrier"
+      },
+      {
+        "value": "ENDODONTIC SURGERY / APICOECTOMY",
+        "label": "Endodontic surgery / apicoectomy"
+      },
+      {
+        "value": "INTERNAL BLEACHING",
+        "label": "Internal bleaching"
+      },
+      {
+        "value": "MULTI-VISIT RCT",
+        "label": "Multi-visit RCT"
+      },
+      {
+        "value": "POST-ENDODONTIC RESTORATION",
+        "label": "Post-endodontic restoration"
+      },
+      {
+        "value": "PULP CAPPING - DIRECT / INDIRECT",
+        "label": "Pulp capping - direct / indirect"
+      },
+      {
+        "value": "PULPECTOMY",
+        "label": "Pulpectomy"
+      },
+      {
+        "value": "PULPOTOMY",
+        "label": "Pulpotomy"
+      },
+      {
+        "value": "RE-ROOT CANAL TREATMENT",
+        "label": "Re-root canal treatment"
+      },
+      {
+        "value": "REGENERATIVE ENDODONTIC PROCEDURE",
+        "label": "Regenerative endodontic procedure"
+      },
+      {
+        "value": "ROOT CANAL RETREATMENT / DISINFECTION",
+        "label": "Root canal retreatment / disinfection"
+      },
+      {
+        "value": "ROOT CANAL TREATMENT - ANTERIOR",
+        "label": "Root canal treatment - anterior"
+      },
+      {
+        "value": "ROOT CANAL TREATMENT - MOLAR",
+        "label": "Root canal treatment - molar"
+      },
+      {
+        "value": "ROOT CANAL TREATMENT - PREMOLAR",
+        "label": "Root canal treatment - premolar"
+      },
+      {
+        "value": "SINGLE-VISIT RCT",
+        "label": "Single-visit RCT"
+      }
+    ]
+  },
+  {
+    "id": "4",
+    "name": "Crowns, Bridges & Fixed Prosthodontics",
+    "keywords": "crown bridge fpd cap prosthesis",
+    "treatments": [
+      {
+        "value": "BRIDGE - PFM",
+        "label": "Bridge - PFM"
+      },
+      {
+        "value": "BRIDGE - ZIRCONIA / ALL CERAMIC",
+        "label": "Bridge - zirconia / all ceramic"
+      },
+      {
+        "value": "CROWN - ALL CERAMIC",
+        "label": "Crown - all ceramic"
+      },
+      {
+        "value": "CROWN - E.MAX / LITHIUM DISILICATE",
+        "label": "Crown - E.max / lithium disilicate"
+      },
+      {
+        "value": "CROWN - IMPLANT-SUPPORTED",
+        "label": "Crown - implant-supported"
+      },
+      {
+        "value": "CROWN - METAL",
+        "label": "Crown - metal"
+      },
+      {
+        "value": "CROWN - PFM",
+        "label": "Crown - PFM"
+      },
+      {
+        "value": "CROWN - ZIRCONIA",
+        "label": "Crown - zirconia"
+      },
+      {
+        "value": "CROWN LENGTHENING FOR PROSTHETIC PURPOSE",
+        "label": "Crown lengthening for prosthetic purpose"
+      },
+      {
+        "value": "FULL-MOUTH REHABILITATION",
+        "label": "Full-mouth rehabilitation"
+      },
+      {
+        "value": "MARYLAND / RESIN-BONDED BRIDGE",
+        "label": "Maryland / resin-bonded bridge"
+      },
+      {
+        "value": "RE-CEMENTATION OF CROWN / BRIDGE",
+        "label": "Re-cementation of crown / bridge"
+      },
+      {
+        "value": "REMOVAL OF CROWN / BRIDGE",
+        "label": "Removal of crown / bridge"
+      },
+      {
+        "value": "REPAIR OF CROWN / BRIDGE",
+        "label": "Repair of crown / bridge"
+      },
+      {
+        "value": "SINGLE-UNIT CROWN",
+        "label": "Single-unit crown"
+      },
+      {
+        "value": "TEMPORARY CROWN",
+        "label": "Temporary crown"
+      }
+    ]
+  },
+  {
+    "id": "5",
+    "name": "Removable Prosthodontics",
+    "keywords": "rpd cd denture dentures removable prosthesis",
+    "treatments": [
+      {
+        "value": "ADDITION OF TOOTH TO DENTURE",
+        "label": "Addition of tooth to denture"
+      },
+      {
+        "value": "COMPLETE DENTURE - BOTH ARCHES",
+        "label": "Complete denture - both arches"
+      },
+      {
+        "value": "COMPLETE DENTURE - MANDIBULAR",
+        "label": "Complete denture - mandibular"
+      },
+      {
+        "value": "COMPLETE DENTURE - MAXILLARY",
+        "label": "Complete denture - maxillary"
+      },
+      {
+        "value": "DENTURE ADJUSTMENT",
+        "label": "Denture adjustment"
+      },
+      {
+        "value": "DENTURE DUPLICATION",
+        "label": "Denture duplication"
+      },
+      {
+        "value": "DENTURE REBASING",
+        "label": "Denture rebasing"
+      },
+      {
+        "value": "DENTURE RELINING",
+        "label": "Denture relining"
+      },
+      {
+        "value": "DENTURE REPAIR",
+        "label": "Denture repair"
+      },
+      {
+        "value": "FLEXIBLE PARTIAL DENTURE",
+        "label": "Flexible partial denture"
+      },
+      {
+        "value": "IMMEDIATE DENTURE",
+        "label": "Immediate denture"
+      },
+      {
+        "value": "INTERIM / FLIPPER DENTURE",
+        "label": "Interim / flipper denture"
+      },
+      {
+        "value": "OVERDENTURE",
+        "label": "Overdenture"
+      },
+      {
+        "value": "REMOVABLE PARTIAL DENTURE - ACRYLIC",
+        "label": "Removable partial denture - acrylic"
+      },
+      {
+        "value": "REMOVABLE PARTIAL DENTURE - CAST METAL",
+        "label": "Removable partial denture - cast metal"
+      }
+    ]
+  },
+  {
+    "id": "6",
+    "name": "Implant Dentistry",
+    "keywords": "implant implants",
+    "treatments": [
+      {
+        "value": "BONE GRAFTING",
+        "label": "Bone grafting"
+      },
+      {
+        "value": "GUIDED BONE REGENERATION (GBR)",
+        "label": "Guided bone regeneration (GBR)"
+      },
+      {
+        "value": "GUIDED IMPLANT SURGERY",
+        "label": "Guided implant surgery"
+      },
+      {
+        "value": "IMPLANT CONSULTATION / PLANNING",
+        "label": "Implant consultation / planning"
+      },
+      {
+        "value": "IMPLANT OVERDENTURE",
+        "label": "Implant overdenture"
+      },
+      {
+        "value": "IMPLANT PLACEMENT",
+        "label": "Implant placement"
+      },
+      {
+        "value": "IMPLANT REMOVAL",
+        "label": "Implant removal"
+      },
+      {
+        "value": "IMPLANT-SUPPORTED BRIDGE",
+        "label": "Implant-supported bridge"
+      },
+      {
+        "value": "IMPLANT-SUPPORTED CROWN",
+        "label": "Implant-supported crown"
+      },
+      {
+        "value": "PERI-IMPLANTITIS TREATMENT",
+        "label": "Peri-implantitis treatment"
+      },
+      {
+        "value": "RIDGE AUGMENTATION",
+        "label": "Ridge augmentation"
+      },
+      {
+        "value": "SECOND-STAGE SURGERY / HEALING ABUTMENT",
+        "label": "Second-stage surgery / healing abutment"
+      },
+      {
+        "value": "SINUS LIFT - INTERNAL / EXTERNAL",
+        "label": "Sinus lift - internal / external"
+      }
+    ]
+  },
+  {
+    "id": "7",
+    "name": "Periodontics",
+    "keywords": "perio periodontal gum gums scaling cleaning",
+    "treatments": [
+      {
+        "value": "CONNECTIVE TISSUE GRAFT",
+        "label": "Connective tissue graft"
+      },
+      {
+        "value": "CROWN LENGTHENING - PERIODONTAL",
+        "label": "Crown lengthening - periodontal"
+      },
+      {
+        "value": "FLAP SURGERY",
+        "label": "Flap surgery"
+      },
+      {
+        "value": "FREE GINGIVAL GRAFT",
+        "label": "Free gingival graft"
+      },
+      {
+        "value": "FRENECTOMY",
+        "label": "Frenectomy"
+      },
+      {
+        "value": "GINGIVECTOMY",
+        "label": "Gingivectomy"
+      },
+      {
+        "value": "GINGIVOPLASTY",
+        "label": "Gingivoplasty"
+      },
+      {
+        "value": "OSSEOUS SURGERY",
+        "label": "Osseous surgery"
+      },
+      {
+        "value": "PERIODONTAL EXAMINATION / CHARTING",
+        "label": "Periodontal examination / charting"
+      },
+      {
+        "value": "PERIODONTAL MAINTENANCE",
+        "label": "Periodontal maintenance"
+      },
+      {
+        "value": "PERIODONTAL REGENERATION / GRAFT",
+        "label": "Periodontal regeneration / graft"
+      },
+      {
+        "value": "SCALING AND ROOT PLANING",
+        "label": "Scaling and root planing"
+      },
+      {
+        "value": "SPLINTING OF MOBILE TEETH",
+        "label": "Splinting of mobile teeth"
+      },
+      {
+        "value": "SUBGINGIVAL DEBRIDEMENT",
+        "label": "Subgingival debridement"
+      },
+      {
+        "value": "TREATMENT OF PERIODONTAL ABSCESS",
+        "label": "Treatment of periodontal abscess"
+      }
+    ]
+  },
+  {
+    "id": "8",
+    "name": "Oral & Maxillofacial Surgery",
+    "keywords": "extraction surgical wisdom tooth removal surgery",
+    "treatments": [
+      {
+        "value": "ALVEOLOPLASTY",
+        "label": "Alveoloplasty"
+      },
+      {
+        "value": "APICOECTOMY",
+        "label": "Apicoectomy"
+      },
+      {
+        "value": "BIOPSY - SOFT TISSUE / HARD TISSUE",
+        "label": "Biopsy - soft tissue / hard tissue"
+      },
+      {
+        "value": "CYST ENUCLEATION",
+        "label": "Cyst enucleation"
+      },
+      {
+        "value": "DRY SOCKET MANAGEMENT",
+        "label": "Dry socket management"
+      },
+      {
+        "value": "EXCISION OF LESION",
+        "label": "Excision of lesion"
+      },
+      {
+        "value": "EXTRACTION - COMPLICATED / SURGICAL",
+        "label": "Extraction - complicated / surgical"
+      },
+      {
+        "value": "EXTRACTION - ERUPTED TOOTH",
+        "label": "Extraction - erupted tooth"
+      },
+      {
+        "value": "IMPACTED TOOTH REMOVAL",
+        "label": "Impacted tooth removal"
+      },
+      {
+        "value": "INCISION AND DRAINAGE",
+        "label": "Incision and drainage"
+      },
+      {
+        "value": "OPERCULECTOMY",
+        "label": "Operculectomy"
+      },
+      {
+        "value": "PRE-PROSTHETIC SURGERY",
+        "label": "Pre-prosthetic surgery"
+      },
+      {
+        "value": "RETAINED ROOT REMOVAL",
+        "label": "Retained root removal"
+      },
+      {
+        "value": "SOCKET PRESERVATION",
+        "label": "Socket preservation"
+      },
+      {
+        "value": "SUTURING / WOUND REVIEW",
+        "label": "Suturing / wound review"
+      },
+      {
+        "value": "THIRD MOLAR SURGERY",
+        "label": "Third molar surgery"
+      },
+      {
+        "value": "TOOTH SECTIONING",
+        "label": "Tooth sectioning"
+      }
+    ]
+  },
+  {
+    "id": "9",
+    "name": "Orthodontics & Clear Aligners",
+    "keywords": "ortho braces aligner aligners straightening",
+    "treatments": [
+      {
+        "value": "ALIGNER REFINEMENT",
+        "label": "Aligner refinement"
+      },
+      {
+        "value": "CLEAR ALIGNER TREATMENT",
+        "label": "Clear aligner treatment"
+      },
+      {
+        "value": "DEBONDING / APPLIANCE REMOVAL",
+        "label": "Debonding / appliance removal"
+      },
+      {
+        "value": "FIXED ORTHODONTIC TREATMENT - CERAMIC BRACES",
+        "label": "Fixed orthodontic treatment - ceramic braces"
+      },
+      {
+        "value": "FIXED ORTHODONTIC TREATMENT - METAL BRACES",
+        "label": "Fixed orthodontic treatment - metal braces"
+      },
+      {
+        "value": "FUNCTIONAL APPLIANCE",
+        "label": "Functional appliance"
+      },
+      {
+        "value": "HABIT-BREAKING APPLIANCE",
+        "label": "Habit-breaking appliance"
+      },
+      {
+        "value": "LINGUAL ORTHODONTICS",
+        "label": "Lingual orthodontics"
+      },
+      {
+        "value": "ORTHODONTIC CONSULTATION / RECORDS",
+        "label": "Orthodontic consultation / records"
+      },
+      {
+        "value": "ORTHODONTIC EMERGENCY / WIRE ADJUSTMENT",
+        "label": "Orthodontic emergency / wire adjustment"
+      },
+      {
+        "value": "RETAINER - FIXED",
+        "label": "Retainer - fixed"
+      },
+      {
+        "value": "RETAINER - REMOVABLE",
+        "label": "Retainer - removable"
+      },
+      {
+        "value": "SELF-LIGATING BRACES",
+        "label": "Self-ligating braces"
+      },
+      {
+        "value": "SPACE MAINTAINER",
+        "label": "Space maintainer"
+      },
+      {
+        "value": "SPACE REGAINER",
+        "label": "Space regainer"
+      }
+    ]
+  },
+  {
+    "id": "10",
+    "name": "Laser Dentistry",
+    "keywords": "laser lasers",
+    "treatments": [
+      {
+        "value": "LASER BIOPSY",
+        "label": "Laser biopsy"
+      },
+      {
+        "value": "LASER BLEACHING / WHITENING (WHERE OFFERED)",
+        "label": "Laser bleaching / whitening (where offered)"
+      },
+      {
+        "value": "LASER CROWN LENGTHENING",
+        "label": "Laser crown lengthening"
+      },
+      {
+        "value": "LASER DEPIGMENTATION",
+        "label": "Laser depigmentation"
+      },
+      {
+        "value": "LASER DESENSITISATION",
+        "label": "Laser desensitisation"
+      },
+      {
+        "value": "LASER FRENECTOMY / FRENOTOMY",
+        "label": "Laser frenectomy / frenotomy"
+      },
+      {
+        "value": "LASER GINGIVECTOMY / GINGIVOPLASTY",
+        "label": "Laser gingivectomy / gingivoplasty"
+      },
+      {
+        "value": "LASER HAEMOSTASIS",
+        "label": "Laser haemostasis"
+      },
+      {
+        "value": "LASER MANAGEMENT OF HERPES LESIONS",
+        "label": "Laser management of herpes lesions"
+      },
+      {
+        "value": "LASER OPERCULECTOMY",
+        "label": "Laser operculectomy"
+      },
+      {
+        "value": "LASER PERIODONTAL THERAPY / POCKET DISINFECTION",
+        "label": "Laser periodontal therapy / pocket disinfection"
+      },
+      {
+        "value": "LASER SOFT-TISSUE LESION EXCISION",
+        "label": "Laser soft-tissue lesion excision"
+      },
+      {
+        "value": "LASER TREATMENT OF APHTHOUS ULCER",
+        "label": "Laser treatment of aphthous ulcer"
+      },
+      {
+        "value": "LASER-ASSISTED ENDODONTIC DISINFECTION",
+        "label": "Laser-assisted endodontic disinfection"
+      },
+      {
+        "value": "LASER-ASSISTED PERI-IMPLANTITIS TREATMENT",
+        "label": "Laser-assisted peri-implantitis treatment"
+      },
+      {
+        "value": "LASER-ASSISTED WOUND HEALING",
+        "label": "Laser-assisted wound healing"
+      },
+      {
+        "value": "LOW-LEVEL LASER THERAPY / PHOTOBIOMODULATION",
+        "label": "Low-level laser therapy / photobiomodulation"
+      }
+    ]
+  },
+  {
+    "id": "11",
+    "name": "Paediatric Dentistry",
+    "keywords": "pediatric paediatric pedodontic child children kids primary milk teeth",
+    "treatments": [
+      {
+        "value": "EXTRACTION - PRIMARY TOOTH",
+        "label": "Extraction - primary tooth"
+      },
+      {
+        "value": "FLUORIDE APPLICATION",
+        "label": "Fluoride application"
+      },
+      {
+        "value": "HABIT COUNSELLING",
+        "label": "Habit counselling"
+      },
+      {
+        "value": "PAEDIATRIC CONSULTATION",
+        "label": "Paediatric consultation"
+      },
+      {
+        "value": "PIT AND FISSURE SEALANT",
+        "label": "Pit and fissure sealant"
+      },
+      {
+        "value": "PREVENTIVE RESIN RESTORATION",
+        "label": "Preventive resin restoration"
+      },
+      {
+        "value": "PRIMARY TOOTH RESTORATION",
+        "label": "Primary tooth restoration"
+      },
+      {
+        "value": "PULPECTOMY - PRIMARY TOOTH",
+        "label": "Pulpectomy - primary tooth"
+      },
+      {
+        "value": "PULPOTOMY - PRIMARY TOOTH",
+        "label": "Pulpotomy - primary tooth"
+      },
+      {
+        "value": "SPACE MAINTAINER",
+        "label": "Space maintainer"
+      },
+      {
+        "value": "STAINLESS STEEL CROWN",
+        "label": "Stainless steel crown"
+      },
+      {
+        "value": "STRIP CROWN / AESTHETIC PAEDIATRIC CROWN",
+        "label": "Strip crown / aesthetic paediatric crown"
+      },
+      {
+        "value": "TRAUMA MANAGEMENT - PRIMARY / PERMANENT TOOTH",
+        "label": "Trauma management - primary / permanent tooth"
+      }
+    ]
+  },
+  {
+    "id": "12",
+    "name": "Cosmetic & Whitening",
+    "keywords": "cosmetic whitening bleaching smile aesthetic",
+    "treatments": [
+      {
+        "value": "AESTHETIC RECONTOURING",
+        "label": "Aesthetic recontouring"
+      },
+      {
+        "value": "COMPOSITE BONDING",
+        "label": "Composite bonding"
+      },
+      {
+        "value": "ENAMELOPLASTY",
+        "label": "Enameloplasty"
+      },
+      {
+        "value": "EXTERNAL TOOTH WHITENING / BLEACHING",
+        "label": "External tooth whitening / bleaching"
+      },
+      {
+        "value": "GINGIVAL SMILE CORRECTION",
+        "label": "Gingival smile correction"
+      },
+      {
+        "value": "IN-OFFICE BLEACHING",
+        "label": "In-office bleaching"
+      },
+      {
+        "value": "NON-VITAL BLEACHING",
+        "label": "Non-vital bleaching"
+      },
+      {
+        "value": "SMILE DESIGNING / MOCK-UP",
+        "label": "Smile designing / mock-up"
+      },
+      {
+        "value": "TAKE-HOME WHITENING",
+        "label": "Take-home whitening"
+      },
+      {
+        "value": "VENEERS",
+        "label": "Veneers"
+      }
+    ]
+  },
+  {
+    "id": "13",
+    "name": "TMJ, Occlusion & Other Services",
+    "keywords": "tmj jaw occlusal emergency review pain guard",
+    "treatments": [
+      {
+        "value": "BRUXISM MANAGEMENT",
+        "label": "Bruxism management"
+      },
+      {
+        "value": "EMERGENCY PAIN MANAGEMENT",
+        "label": "Emergency pain management"
+      },
+      {
+        "value": "MANAGEMENT OF DENTINAL HYPERSENSITIVITY",
+        "label": "Management of dentinal hypersensitivity"
+      },
+      {
+        "value": "MEDICAL-DENTAL CLEARANCE",
+        "label": "Medical-dental clearance"
+      },
+      {
+        "value": "OCCLUSAL ADJUSTMENT",
+        "label": "Occlusal adjustment"
+      },
+      {
+        "value": "OCCLUSAL SPLINT / NIGHT GUARD",
+        "label": "Occlusal splint / night guard"
+      },
+      {
+        "value": "POST-OPERATIVE REVIEW",
+        "label": "Post-operative review"
+      },
+      {
+        "value": "PRESCRIPTION / ADVICE ONLY",
+        "label": "Prescription / advice only"
+      },
+      {
+        "value": "SNORING / ORAL APPLIANCE (IF OFFERED)",
+        "label": "Snoring / oral appliance (if offered)"
+      },
+      {
+        "value": "SPORTS MOUTHGUARD",
+        "label": "Sports mouthguard"
+      },
+      {
+        "value": "TMJ ASSESSMENT",
+        "label": "TMJ assessment"
+      }
+    ]
+  },
+  {
+    "id": "14",
+    "name": "Diagnostics & Imaging",
+    "keywords": "xray x-ray radiograph imaging scan iopa opg cbct",
+    "treatments": [
+      {
+        "value": "BITEWING RADIOGRAPH",
+        "label": "Bitewing radiograph"
+      },
+      {
+        "value": "CBCT SCAN",
+        "label": "CBCT scan"
+      },
+      {
+        "value": "INTRAORAL PERIAPICAL (IOPA) RADIOGRAPH",
+        "label": "Intraoral periapical (IOPA) radiograph"
+      },
+      {
+        "value": "INTRAORAL SCAN",
+        "label": "Intraoral scan"
+      },
+      {
+        "value": "OCCLUSAL RADIOGRAPH",
+        "label": "Occlusal radiograph"
+      },
+      {
+        "value": "OPG / PANORAMIC RADIOGRAPH",
+        "label": "OPG / panoramic radiograph"
+      },
+      {
+        "value": "PHOTOGRAPHS / CLINICAL RECORDS",
+        "label": "Photographs / clinical records"
+      },
+      {
+        "value": "PULP VITALITY TESTING",
+        "label": "Pulp vitality testing"
+      },
+      {
+        "value": "STUDY MODELS / IMPRESSIONS",
+        "label": "Study models / impressions"
+      }
+    ]
+  }
+]

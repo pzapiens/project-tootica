@@ -27,8 +27,7 @@ export const authController = {
   loginRequestOtp: async (req: Request, res: Response) => {
     const { identifier } = loginRequestOtpSchema.parse(req.body);
     await authService.requestLoginOtp(identifier);
-    // Generic response regardless of whether the account exists / has a phone.
-    res.json({ message: 'If an account matches, a login code has been sent by SMS.' });
+    res.json({ message: 'A 6-digit login code has been sent by SMS.' });
   },
 
   loginVerifyOtp: async (req: Request, res: Response) => {

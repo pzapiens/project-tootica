@@ -12,6 +12,7 @@ import { requireTenant, resolveBranch } from './common/middleware/tenant.middlew
 import { accountRoutes } from './modules/accounts/routes';
 import { analyticsRoutes } from './modules/analytics/routes';
 import { appointmentRoutes } from './modules/appointments/routes';
+import { treatmentRoutes } from './modules/treatments/routes';
 import { authRoutes } from './modules/auth/routes';
 import { branchRoutes } from './modules/branches/routes';
 import { doctorRoutes } from './modules/doctors/routes';
@@ -59,6 +60,7 @@ export function createApp(): express.Express {
   app.use('/api/branches', authenticate, requireTenant, branchRoutes);
   app.use('/api/doctors', authenticate, requireTenant, resolveBranch, doctorRoutes);
   app.use('/api/appointments', authenticate, requireTenant, resolveBranch, appointmentRoutes);
+  app.use('/api/treatments', authenticate, requireTenant, treatmentRoutes);
   // Per-appointment payments — nested under /api/appointments/:appointmentId/payments.
   app.use('/api/appointments', authenticate, requireTenant, resolveBranch, paymentRoutes);
   app.use('/api/appointments', authenticate, requireTenant, resolveBranch, whatsAppAppointmentRoutes);

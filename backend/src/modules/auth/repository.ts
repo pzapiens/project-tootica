@@ -18,6 +18,10 @@ export const authRepository = {
   findById: (id: string) =>
     prisma.user.findUnique({ where: { id }, include: userInclude }),
 
+  /** Compare-and-set prevents concurrent photo changes from deleting a newer file. */
+  replaceAvatar: (id: string, expected: string | null, next: string | null) =>
+    prisma.user.updateMany({ where: { id, avatarKey: expected }, data: { avatarKey: next } }),
+
   /** Update the caller's own profile fields (only the keys provided). */
   updateProfile: (
     id: string,

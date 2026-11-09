@@ -141,7 +141,7 @@ export default function LoginCard() {
     const isResend = codeSent;
     setSubmitting(true);
     try {
-      await apiFetch<MessageResponse>("/auth/login/request-otp", {
+      const response = await apiFetch<MessageResponse>("/auth/login/request-otp", {
         method: "POST",
         body: JSON.stringify({ identifier: buildIdentifier(identifier) }),
       });
@@ -150,7 +150,7 @@ export default function LoginCard() {
       setNotice(
         isResend
           ? "A new code has been sent. Please check your messages."
-          : "If an account matches, we've sent a 6-digit code by SMS.",
+          : response.message,
       );
     } catch (err) {
       if (err instanceof ApiError) setIdentifierError(err.message);
