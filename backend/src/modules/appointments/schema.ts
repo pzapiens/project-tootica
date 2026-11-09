@@ -26,14 +26,11 @@ const appointmentBase = z.object({
   consultationType: z.string().optional(),
   sourceOfEnquiry: z.string().optional(),
   notes: z.string().optional(),
+  // Persist the "Skip time & availability check" choice on create and edit.
+  nonMandatory: z.boolean().optional(),
 });
 
 export const createAppointmentSchema = appointmentBase
-  .extend({
-    // When true, skip the business-hours + doctor-conflict checks (the
-    // "Non-mandatory" option) — the appointment may be booked at any time.
-    nonMandatory: z.boolean().optional(),
-  })
   // A non-mandatory appointment with no time picked is stored as zero-duration
   // (start == end) and rendered as "--"; otherwise the end must be after start.
   .refine((data) => (data.nonMandatory ? data.endTime >= data.startTime : data.endTime > data.startTime), {
@@ -108,8 +105,8 @@ export const whatsappInboundSchema = z.object({
 });
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
-/** The stored appointment fields (create input minus the `nonMandatory` flag). */
-export type CreateAppointmentData = Omit<CreateAppointmentInput, 'nonMandatory'>;
+/** The stored appointment fields, including the availability-check preference. */
+export type CreateAppointmentData = CreateAppointmentInput;
 /**
  * What the repository's `create` accepts: the web-create fields, but with an
  * optional/nullable patient plus the pending WhatsApp lead's contact info (a new

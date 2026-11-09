@@ -4,10 +4,9 @@ import Image from "next/image";
 import { useEffect } from "react";
 
 /**
- * "Notify the Patient" dialog (Figma "NTP"). Opened from the row overflow menu's
- * **Notify** action: confirms sending an appointment notification to the patient.
- * The send itself is a placeholder until the notification backend lands, so
- * "Notify" currently just confirms and closes.
+ * SMS reminder confirmation, opened from the appointment row's overflow menu.
+ * Delivery remains a placeholder until the appointment SMS backend is connected;
+ * confirming currently closes the dialog.
  */
 export default function AppointmentNotifyDialog({
   patientName,
@@ -52,13 +51,13 @@ export default function AppointmentNotifyDialog({
             className="size-6 shrink-0"
           />
           <h2 id="appt-notify-title" className="font-manrope text-[20px] font-semibold leading-[28px] text-[#1e1e24]">
-            Notify the Patient
+            Send SMS Reminder
           </h2>
         </div>
 
         {/* Body */}
         <p className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
-          Are you sure you want to send a notification related to the appointment{" "}
+          Are you sure you want to send an SMS reminder for appointment{" "}
           <span className="font-bold text-[#0077c0]">{appointmentCode}</span> to{" "}
           <span className="font-bold text-[#0077c0]">{patientName}</span>?
         </p>
@@ -77,7 +76,7 @@ export default function AppointmentNotifyDialog({
             onClick={onConfirm}
             className="rounded-full bg-[#0077c0] px-[20px] py-[10px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#0069a8]"
           >
-            Notify
+            Send SMS Reminder
           </button>
         </div>
       </div>

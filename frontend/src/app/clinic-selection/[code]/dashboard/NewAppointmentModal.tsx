@@ -299,6 +299,7 @@ export default function NewAppointmentModal({
         startTime: start,
         endTime: end,
         status: STATUS_TO_BACKEND[result.status] ?? "CONFIRMED",
+        nonMandatory: result.nonMandatory,
         consultationType: result.consultationType,
         sourceOfEnquiry: result.leadSource,
         notes: result.message,

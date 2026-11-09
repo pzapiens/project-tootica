@@ -46,8 +46,7 @@ export interface AppointmentInitial {
   /** Read-only booking channel — "Web" (default) or "WhatsApp" (accepted from a
    *  patient's WhatsApp booking). Frozen either way. */
   bookingChannel?: string;
-  /** Pre-tick "Skip time & availability check" — set for time-less bookings
-   *  (e.g. a WhatsApp booking accepted with no time/doctor yet). */
+  /** Saved "Skip time & availability check" choice, including timed bookings. */
   nonMandatory?: boolean;
 }
 
@@ -186,19 +185,20 @@ export default function AppointmentFormStep({
   const [status, setStatus] = useState(initial?.status ?? "Upcoming");
 
   const [mode, setMode] = useState<"datetime" | "doctor">(initial?.mode ?? "datetime");
+  // One appointment-level choice shared by both scheduling tabs.
+  const [nonMandatory, setNonMandatory] = useState(initial?.nonMandatory ?? false);
 
-  // Select by Date & Time — its own scheduling state (kept fully independent
-  // from Select by Doctor even though the field names overlap).
+  // Date, time and doctor selections stay independent between scheduling tabs.
+  // The skip-check preference above applies to the whole appointment.
   const [dtDate, setDtDate] = useState(editDatetime?.date ?? "");
   const [dtFrom, setDtFrom] = useState<Time>(editDatetime?.from ?? { h: "", m: "", p: "AM" });
   const [dtTo, setDtTo] = useState<Time>(editDatetime?.to ?? { h: "", m: "", p: "AM" });
   const [dtDoctor, setDtDoctor] = useState(editDatetime?.doctor ?? "");
-  const [dtNonMandatory, setDtNonMandatory] = useState(editDatetime?.nonMandatory ?? false);
-  // A TIMED appointment opens already "verified" so its Doctor dropdown shows the
-  // assigned doctor. A time-less (Skip-ticked / WhatsApp) appointment opens like a
-  // fresh Skip-ticked form instead: no availability was run, so the Doctor field
-  // stays an inactive "Select" placeholder (WhatsApp bookings carry no doctor).
-  const editVerified = Boolean(editDatetime && !editDatetime.nonMandatory);
+  // Preserve an assigned doctor when reopening a skip-checked appointment.
+  // Unassigned skip-checked bookings keep the inactive "Select" placeholder.
+  const editVerified = Boolean(
+    editDatetime && (!editDatetime.nonMandatory || editDatetime.doctor),
+  );
   const [availabilityChecked, setAvailabilityChecked] = useState(editVerified);
   const [availableDoctors, setAvailableDoctors] = useState<string[]>(
     editVerified ? doctorNames : [],
@@ -214,7 +214,6 @@ export default function AppointmentFormStep({
   const [docDate, setDocDate] = useState(editDoctor?.date ?? "");
   const [docFrom, setDocFrom] = useState<Time>(editDoctor?.from ?? { h: "", m: "", p: "AM" });
   const [docTo, setDocTo] = useState<Time>(editDoctor?.to ?? { h: "", m: "", p: "AM" });
-  const [docNonMandatory, setDocNonMandatory] = useState(editDoctor?.nonMandatory ?? false);
   // Editing a by-doctor appointment starts already verified as available.
   const [docAvailChecked, setDocAvailChecked] = useState(Boolean(editDoctor));
   const [docAvailable, setDocAvailable] = useState(Boolean(editDoctor));
@@ -242,13 +241,13 @@ export default function AppointmentFormStep({
   // here — an appointment can be saved unassigned. Non-mandatory drops the time
   // range → Confirm with core + just the Date.
   const datetimeOk =
-    coreOk && (dtNonMandatory ? Boolean(dtDate) : Boolean(dtDate && dtTimeFilled));
+    coreOk && (nonMandatory ? Boolean(dtDate) : Boolean(dtDate && dtTimeFilled));
 
   // Select-by-Doctor: core + doctor + date. When a time range is required (not
   // non-mandatory), it must have been verified free — which now happens
   // automatically once the time range is filled (see the effect below).
   const docTimeFilled = Boolean(docFrom.h && docFrom.m && docTo.h && docTo.m);
-  const doctorTimeOk = docNonMandatory
+  const doctorTimeOk = nonMandatory
     ? true
     : docTimeFilled && docAvailChecked && docAvailable;
   const doctorModeOk = coreOk && Boolean(docDate && docDoctor) && doctorTimeOk;
@@ -262,6 +261,12 @@ export default function AppointmentFormStep({
     setDocAvailable(false);
     setDocAvailError("");
     setDocAvailShown(false);
+  }
+
+  function changeNonMandatory(value: boolean) {
+    setNonMandatory(value);
+    // Recheck doctor availability when checks are enabled from either tab.
+    resetDocAvailability();
   }
 
   // Check the chosen doctor against the backend (real bookings + business hours).
@@ -328,11 +333,11 @@ export default function AppointmentFormStep({
   // complete — no manual "Check Availability" click needed. Debounced so it
   // waits for the user to finish typing the From/To times.
   useEffect(() => {
-    if (mode !== "doctor" || docNonMandatory) return;
+    if (mode !== "doctor" || nonMandatory) return;
     if (!docDoctor || !docDate || !docTimeFilled || docAvailChecked) return;
     const id = window.setTimeout(() => checkDoctorRef.current(), 500);
     return () => window.clearTimeout(id);
-  }, [mode, docDoctor, docDate, docTimeFilled, docNonMandatory, docAvailChecked, docFrom, docTo]);
+  }, [mode, docDoctor, docDate, docTimeFilled, nonMandatory, docAvailChecked, docFrom, docTo]);
 
   const canConfirm = mode === "datetime" ? datetimeOk : doctorModeOk;
 
@@ -351,7 +356,7 @@ export default function AppointmentFormStep({
       message,
       scheduleMode: mode,
       date: isDoctor ? docDate : dtDate,
-      nonMandatory: isDoctor ? docNonMandatory : dtNonMandatory,
+      nonMandatory,
       status,
     });
   }
@@ -434,11 +439,11 @@ export default function AppointmentFormStep({
   // Auto-find available doctors shortly after the date + time range are set — no
   // manual "Available Doctors" click needed (debounced for typing).
   useEffect(() => {
-    if (mode !== "datetime" || dtNonMandatory) return;
+    if (mode !== "datetime" || nonMandatory) return;
     if (!dtDate || !dtTimeFilled || availabilityChecked) return;
     const id = window.setTimeout(() => findAvailRef.current(), 500);
     return () => window.clearTimeout(id);
-  }, [mode, dtDate, dtTimeFilled, dtNonMandatory, availabilityChecked, dtFrom, dtTo]);
+  }, [mode, dtDate, dtTimeFilled, nonMandatory, availabilityChecked, dtFrom, dtTo]);
 
   return (
     <>
@@ -513,7 +518,7 @@ export default function AppointmentFormStep({
             <TimeRange
               from={dtFrom}
               to={dtTo}
-              required={!dtNonMandatory}
+              required={!nonMandatory}
               onFrom={(t) => {
                 setDtFrom(t);
                 resetAvailability();
@@ -523,14 +528,14 @@ export default function AppointmentFormStep({
                 resetAvailability();
               }}
               action={
-                !dtNonMandatory && checkingAvail ? (
+                !nonMandatory && checkingAvail ? (
                   <span className="whitespace-nowrap font-inter text-[13px] text-[#1e1e24]/60">
                     Finding available doctor…
                   </span>
                 ) : undefined
               }
             >
-              <NonMandatory checked={dtNonMandatory} onChange={setDtNonMandatory} />
+              <NonMandatory checked={nonMandatory} onChange={changeNonMandatory} />
             </TimeRange>
             {availShown && availError && <ErrorLine text={availError} />}
             {availShown && !availError && doctorAvailable && (
@@ -586,7 +591,7 @@ export default function AppointmentFormStep({
             <TimeRange
               from={docFrom}
               to={docTo}
-              required={!docNonMandatory}
+              required={!nonMandatory}
               onFrom={(t) => {
                 setDocFrom(t);
                 resetDocAvailability();
@@ -609,20 +614,17 @@ export default function AppointmentFormStep({
               }
             >
               <NonMandatory
-                checked={docNonMandatory}
-                onChange={(v) => {
-                  setDocNonMandatory(v);
-                  resetDocAvailability();
-                }}
+                checked={nonMandatory}
+                onChange={changeNonMandatory}
               />
             </TimeRange>
-            {!docNonMandatory && checkingDoc && (
+            {!nonMandatory && checkingDoc && (
               <p className="font-inter text-[13px] text-[#1e1e24]/60">Checking availability…</p>
             )}
-            {!docNonMandatory && !checkingDoc && docAvailShown && docAvailError && (
+            {!nonMandatory && !checkingDoc && docAvailShown && docAvailError && (
               <ErrorLine text={docAvailError} />
             )}
-            {!docNonMandatory &&
+            {!nonMandatory &&
               !checkingDoc &&
               docAvailShown &&
               !docAvailError &&

@@ -440,6 +440,8 @@ export interface AppointmentListItem {
   code: string | null;
   startTime: string;
   endTime: string;
+  /** Saved "Skip time & availability check" choice. */
+  nonMandatory: boolean;
   status: AppointmentStatus;
   /** How the booking came in — "WEB" (staff) or "WHATSAPP" (patient over chat). */
   bookingChannel: BookingChannel;

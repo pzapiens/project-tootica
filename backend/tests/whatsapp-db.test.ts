@@ -33,6 +33,7 @@ test('migrations and repository enforce tenant/branch access, concurrent dedupe,
       '20261006000000_init',
       '20261025000000_whatsapp_outbound',
       '20261031000000_whatsapp_account_access',
+      '20261108000000_appointment_non_mandatory',
     ]) {
       const sql = (
         await readFile(resolve('prisma/migrations', migration, 'migration.sql'), 'utf8')

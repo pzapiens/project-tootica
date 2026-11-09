@@ -130,6 +130,7 @@ function toDashboardAppointment(item: AppointmentListItem): DashboardAppointment
     doctor: item.doctor.name ? `Dr. ${item.doctor.name}` : "Unassigned",
     startTime: noTime ? "--" : fmtClock(item.startTime),
     endTime: noTime ? "--" : fmtClock(item.endTime),
+    nonMandatory: item.nonMandatory ?? noTime,
     status: STATUS_MAP[item.status],
     date: fmtLocalDmy(item.startTime),
     dob: fmtDate(item.patient.dob),
@@ -176,8 +177,7 @@ function toEdit(a: DashboardAppointment): EditAppointment {
       doctor: a.doctor === "Unassigned" ? "" : a.doctor.replace(/^Dr\.?\s*/i, ""),
       status: a.status,
       bookingChannel: bookingChannelLabel(a.bookingChannel),
-      // Pre-tick "Skip time & availability check" for a time-less booking.
-      nonMandatory: a.startTime === "--",
+      nonMandatory: a.nonMandatory,
     },
   };
 }

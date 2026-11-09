@@ -273,7 +273,9 @@ Full request/response JSON shapes for every endpoint (built and planned) are in
   bookings arrive with no doctor, and the date-&-time flow lets staff save without
   one); the double-booking check only runs when a doctor is set. `POST` takes a
   `nonMandatory` flag: when **false** it enforces **business hours (9 AM–6 PM)**
-  and rejects a **doctor double-booking**; when **true** it skips both. A no-time
+  and rejects a **doctor double-booking**; when **true** it skips both. This flag
+  is stored, returned in list/detail responses and editable via `PATCH`, so the
+  checkbox keeps its value when reopening the appointment. A no-time
   booking is stored as zero-duration (`startTime == endTime`). Accepting a pending
   WhatsApp booking is a `PATCH` to `status: CONFIRMED`; if it's still code-less
   (WhatsApp bookings arrive without a code), that transition **mints its code**.

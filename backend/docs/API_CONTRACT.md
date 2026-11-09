@@ -478,6 +478,9 @@ documents). All scoped to the caller's clinic; `404` when the patient isn't in i
 - `POST /:patientId/records/observations` — `{ "text", "appointmentId"? }`. **201** → observation entry.
   `PATCH`/`DELETE …/:entryId` as below (creator-only).
 - `POST /:patientId/records/teeth` — `{ "toothNo", "remarks", "appointmentId"? }`. **201** → tooth entry.
+  `toothNo` uses FDI numbering for either permanent teeth (quadrants 1–4,
+  positions 1–8) or primary teeth (quadrants 5–8, positions 1–5). Both sets of
+  remarks can be stored for the same patient and appointment.
 - `PATCH /:patientId/records/teeth/:entryId` — partial (`toothNo`/`remarks`). **200** · `DELETE …/:entryId` → **204** (creator-only).
 - `POST /:patientId/records/medical-history` — `{ "text", "appointmentId"? }`. **201**. `PATCH`/`DELETE …/:entryId` as above (creator-only).
 - `POST /:patientId/records/documents` — **multipart** (`category` field + `file`, ≤25 MB; optional `appointmentId` field). **201** → document.
@@ -570,6 +573,11 @@ Request (`endTime` must be after `startTime`; `status` defaults to `SCHEDULED`):
 ```
 
 **201** → `Appointment`.
+The optional boolean `nonMandatory` stores the "Skip time & availability check"
+choice (default `false`). When `true`, creation skips business-hours, break and
+doctor-conflict checks and allows `startTime == endTime` for a no-time booking.
+List and detail responses include the saved value. `PATCH` can set it to `true`
+or `false`; omitting it preserves the existing choice.
 `400` example (time refine):
 
 ```json

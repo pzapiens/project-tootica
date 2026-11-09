@@ -19,6 +19,7 @@ export interface DashboardAppointment {
   doctor: string;
   startTime: string;
   endTime: string;
+  nonMandatory: boolean;
   status: AppointmentStatus;
   // Extra detail used to pre-fill the Edit Appointment form.
   /** Appointment date as dd/mm/yyyy (so an edit keeps its real day). */

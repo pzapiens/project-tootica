@@ -83,6 +83,7 @@ function toListItem(row: ListRow) {
     code: row.code,
     startTime: row.startTime,
     endTime: row.endTime,
+    nonMandatory: row.nonMandatory,
     status: row.status,
     bookingChannel: row.bookingChannel,
     // Payment summary for the row's status glyph: shown once there's any entry,
@@ -192,10 +193,10 @@ export const appointmentService = {
   },
 
   create: async (clinicId: string, input: CreateAppointmentInput) => {
-    const { nonMandatory, ...data } = input;
+    const data = input;
     // Unless the appointment is flagged non-mandatory, enforce that it's within
     // business hours AND the doctor isn't already booked in that window.
-    if (!nonMandatory) {
+    if (!data.nonMandatory) {
       const fromMin = minutesOfDay(data.startTime);
       const toMin = minutesOfDay(data.endTime);
       if (fromMin < OPEN_MIN || toMin > CLOSE_MIN) {
@@ -304,6 +305,7 @@ export const appointmentService = {
         contactEmail: existingPatientId ? null : (input.email ?? null),
         startTime: slot,
         endTime: slot,
+        nonMandatory: true,
         status: 'SCHEDULED',
         bookingChannel: 'WHATSAPP',
         // Leave sourceOfEnquiry unset — that's the marketing lead source (the

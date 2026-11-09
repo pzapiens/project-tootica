@@ -303,6 +303,8 @@ model Appointment {
   doctorId         String?           @map("doctor_id") @db.Uuid
   startTime        DateTime          @map("start_time")
   endTime          DateTime          @map("end_time")
+  // Persist the form's "Skip time & availability check" choice across edits.
+  nonMandatory     Boolean           @default(false) @map("non_mandatory")
   status           AppointmentStatus @default(SCHEDULED)
   // How the booking came in — WEB (staff-created) or WHATSAPP (patient booked
   // over WhatsApp). Durable across accept/reject; see the enum's doc comment.

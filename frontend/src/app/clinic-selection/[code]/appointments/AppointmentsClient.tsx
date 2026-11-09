@@ -29,7 +29,6 @@ import AppointmentFilterPanel, {
 import AppointmentConfirmDialog, { type ConfirmVariant } from "./AppointmentConfirmDialog";
 import CancelAppointmentDialog from "./CancelAppointmentDialog";
 import AppointmentCallDialog from "./AppointmentCallDialog";
-import AppointmentChatDialog from "./AppointmentChatDialog";
 import AppointmentWhatsAppDialog from "./AppointmentWhatsAppDialog";
 import AppointmentNotifyDialog from "./AppointmentNotifyDialog";
 import PaymentManagementDialog from "./PaymentManagementDialog";
@@ -215,9 +214,8 @@ function toEdit(item: AppointmentListItem, r: AppointmentRow): EditAppointment {
       doctor: r.doctor === "Unassigned" ? "" : r.doctor.replace(/^Dr\.?\s*/i, ""),
       status: FORM_STATUS[item.status],
       bookingChannel: bookingChannelLabel(item.bookingChannel),
-      // A time-less booking (e.g. accepted from WhatsApp) opens with "Skip time
-      // & availability check" pre-ticked so it can be saved without a time.
-      nonMandatory: r.noTime,
+      // Fall back to the no-time convention for responses from older servers.
+      nonMandatory: item.nonMandatory ?? r.noTime,
     },
   };
 }
@@ -253,7 +251,6 @@ type RowDialog =
   | { kind: "confirm"; variant: ConfirmVariant; row: AppointmentRow }
   | { kind: "cancel"; row: AppointmentRow }
   | { kind: "call"; row: AppointmentRow }
-  | { kind: "chat"; row: AppointmentRow }
   | { kind: "notify"; row: AppointmentRow }
   | { kind: "payments"; row: AppointmentRow };
 
@@ -703,7 +700,6 @@ export default function AppointmentsClient() {
                 onCancel={() => setDialog({ kind: "cancel", row })}
                 onDelete={() => setDialog({ kind: "confirm", variant: "delete", row })}
                 onCall={() => setDialog({ kind: "call", row })}
-                onChat={() => setDialog({ kind: "chat", row })}
                 onNotify={() => setDialog({ kind: "notify", row })}
                 onPayments={() => setDialog({ kind: "payments", row })}
               />
@@ -802,15 +798,6 @@ export default function AppointmentsClient() {
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog?.kind === "chat" && (
-        <AppointmentChatDialog
-          appointmentId={dialog.row.id}
-          patientName={dialog.row.patientName}
-          patientCode={dialog.row.code}
-          phone={dialog.row.phone}
-          onClose={() => setDialog(null)}
-        />
-      )}
       {dialog?.kind === "notify" && (
         <AppointmentNotifyDialog
           patientName={dialog.row.patientName}
@@ -873,7 +860,6 @@ function AppointmentRowView({
   onCancel,
   onDelete,
   onCall,
-  onChat,
   onNotify,
   onPayments,
 }: {
@@ -887,7 +873,6 @@ function AppointmentRowView({
   onCancel: () => void;
   onDelete: () => void;
   onCall: () => void;
-  onChat: () => void;
   onNotify: () => void;
   onPayments: () => void;
 }) {
@@ -997,7 +982,6 @@ function AppointmentRowView({
               onCancel={onCancel}
               onDelete={onDelete}
               onCall={onCall}
-              onChat={onChat}
               onNotify={onNotify}
             />
           </>
@@ -1008,12 +992,11 @@ function AppointmentRowView({
 }
 
 /**
- * Row overflow ("⋮") menu (Figma "Appts More Dropdown"): Call, Chat, Notify,
+ * Row overflow ("⋮") menu: Call, WhatsApp message, SMS reminder,
  * Cancel and Delete. (Records and Payments are now standalone row buttons; Info
- * moved to the Patient Records header.) Each opens its dialog — Call → "Proceed
- * to Call?" (Figma "Appts - Call"); Chat → "Proceed to Chat?" (Figma "PTC" —
- * opens the patient's WhatsApp); Notify → "Notify the Patient" (Figma "NTP" — the
- * send is a placeholder until the notification backend lands); Cancel / Delete
+ * moved to the Patient Records header.) WhatsApp messaging is temporarily
+ * disabled. Call opens "Proceed to Call?"; SMS reminder opens its confirmation
+ * dialog (delivery is a placeholder until the SMS backend is connected); Cancel / Delete
  * their respective dialogs.
  */
 function MoreMenu({
@@ -1021,14 +1004,12 @@ function MoreMenu({
   onCancel,
   onDelete,
   onCall,
-  onChat,
   onNotify,
 }: {
   row: AppointmentRow;
   onCancel: () => void;
   onDelete: () => void;
   onCall: () => void;
-  onChat: () => void;
   onNotify: () => void;
 }) {
   const [open, setOpen] = useExclusiveDropdown();
@@ -1121,10 +1102,10 @@ function MoreMenu({
             />
             <MenuItem
               label="WhatsApp message"
-              disabled={!phoneDigits}
-              onClick={() => run(onChat)}
+              disabled
+              title="WhatsApp sending is temporarily unavailable."
             />
-            <MenuItem label="Notify" onClick={() => run(onNotify)} />
+            <MenuItem label="SMS reminder" onClick={() => run(onNotify)} />
             <MenuItem label="Cancel" onClick={() => run(onCancel)} />
             <MenuItem label="Delete" tone="danger" onClick={() => run(onDelete)} />
           </div>,
@@ -1147,7 +1128,7 @@ function MenuItem({
   title,
 }: {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   disabled?: boolean;
   tone?: "default" | "danger";
   title?: string;

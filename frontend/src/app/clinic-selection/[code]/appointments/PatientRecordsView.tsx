@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   addDocument,
@@ -36,6 +36,7 @@ import { Tip } from "@/components/HoverTip";
 import AppointmentInfoDialog from "./AppointmentInfoDialog";
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
 import { PERIO_TEETH, PERIO_VIEWBOX } from "./perioChartData";
+import { PRIMARY_TEETH, PRIMARY_VIEWBOX } from "./primaryChartData";
 import { useMe } from "../session";
 
 /**
@@ -471,36 +472,56 @@ function ObservationsSection({
 
 /* -------------------------------------------------------- Perio-dental chart */
 
-// The chart backdrop is public/dashboard/perio_chart.svg (already FDI-numbered).
-// PERIO_TEETH holds one exact closed outline path per tooth (in the SVG's own
-// viewBox), split out of the SVG's two compound arch paths — see perioChartData.ts.
-const VALID_FDI = new Set(PERIO_TEETH.map((t) => t.n));
+type Dentition = "permanent" | "primary";
+const CHART_ASPECT_RATIO = "2588.91 / 3847.59";
+const DENTAL_CHARTS = {
+  permanent: {
+    label: "Permanent teeth", src: "/dashboard/perio_chart.svg",
+    aspectRatio: CHART_ASPECT_RATIO,
+    viewBox: PERIO_VIEWBOX, teeth: PERIO_TEETH,
+    numbers: new Set(PERIO_TEETH.map((t) => t.n)),
+  },
+  primary: {
+    label: "Primary teeth", src: "/dashboard/primary_teeth.svg",
+    aspectRatio: "2410 / 2911",
+    viewBox: PRIMARY_VIEWBOX, teeth: PRIMARY_TEETH,
+    numbers: new Set(PRIMARY_TEETH.map((t) => t.n)),
+  },
+};
+const DENTITIONS: Dentition[] = ["permanent", "primary"];
+type ToothDraft = { remarks: string; tooth: string; editingId: string | null };
 
 /** Interactive FDI odontogram. The chart SVG renders as the backdrop; an overlay
  *  SVG in the same coordinate system draws one exact, clickable path per tooth
  *  that fills blue when selected (a fainter fill when it carries remarks).
  *  Clicking a tooth calls `onSelect`. */
 function PerioChart({
+  dentition,
   teeth,
   selected,
   onSelect,
 }: {
+  dentition: Dentition;
   teeth: ToothEntry[];
   selected: string;
   onSelect: (n: string) => void;
 }) {
   const withRemarks = useMemo(() => new Set(teeth.map((t) => t.toothNo)), [teeth]);
   const [hovered, setHovered] = useState<string | null>(null);
+  const chart = DENTAL_CHARTS[dentition];
 
   return (
     <div
       className="relative w-full overflow-hidden rounded-[8px] border border-[#1e1e24] bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
-      style={{ aspectRatio: "2588.91 / 3847.59" }}
+      style={{ aspectRatio: chart.aspectRatio }}
     >
+      {/* Keep the primary artwork and click targets at the same width and top
+          position while trimming unused space from the bottom of its frame. */}
+      <div className={`absolute ${dentition === "primary" ? "inset-x-[5%] top-[5.5%] bottom-[4.5%]" : "inset-0"}`}>
       {/* Chart line-art (already FDI-numbered). */}
       <Image
-        src="/dashboard/perio_chart.svg"
-        alt="Perio-dental chart"
+        src={chart.src}
+        alt={`${chart.label} perio-dental chart`}
         fill
         unoptimized
         sizes="(max-width: 1024px) 100vw, 50vw"
@@ -511,8 +532,8 @@ function PerioChart({
           selected tooth fills solid; teeth carrying remarks get a fainter fill.
           Styles are inline (not Tailwind arbitrary classes) so state can't bleed
           between teeth. */}
-      <svg viewBox={PERIO_VIEWBOX} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full">
-        {PERIO_TEETH.map((t) => {
+      <svg viewBox={chart.viewBox} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full">
+        {chart.teeth.map((t) => {
           const sel = selected === t.n;
           const rem = withRemarks.has(t.n);
           return (
@@ -523,6 +544,14 @@ function PerioChart({
               onMouseEnter={() => setHovered(t.n)}
               onMouseLeave={() => setHovered((h) => (h === t.n ? null : h))}
               role="button"
+              tabIndex={0}
+              className="outline-none focus-visible:stroke-[#0077c0] focus-visible:[stroke-width:5]"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(t.n);
+                }
+              }}
               aria-label={`Tooth ${t.n}${rem ? ", has remarks" : ""}`}
               aria-pressed={sel}
               style={{
@@ -536,6 +565,7 @@ function PerioChart({
           );
         })}
       </svg>
+      </div>
     </div>
   );
 }
@@ -559,16 +589,31 @@ function PerioSection({
   isAdmin: boolean;
   onOpenLog: () => void;
 }) {
-  const [remarks, setRemarks] = useState("");
-  const [tooth, setTooth] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const tabsId = useId();
+  const [dentition, setDentition] = useState<Dentition>("permanent");
+  // Switching charts preserves each chart's selection and unfinished remarks.
+  const [drafts, setDrafts] = useState<Record<Dentition, ToothDraft>>({
+    permanent: { remarks: "", tooth: "", editingId: null },
+    primary: { remarks: "", tooth: "", editingId: null },
+  });
+  const { remarks, tooth, editingId } = drafts[dentition];
+  function updateDraft(patch: Partial<ToothDraft>) {
+    setDrafts((previous) => ({
+      ...previous, [dentition]: { ...previous[dentition], ...patch },
+    }));
+  }
+  const setRemarks = (value: string) => updateDraft({ remarks: value });
+  const setTooth = (value: string) => updateDraft({ tooth: value });
+  const setEditingId = (value: string | null) => updateDraft({ editingId: value });
   const [pendingDelete, setPendingDelete] = useState<ToothEntry | null>(null);
+  const chart = DENTAL_CHARTS[dentition];
+  const chartTeeth = teeth.filter((entry) => chart.numbers.has(entry.toothNo));
 
-  const canAdd = remarks.trim().length > 0 && VALID_FDI.has(tooth);
+  const canAdd = remarks.trim().length > 0 && chart.numbers.has(tooth);
 
   // When a tooth is selected on the chart, the table shows only that tooth's
   // remarks; with none selected it lists them all.
-  const visibleTeeth = tooth ? teeth.filter((t) => t.toothNo === tooth) : teeth;
+  const visibleTeeth = tooth ? chartTeeth.filter((t) => t.toothNo === tooth) : chartTeeth;
 
   function submit() {
     if (!canAdd) return;
@@ -608,15 +653,42 @@ function PerioSection({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-[32px] lg:grid-cols-2">
+      <div role="tablist" aria-label="Tooth chart" className="flex flex-wrap gap-2 border-b border-[#c2c6d4]">
+        {DENTITIONS.map((value) => (
+          <button
+            key={value}
+            id={`${tabsId}-${value}`}
+            type="button"
+            role="tab"
+            aria-selected={dentition === value}
+            aria-controls={`${tabsId}-panel`}
+            tabIndex={dentition === value ? 0 : -1}
+            onClick={() => setDentition(value)}
+            onKeyDown={(event) => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              event.preventDefault();
+              const next = event.key === "Home" ? "permanent" : event.key === "End"
+                ? "primary" : value === "permanent" ? "primary" : "permanent";
+              setDentition(next);
+              document.getElementById(`${tabsId}-${next}`)?.focus();
+            }}
+            className={`border-b-2 px-5 py-3 font-inter text-[15px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0] ${dentition === value
+              ? "border-[#0077c0] text-[#0077c0]" : "border-transparent text-[#727783] hover:text-[#0077c0]"}`}
+          >
+            {DENTAL_CHARTS[value].label}
+          </button>
+        ))}
+      </div>
+
+      <div id={`${tabsId}-panel`} role="tabpanel" aria-labelledby={`${tabsId}-${dentition}`} className="grid grid-cols-1 items-start gap-[32px] lg:grid-cols-2">
         {/* Left: interactive FDI odontogram over the reference chart image. */}
-        <PerioChart teeth={teeth} selected={tooth} onSelect={setTooth} />
+        <PerioChart key={dentition} dentition={dentition} teeth={chartTeeth} selected={tooth} onSelect={setTooth} />
 
         {/* Right: tooth-wise remarks form + table. On lg the column is given the
             chart's aspect ratio (same column width → same height), so the table
             below fills the leftover space and scrolls once its rows would grow
             past the chart's height. */}
-        <div className="flex flex-col gap-[32px] lg:min-h-0 lg:overflow-hidden lg:[aspect-ratio:0.6729]">
+        <div className="flex flex-col gap-[32px] lg:min-h-0 lg:overflow-hidden lg:[aspect-ratio:var(--chart-aspect)]" style={{ "--chart-aspect": chart.aspectRatio } as React.CSSProperties}>
           <div className={`${CARD} flex shrink-0 flex-col gap-[16px] bg-white p-[25px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]`}>
             <div className="flex flex-col gap-[4px]">
               <div className="flex items-center gap-[8px]">
