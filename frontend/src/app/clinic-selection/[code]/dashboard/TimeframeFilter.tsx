@@ -118,9 +118,9 @@ export default function TimeframeFilter({
         ref={triggerRef}
         type="button"
         onClick={toggle}
-        className="flex h-[54px] items-center gap-1 rounded-full border-[1.167px] border-[#c2c6d4] px-[16.167px] transition-colors hover:border-[#0077c0]"
+        className="flex h-[48px] items-center gap-1 rounded-full border-[1.167px] border-[#c2c6d4] px-[16.167px] transition-colors hover:border-[#0077c0]"
       >
-        <span className="font-inter text-[16.333px] font-medium leading-[23.333px] text-[#1e1e24]">
+        <span className="font-inter text-[15px] font-medium leading-[22px] text-[#1e1e24]">
           {timeframeLabel(timeframe)}
         </span>
         <Image

@@ -58,7 +58,7 @@ export default function NotificationBell() {
         type="button"
         aria-label={hasNew ? `Notifications (${items.length} new)` : "Notifications"}
         onClick={() => setOpen((v) => !v)}
-        className="group relative flex size-[55px] items-center justify-center rounded-full border-[1.4px] border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
+        className="group relative flex size-[48px] items-center justify-center rounded-full border-[1.4px] border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
       >
         <BellIcon className="size-7 text-[#1e1e24]" />
         {hasNew && (

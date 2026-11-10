@@ -24,26 +24,26 @@ export default function StatCards({ counts }: { counts: StatCounts }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-[28px] xl:flex-nowrap">
+    <div className="flex flex-wrap gap-[24px] xl:flex-nowrap">
       {STAT_CARDS.map((card) => (
         <div
           key={card.key}
-          className="flex h-[200px] min-w-[220px] flex-1 flex-col justify-between overflow-hidden rounded-[28px] bg-[#0077c0] p-[24px]"
+          className="flex h-[180px] min-w-[210px] flex-1 flex-col justify-between overflow-hidden rounded-[24px] bg-[#0077c0] p-[22px]"
         >
           <div className="flex flex-col gap-[4.667px]">
-            <span className="font-inter text-[42px] font-bold leading-[46.667px] text-white">
+            <span className="font-inter text-[36px] font-bold leading-[40px] text-white">
               {counts[card.key]}
             </span>
-            <span className="font-inter text-[18.667px] font-medium leading-[28px] text-white">
+            <span className="font-inter text-[16px] font-medium leading-[24px] text-white">
               {card.label}
             </span>
           </div>
           <div className="flex items-end justify-between pt-[12px]">
-            <Image src={card.icon} alt="" width={40} height={40} className="size-10" />
+            <Image src={card.icon} alt="" width={34} height={34} className="size-[34px]" />
             <button
               type="button"
               onClick={() => review(card.key)}
-              className="cursor-pointer font-inter text-[16.333px] font-medium leading-[23.333px] text-white"
+              className="cursor-pointer font-inter text-[14px] font-medium leading-[20px] text-white"
             >
               View all
             </button>

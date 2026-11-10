@@ -87,7 +87,7 @@ export default function LowerSection({
   }, []);
 
   return (
-    <div className="flex flex-col items-stretch gap-[37.333px] xl:flex-row xl:items-start">
+    <div className="flex flex-col items-stretch gap-[28px] xl:flex-row xl:items-start">
       <AppointmentsTable
         height={isDesktop ? calHeight : undefined}
         heading={heading}
@@ -96,7 +96,7 @@ export default function LowerSection({
       />
       <div ref={calRef} className="shrink-0 self-start">
         {loading ? (
-          <LoadingFrame name="appointment calendar" className="w-[360px] max-w-full"><CalendarGridSkeleton compact /></LoadingFrame>
+          <LoadingFrame name="appointment calendar" className="w-[340px] max-w-full"><CalendarGridSkeleton compact /></LoadingFrame>
         ) : <MiniCalendar appointments={allAppointments} initialMonth={initialMonth} />}
       </div>
     </div>

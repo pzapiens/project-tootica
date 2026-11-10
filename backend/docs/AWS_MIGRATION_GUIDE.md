@@ -1,5 +1,8 @@
 # Tootica → AWS: Detailed Migration Guide (start to end)
 
+> **Current production launch plan:** [AWS_PRODUCTION_MIGRATION.md](./AWS_PRODUCTION_MIGRATION.md), updated 10 November 2026, covers the current small-clinic architecture, costs, timeline and acceptance gates. This older document is a Lambda design reference; revalidate its email, networking, uploads and pricing assumptions before use.
+
+
 A single, do-everything runbook for moving the Tootica backend (Express + Prisma)
 and frontend (Next.js) onto AWS. It consolidates and makes concrete the two
 background docs:

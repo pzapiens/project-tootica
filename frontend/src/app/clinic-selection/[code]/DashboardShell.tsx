@@ -92,6 +92,7 @@ export default function DashboardShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const contentScrollRef = useRef<HTMLDivElement>(null);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [branchName, setBranchName] = useState<string | null>(null);
   const [clinicName, setClinicName] = useState<string | null>(null);
@@ -102,6 +103,16 @@ export default function DashboardShell({
 
   // Loaded from the backend session so the photo survives browser and device changes.
   const avatarUrl = me?.user.avatarUrl ?? null;
+
+  function scrollDashboardToTop() {
+    contentScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }
+
+  // The shell stays mounted between pages; reset its own scroll panel after
+  // navigation as well as on a logo click while already on the dashboard.
+  useEffect(() => {
+    if (pathname === `/clinic-selection/${code}/dashboard`) scrollDashboardToTop();
+  }, [pathname, code]);
 
   useEffect(() => {
     let active = true;
@@ -174,7 +185,7 @@ export default function DashboardShell({
           loading={loading || branchLoading}
           fallback={<SidebarSkeleton itemCount={me ? items.length : 6} collapsed={sidebarCollapsed} />}
         >
-          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} collapsed={sidebarCollapsed} />}
+          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} collapsed={sidebarCollapsed} onDashboardNavigate={scrollDashboardToTop} />}
         </PageTransition>
       </div>
       <main className="relative min-w-0 flex-1 p-[19px]">
@@ -196,7 +207,7 @@ export default function DashboardShell({
         </button>
         {/* Fixed white panel; only the inner region scrolls. */}
         <div className="flex h-full flex-col overflow-hidden rounded-[28px] bg-white">
-          <div className="min-h-0 flex-1 overflow-y-auto px-[24px] py-[24px] md:px-[42px] md:py-[32px]">
+          <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto px-[24px] py-[24px] md:px-[42px] md:py-[32px]">
             {/* min-h-full fills the scroll viewport so pages can push a footer
                 to the page bottom via mt-auto (flex-col lets a page's root
                 stretch to this height). It's capped at 100% — never taller than
@@ -238,6 +249,7 @@ function Sidebar({
   branchName,
   clinicName,
   collapsed,
+  onDashboardNavigate,
 }: {
   code: string;
   items: NavItem[];
@@ -247,6 +259,7 @@ function Sidebar({
   branchName: string | null;
   clinicName: string | null;
   collapsed: boolean;
+  onDashboardNavigate: () => void;
 }) {
   // zoom 0.9 shrinks the sidebar width + all contents by 10%; the height is
   // pre-divided by 0.9 so it still fills the viewport after the zoom.
@@ -256,6 +269,8 @@ function Sidebar({
       <Link
         href={`/clinic-selection/${code}/dashboard`}
         aria-label="Go to dashboard"
+        scroll={false}
+        onNavigate={onDashboardNavigate}
         className={`flex shrink-0 items-center gap-[8px] pb-[48px] transition-opacity hover:opacity-80 ${collapsed ? "justify-center" : "pl-[15px]"}`}
       >
         <Image

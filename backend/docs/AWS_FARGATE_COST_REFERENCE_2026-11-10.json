@@ -1,0 +1,280 @@
+{
+  "asOf": "2026-11-10",
+  "region": "ap-south-1",
+  "workload": "1-3 clinics; up to 50 registered staff; 5-10 concurrently active assumed",
+  "runningHoursPerMonth": 730,
+  "planningInrPerUsd": 90,
+  "exchangeRateIsLive": false,
+  "pricesIncludeTax": false,
+  "discountCreditsAssumed": false,
+  "rates": {
+    "fargateVcpuHour": 0.04256,
+    "fargateGbHour": 0.004655,
+    "rdsSmallSingleAzHour": 0.042,
+    "rdsSmallMultiAzHour": 0.084,
+    "albHour": 0.0239,
+    "albLcuHour": 0.008,
+    "natHour": 0.056,
+    "publicIpv4Hour": 0.005
+  },
+  "primaryRateSources": {
+    "fargate": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/current/ap-south-1/index.json",
+    "rds": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/ap-south-1/index.csv",
+    "elb": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSELB/current/ap-south-1/index.json",
+    "nat": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/ap-south-1/index.csv",
+    "ipv4": "https://aws.amazon.com/vpc/pricing/"
+  },
+  "exclusions": [
+    "Engineering labour",
+    "Email/SMS/WhatsApp",
+    "Taxes and FX/payment fees",
+    "Domain registration/renewal",
+    "Paid support",
+    "Non-AWS CI runners",
+    "Persistent duplicate staging"
+  ],
+  "scenarios": {
+    "managedLaunch": {
+      "items": [
+        {
+          "component": "Frontend Fargate",
+          "basis": "1 x 0.5 vCPU / 1 GB",
+          "monthlyUsd": 18.93,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/current/ap-south-1/index.json"
+        },
+        {
+          "component": "Backend Fargate",
+          "basis": "1 x 0.5 vCPU / 2 GB",
+          "monthlyUsd": 22.33,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/current/ap-south-1/index.json"
+        },
+        {
+          "component": "RDS PostgreSQL db.t4g.small",
+          "basis": "Single-AZ instance",
+          "monthlyUsd": 30.66,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/ap-south-1/index.csv"
+        },
+        {
+          "component": "DB storage and backup overage",
+          "basis": "20 GB gp3 and modest overage allowance",
+          "monthlyUsd": 3,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/rds/postgresql/pricing/"
+        },
+        {
+          "component": "Application Load Balancer",
+          "basis": "1 ALB x 730 hours",
+          "monthlyUsd": 17.45,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSELB/current/ap-south-1/index.json"
+        },
+        {
+          "component": "ALB traffic",
+          "basis": "1 average LCU x 730 hours; not reserved LCUs",
+          "monthlyUsd": 5.84,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSELB/current/ap-south-1/index.json"
+        },
+        {
+          "component": "NAT gateway",
+          "basis": "1 gateways x 730 hours",
+          "monthlyUsd": 40.88,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/ap-south-1/index.csv"
+        },
+        {
+          "component": "NAT data processing",
+          "basis": "Modest provider and image-pull traffic",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/vpc/pricing/"
+        },
+        {
+          "component": "Public IPv4",
+          "basis": "3 addresses: ALB plus NAT",
+          "monthlyUsd": 10.95,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://aws.amazon.com/vpc/pricing/"
+        },
+        {
+          "component": "Private S3 storage and requests",
+          "basis": "20 GB files/version allowance plus requests",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/s3/pricing/"
+        },
+        {
+          "component": "Secrets Manager",
+          "basis": "Small secret set and API requests",
+          "monthlyUsd": 1.5,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/secrets-manager/pricing/"
+        },
+        {
+          "component": "CloudWatch logs and alarms",
+          "basis": "Modest traffic and capped retention",
+          "monthlyUsd": 7,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/cloudwatch/pricing/"
+        },
+        {
+          "component": "ECR and AWS build allowance",
+          "basis": "Small images; non-AWS runner charges excluded",
+          "monthlyUsd": 5,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/ecr/pricing/"
+        },
+        {
+          "component": "Route 53",
+          "basis": "One hosted-zone allowance; registration excluded",
+          "monthlyUsd": 0.5,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/route53/pricing/"
+        },
+        {
+          "component": "Data transfer",
+          "basis": "Internet and inter-AZ allowance",
+          "monthlyUsd": 5,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/vpc/pricing/"
+        },
+        {
+          "component": "WAF",
+          "basis": "Basic ACL/rules and low request volume; premium features excluded",
+          "monthlyUsd": 15,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/waf/pricing/"
+        }
+      ],
+      "totalMonthlyUsd": 188.04,
+      "budgetMonthlyUsd": [
+        200,
+        240
+      ]
+    },
+    "higherAvailability": {
+      "items": [
+        {
+          "component": "Frontend Fargate",
+          "basis": "2 x 0.5 vCPU / 1 GB",
+          "monthlyUsd": 37.87,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/current/ap-south-1/index.json"
+        },
+        {
+          "component": "Backend Fargate",
+          "basis": "2 x 0.5 vCPU / 2 GB",
+          "monthlyUsd": 44.66,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/current/ap-south-1/index.json"
+        },
+        {
+          "component": "RDS PostgreSQL db.t4g.small",
+          "basis": "Multi-AZ deployment",
+          "monthlyUsd": 61.32,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/ap-south-1/index.csv"
+        },
+        {
+          "component": "DB storage and backup overage",
+          "basis": "20 GB gp3 and modest overage allowance",
+          "monthlyUsd": 6,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/rds/postgresql/pricing/"
+        },
+        {
+          "component": "Application Load Balancer",
+          "basis": "1 ALB x 730 hours",
+          "monthlyUsd": 17.45,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSELB/current/ap-south-1/index.json"
+        },
+        {
+          "component": "ALB traffic",
+          "basis": "1 average LCU x 730 hours; not reserved LCUs",
+          "monthlyUsd": 5.84,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSELB/current/ap-south-1/index.json"
+        },
+        {
+          "component": "NAT gateway",
+          "basis": "2 gateways x 730 hours",
+          "monthlyUsd": 81.76,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/ap-south-1/index.csv"
+        },
+        {
+          "component": "NAT data processing",
+          "basis": "Modest provider and image-pull traffic",
+          "monthlyUsd": 3,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/vpc/pricing/"
+        },
+        {
+          "component": "Public IPv4",
+          "basis": "4 addresses: ALB plus NAT",
+          "monthlyUsd": 14.6,
+          "classification": "Calculated from published rate and usage assumption",
+          "source": "https://aws.amazon.com/vpc/pricing/"
+        },
+        {
+          "component": "Private S3 storage and requests",
+          "basis": "20 GB files/version allowance plus requests",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/s3/pricing/"
+        },
+        {
+          "component": "Secrets Manager",
+          "basis": "Small secret set and API requests",
+          "monthlyUsd": 1.5,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/secrets-manager/pricing/"
+        },
+        {
+          "component": "CloudWatch logs and alarms",
+          "basis": "Modest traffic and capped retention",
+          "monthlyUsd": 10,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/cloudwatch/pricing/"
+        },
+        {
+          "component": "ECR and AWS build allowance",
+          "basis": "Small images; non-AWS runner charges excluded",
+          "monthlyUsd": 5,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/ecr/pricing/"
+        },
+        {
+          "component": "Route 53",
+          "basis": "One hosted-zone allowance; registration excluded",
+          "monthlyUsd": 0.5,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/route53/pricing/"
+        },
+        {
+          "component": "Data transfer",
+          "basis": "Internet and inter-AZ allowance",
+          "monthlyUsd": 8,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/vpc/pricing/"
+        },
+        {
+          "component": "WAF",
+          "basis": "Basic ACL/rules and low request volume; premium features excluded",
+          "monthlyUsd": 15,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/waf/pricing/"
+        }
+      ],
+      "totalMonthlyUsd": 314.5,
+      "budgetMonthlyUsd": [
+        340,
+        400
+      ]
+    }
+  }
+}

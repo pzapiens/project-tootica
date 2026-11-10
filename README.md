@@ -150,10 +150,11 @@ Browser → localhost:3000 (Next.js UI)
 - `backend/docs/API_CONTRACT.md` — endpoint request/response shapes.
 - `backend/docs/DEPLOY_PAAS.md` — **go-live guide for Railway / Render** (one
   clinic, cheapest path, no code changes; email + phone-OTP setup). Start here.
-- `backend/docs/AWS_MIGRATION_GUIDE.md` — **detailed start-to-end AWS migration
-  runbook** (code diffs for the four seams, CDK IaC, exact commands) — for later.
-- `backend/docs/AWS_MIGRATION.md` — architecture + AWS (API Gateway + Lambda) plan.
-- `backend/docs/AWS_NEXT_STEPS.md` — high-level ordered checklist.
+- `backend/docs/AWS_LIGHTSAIL_STEP_BY_STEP.md` - numbered console setup, preparation, data transfer, HTTPS, testing and production cutover procedure.
+- `backend/docs/AWS_PRODUCTION_MIGRATION.md` - **current budget Lightsail production guide**: INR 9,000-12,000 target, private managed PostgreSQL, S3, delivery timeline, migration and recovery for 1-3 clinics.
+- `backend/docs/AWS_FARGATE_MIGRATION_REFERENCE.md` - preserved higher-budget architecture for future growth.
+- `backend/docs/AWS_COST_ESTIMATE.csv` - spreadsheet cost breakdown; source rates and assumptions are in `AWS_COST_ESTIMATE_2026-11-10.json`.
+- `backend/docs/AWS_MIGRATION_GUIDE.md`, `AWS_MIGRATION.md`, `AWS_NEXT_STEPS.md` - earlier Lambda design references; use the current production guide for launch.
 - `backend/postman/` — importable Postman collection.
 
 ## Project layout

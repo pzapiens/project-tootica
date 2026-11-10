@@ -103,11 +103,11 @@ export default function MiniCalendar({
   }
 
   return (
-    <div className="flex w-[373px] shrink-0 flex-col gap-[24px] rounded-[28px] border-[1.167px] border-[#c2c6d4] bg-white p-[29.167px] drop-shadow-[0px_1.167px_1.167px_rgba(0,0,0,0.05)]">
-      <div className="flex flex-col gap-[24px]">
+    <div className="flex w-[340px] shrink-0 flex-col gap-[20px] rounded-[24px] border-[1.167px] border-[#c2c6d4] bg-white p-[24px] drop-shadow-[0px_1.167px_1.167px_rgba(0,0,0,0.05)]">
+      <div className="flex flex-col gap-[20px]">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="font-inter text-[21px] font-bold leading-[32.667px] text-[#1e1e24]">
+          <h3 className="font-inter text-[18px] font-bold leading-[28px] text-[#1e1e24]">
             {MONTHS[view.month]} {view.year}
           </h3>
           <div className="flex items-center">
@@ -121,7 +121,7 @@ export default function MiniCalendar({
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-7 gap-y-[14px]">
+        <div className="grid grid-cols-7 gap-y-[12px]">
           {WEEKDAYS.map((d) => (
             <span
               key={d}
@@ -144,8 +144,8 @@ export default function MiniCalendar({
             // Today is highlighted; otherwise the default/greyed style. Every
             // day is clickable and opens the full calendar on that date.
             const cellClass = isToday
-              ? "flex size-[37.333px] items-center justify-center rounded-full bg-[#f1f5f9] font-inter text-[16.333px] font-bold leading-[23.333px] text-[#1e1e24] transition-colors group-hover:bg-[#e2e8f0]"
-              : `flex size-[37.333px] items-center justify-center rounded-full font-inter text-[16.333px] leading-[23.333px] transition-colors group-hover:bg-[#f1f5f9] ${textClass}`;
+              ? "flex size-[34px] items-center justify-center rounded-full bg-[#f1f5f9] font-inter text-[14px] font-bold leading-[21px] text-[#1e1e24] transition-colors group-hover:bg-[#e2e8f0]"
+              : `flex size-[34px] items-center justify-center rounded-full font-inter text-[14px] leading-[21px] transition-colors group-hover:bg-[#f1f5f9] ${textClass}`;
 
             return (
               <button
@@ -179,7 +179,7 @@ export default function MiniCalendar({
       <button
         type="button"
         onClick={() => router.push(`/clinic-selection/${params.code}/calendar`)}
-        className="w-full rounded-[50px] bg-[#0077c0] py-[14px] text-center font-inter text-[16.333px] font-semibold leading-[23.333px] text-white transition-colors hover:bg-[#0069a8]"
+        className="w-full rounded-[50px] bg-[#0077c0] py-[12px] text-center font-inter text-[14px] font-semibold leading-[21px] text-white transition-colors hover:bg-[#0069a8]"
       >
         View Full Calendar
       </button>

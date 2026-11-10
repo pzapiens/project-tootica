@@ -1,5 +1,8 @@
 # AWS Migration — Next Steps (Runbook)
 
+> **Current production launch plan:** [AWS_PRODUCTION_MIGRATION.md](./AWS_PRODUCTION_MIGRATION.md), updated 10 November 2026, covers the current small-clinic architecture, costs, timeline and acceptance gates. This older document is a Lambda design reference; revalidate its email, networking, uploads and pricing assumptions before use.
+
+
 An **actionable, sequenced checklist** for moving Tootica to AWS. This is the
 "do this, in this order" companion to [`AWS_MIGRATION.md`](./AWS_MIGRATION.md),
 which holds the architecture, component mapping and rationale — read that first

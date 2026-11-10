@@ -318,7 +318,7 @@ export default function AppointmentsTable({
       {/* Toolbar */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 pb-[28px]">
         <div className="flex items-center gap-3">
-          <h2 className="font-inter text-[23.333px] font-semibold leading-[32.667px] text-[#1e1e24]">
+          <h2 className="font-inter text-[21px] font-semibold leading-[28px] text-[#1e1e24]">
             {heading}
           </h2>
         </div>
@@ -340,7 +340,7 @@ export default function AppointmentsTable({
               }}
               placeholder="Search here..."
               aria-label="Search appointments"
-              className="h-[45px] w-[195px] rounded-full border-[1.167px] border-[#c2c6d4] pl-[50px] pr-[10px] font-inter text-[16.333px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4] focus:border-[#0077c0]"
+              className="h-[40px] w-[180px] rounded-full border-[1.167px] border-[#c2c6d4] pl-[50px] pr-[10px] font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#64748b] focus:border-[#0077c0]"
             />
           </div>
           <StatusFilter
@@ -360,9 +360,9 @@ export default function AppointmentsTable({
           {["Patient Name", "Doctor", "Date & Time", "Status", "Action"].map((h, i) => (
             <span
               key={h}
-              className={`py-[18.667px] font-inter text-[14px] font-medium uppercase leading-[18.667px] tracking-[0.35px] text-[#1e1e24] ${
+              className={`py-[16px] font-inter text-[12px] font-medium uppercase leading-[18.667px] tracking-[0.35px] text-[#1e1e24] ${
                 i === 4 ? "w-[60px] justify-self-end" : ""
-              } ${i === 3 ? "text-center" : ""} ${i === 1 ? "pl-6" : ""}`}
+              } ${i === 3 ? "text-center" : ""}`}
             >
               {h}
             </span>
@@ -452,9 +452,9 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
   return (
     <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)] items-center gap-x-5 border-t-[1.167px] border-[#c2c6d4] px-[18.667px]">
       {/* Patient */}
-      <div className="py-[18.667px]">
+      <div className="py-[20px]">
         <p
-          className={`font-inter text-[16.333px] font-medium leading-[23.333px] ${ongoing ? "" : "text-[#1e1e24]"}`}
+          className={`font-inter text-[15px] font-medium leading-[22px] ${ongoing ? "" : "text-[#1e1e24]"}`}
           style={contentStyle}
         >
           {appt.patientName}
@@ -462,7 +462,7 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
       </div>
       {/* Doctor */}
       <span
-        className={`pl-6 font-inter text-[16.333px] font-medium leading-[23.333px] ${ongoing ? "" : "text-[#1e1e24]"}`}
+        className={`font-inter text-[15px] font-medium leading-[22px] ${ongoing ? "" : "text-[#1e1e24]"}`}
         style={contentStyle}
       >
         {appt.doctor === "Unassigned" ? "--" : appt.doctor}
@@ -530,9 +530,9 @@ function StatusFilter({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-[45px] items-center gap-1 rounded-full border-[1.167px] border-[#c2c6d4] px-[16.167px] transition-colors hover:border-[#0077c0]"
+        className="flex h-[40px] items-center gap-1 rounded-full border-[1.167px] border-[#c2c6d4] px-[16.167px] transition-colors hover:border-[#0077c0]"
       >
-        <span className="whitespace-nowrap font-inter text-[16.333px] font-medium leading-[23.333px] text-[#1e1e24]">
+        <span className="whitespace-nowrap font-inter text-[15px] font-medium leading-[22px] text-[#1e1e24]">
           {value}
         </span>
         <Image

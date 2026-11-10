@@ -37,9 +37,9 @@ function Header({ actions = 2, back = false, title = "w-64" }: { actions?: numbe
 export function StatsSkeleton() {
   return (
     <LoadingFrame name="appointment totals">
-      <div className="flex flex-wrap gap-[28px] xl:flex-nowrap">
+      <div className="flex flex-wrap gap-[24px] xl:flex-nowrap">
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="flex h-[200px] min-w-[220px] flex-1 flex-col justify-between rounded-[28px] border border-[#e3e8ee] p-6">
+          <div key={i} className="flex h-[180px] min-w-[210px] flex-1 flex-col justify-between rounded-[28px] border border-[#e3e8ee] p-6">
             <div className="space-y-3"><Skeleton className="h-11 w-20" /><Skeleton className="h-5 w-4/5" /></div>
             <div className="flex items-center justify-between"><Skeleton className="size-10 rounded-lg" /><Skeleton className="h-4 w-16" /></div>
           </div>
@@ -127,7 +127,7 @@ export function DashboardTableSkeleton() {
 }
 
 export function DashboardSkeleton() {
-  return <LoadingFrame name="dashboard"><div className="flex flex-col gap-[28px]"><Header title="w-80" /><StatsSkeleton /><div className="flex flex-col items-stretch gap-[37px] xl:flex-row xl:items-start"><div className="min-w-0 flex-1"><DashboardTableSkeleton /></div><div className="w-full shrink-0 xl:w-[360px]"><CalendarGridSkeleton compact /></div></div></div></LoadingFrame>;
+  return <LoadingFrame name="dashboard"><div className="flex flex-col gap-[28px]"><Header title="w-80" /><StatsSkeleton /><div className="flex flex-col items-stretch gap-[28px] xl:flex-row xl:items-start"><div className="min-w-0 flex-1"><DashboardTableSkeleton /></div><div className="w-full shrink-0 xl:w-[340px]"><CalendarGridSkeleton compact /></div></div></div></LoadingFrame>;
 }
 
 export function CalendarSkeleton() {

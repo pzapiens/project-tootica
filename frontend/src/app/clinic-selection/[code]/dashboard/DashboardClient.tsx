@@ -22,7 +22,7 @@ export default function DashboardClient() {
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_OPTIONS[0]);
 
   return (
-    <div className="flex flex-col gap-[28px]">
+    <div className="flex flex-col gap-[32px]">
       <DashboardOverview timeframe={timeframe} onTimeframeChange={setTimeframe} />
       <LowerSection status={statusFilter} onStatusChange={setStatusFilter} />
     </div>

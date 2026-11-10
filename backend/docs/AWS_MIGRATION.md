@@ -1,5 +1,8 @@
 # Architecture & AWS Migration Guide
 
+> **Current production launch plan:** [AWS_PRODUCTION_MIGRATION.md](./AWS_PRODUCTION_MIGRATION.md), updated 10 November 2026, covers the current small-clinic architecture, costs, timeline and acceptance gates. This older document is a Lambda design reference; revalidate its email, networking, uploads and pricing assumptions before use.
+
+
 How the Tootica backend is built today, why it is portable, and the concrete
 steps to run it on **AWS API Gateway + Lambda** without rewriting the app.
 

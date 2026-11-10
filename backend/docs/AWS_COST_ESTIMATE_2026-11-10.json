@@ -1,0 +1,143 @@
+{
+  "asOf": "2026-11-10",
+  "selectedArchitecture": "Lightsail VM + encrypted Lightsail managed PostgreSQL + private S3",
+  "region": "ap-south-1",
+  "workload": "1-3 clinics, up to 50 staff; load-test 10 active sessions and 25-session burst",
+  "budgetMaximumInr": 12000,
+  "planningInrPerUsd": 95,
+  "exchangeRateIsLive": false,
+  "modeledGstRate": 0.18,
+  "taxSource": "https://aws.amazon.com/tax-help/india/",
+  "taxNote": "Conservative AWS India cash-planning assumption; confirm the actual invoice and account settings",
+  "messagingAllowanceIsVendorQuote": false,
+  "noFreeTierDiscountsAssumed": true,
+  "exclusions": [
+    "Implementation and support labour",
+    "Domain renewal",
+    "Provider purchases exceeding allowance",
+    "Extended staging",
+    "Unmodeled usage/traffic growth"
+  ],
+  "scenarios": {
+    "recommended4Gb": {
+      "items": [
+        {
+          "component": "Lightsail Linux app VM",
+          "basis": "4 GB public IPv4 bundle",
+          "monthlyUsd": 24,
+          "classification": "Published plan",
+          "source": "https://aws.amazon.com/lightsail/pricing/"
+        },
+        {
+          "component": "Encrypted Lightsail PostgreSQL",
+          "basis": "2 GB standard plan",
+          "monthlyUsd": 30,
+          "classification": "Published plan",
+          "source": "https://aws.amazon.com/lightsail/pricing/"
+        },
+        {
+          "component": "Private S3 and requests",
+          "basis": "Modest files/version allowance",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/s3/pricing/"
+        },
+        {
+          "component": "Snapshot retention",
+          "basis": "200 GB-month equivalent allowance",
+          "monthlyUsd": 10,
+          "classification": "Allowance at published snapshot rate",
+          "source": "https://aws.amazon.com/lightsail/pricing/"
+        },
+        {
+          "component": "Monitoring/logging",
+          "basis": "Bounded logs and small metric/alert set",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/cloudwatch/pricing/"
+        },
+        {
+          "component": "Secrets/deployment retrieval",
+          "basis": "Small protected secret set",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/secrets-manager/pricing/"
+        },
+        {
+          "component": "Transfer/miscellaneous buffer",
+          "basis": "Normal transfer allowance; overages monitored",
+          "monthlyUsd": 3,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/lightsail/pricing/"
+        }
+      ],
+      "awsSubtotalUsd": 73,
+      "awsInrBeforeModeledTax": 6935,
+      "modeledGstInr": 1248.3,
+      "awsInrIncludingModeledTax": 8183.3,
+      "messagingAllowanceInr": 1000,
+      "modeledMonthlyInr": 9183.3,
+      "remainingToBudgetInr": 2816.7
+    },
+    "optional8Gb": {
+      "items": [
+        {
+          "component": "Lightsail Linux app VM",
+          "basis": "8 GB public IPv4 bundle",
+          "monthlyUsd": 44,
+          "classification": "Published plan",
+          "source": "https://aws.amazon.com/lightsail/pricing/"
+        },
+        {
+          "component": "Encrypted Lightsail PostgreSQL",
+          "basis": "2 GB standard plan",
+          "monthlyUsd": 30,
+          "classification": "Published plan",
+          "source": "https://aws.amazon.com/lightsail/pricing/"
+        },
+        {
+          "component": "Private S3 and requests",
+          "basis": "Modest files/version allowance",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/s3/pricing/"
+        },
+        {
+          "component": "Snapshot retention",
+          "basis": "200 GB-month equivalent allowance",
+          "monthlyUsd": 10,
+          "classification": "Allowance at published snapshot rate",
+          "source": "https://aws.amazon.com/lightsail/pricing/"
+        },
+        {
+          "component": "Monitoring/logging",
+          "basis": "Bounded logs and small metric/alert set",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/cloudwatch/pricing/"
+        },
+        {
+          "component": "Secrets/deployment retrieval",
+          "basis": "Small protected secret set",
+          "monthlyUsd": 2,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/secrets-manager/pricing/"
+        },
+        {
+          "component": "Transfer/miscellaneous buffer",
+          "basis": "Normal transfer allowance; overages monitored",
+          "monthlyUsd": 3,
+          "classification": "Budget allowance",
+          "source": "https://aws.amazon.com/lightsail/pricing/"
+        }
+      ],
+      "awsSubtotalUsd": 93,
+      "awsInrBeforeModeledTax": 8835,
+      "modeledGstInr": 1590.3,
+      "awsInrIncludingModeledTax": 10425.3,
+      "messagingAllowanceInr": 1000,
+      "modeledMonthlyInr": 11425.3,
+      "remainingToBudgetInr": 574.7
+    }
+  }
+}
