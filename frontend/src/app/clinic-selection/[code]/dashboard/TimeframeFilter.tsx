@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import FloatingPanel from "@/components/FloatingPanel";
+import { useRef, useState } from "react";
 
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
@@ -18,60 +19,23 @@ import { type Timeframe, timeframeLabel } from "./mock";
 export default function TimeframeFilter({
   timeframe,
   onChange,
+  compact = true,
+  align = "start",
 }: {
+  compact?: boolean;
+  align?: "start" | "end";
   timeframe: Timeframe;
   onChange: (t: Timeframe) => void;
 }) {
   const [open, setOpen] = useExclusiveDropdown();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  // Flip the panel so it never hides under the sidebar or below the fold: open
-  // upward when there's no room below, and left-align (grow rightward) when the
-  // trigger sits on the left; otherwise the default down/right-aligned placement.
-  const [place, setPlace] = useState<{ up: boolean; alignRight: boolean }>({
-    up: false,
-    alignRight: true,
-  });
-
-  // Estimated panel footprint (visual px, i.e. already at the shell's 0.9 zoom).
-  const computePlace = useCallback(() => {
-    const btn = triggerRef.current;
-    if (!btn) return;
-    const r = btn.getBoundingClientRect();
-    const PANEL_W = 260;
-    const PANEL_H = 400;
-    const spaceBelow = window.innerHeight - r.bottom;
-    setPlace({
-      up: spaceBelow < PANEL_H && r.top > spaceBelow,
-      alignRight: window.innerWidth - r.left < PANEL_W + 16,
-    });
-  }, []);
-
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      // The custom-range calendar is portaled to <body> (outside `ref`), so
-      // treat clicks inside it as inside — otherwise picking a day would close
-      // this panel before the selection registers.
-      if (
-        ref.current &&
-        !ref.current.contains(target) &&
-        !target.closest("[data-date-popover]")
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [setOpen]);
 
   function toggle() {
     setOpen((wasOpen) => {
       const next = !wasOpen;
       if (next) {
-        computePlace();
         // Seed the draft from the committed range (if any) when opening.
         if (timeframe.kind === "range") {
           setFrom(formatDmy(new Date(timeframe.from)));
@@ -84,18 +48,6 @@ export default function TimeframeFilter({
       return next;
     });
   }
-
-  // Keep the placement correct as the page scrolls or the window resizes.
-  useEffect(() => {
-    if (!open) return;
-    computePlace();
-    window.addEventListener("resize", computePlace);
-    window.addEventListener("scroll", computePlace, true);
-    return () => {
-      window.removeEventListener("resize", computePlace);
-      window.removeEventListener("scroll", computePlace, true);
-    };
-  }, [open, computePlace]);
 
   function choosePreset(kind: "all" | "today") {
     onChange({ kind });
@@ -113,14 +65,14 @@ export default function TimeframeFilter({
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
         ref={triggerRef}
         type="button"
         onClick={toggle}
-        className="flex h-[48px] items-center gap-1 rounded-full border-[1.167px] border-[#c2c6d4] px-[16.167px] transition-colors hover:border-[#0077c0]"
+        className={`flex items-center gap-1 rounded-full border-[1.167px] border-black transition-colors ${compact ? "h-[40px] px-[14px]" : "h-[48px] px-[16.167px]"}`}
       >
-        <span className="font-inter text-[15px] font-medium leading-[22px] text-[#1e1e24]">
+        <span className={`font-inter font-medium text-[#1e1e24] ${compact ? "text-[14px] leading-[20px]" : "text-[15px] leading-[22px]"}`}>
           {timeframeLabel(timeframe)}
         </span>
         <Image
@@ -128,28 +80,24 @@ export default function TimeframeFilter({
           alt=""
           width={24}
           height={24}
-          className={`size-6 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          className={`${compact ? "size-5" : "size-5"} transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
 
       {open && (
-        <div
-          className={`absolute z-40 flex w-[288px] flex-col gap-[16px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] ${
-            place.up ? "bottom-[calc(100%+8px)]" : "top-[calc(100%+8px)]"
-          } ${place.alignRight ? "right-0" : "left-0"}`}
-        >
+        <FloatingPanel anchor={triggerRef} align={align} width={288} gap={12} onClose={() => setOpen(false)} role="dialog" label="Appointment timeframe" className="flex flex-col gap-3.5 rounded-[13px] border-[1.167px] border-black bg-white p-[14px] shadow-lg">
           {/* Presets */}
           <PresetRow label="All time" active={timeframe.kind === "all"} onClick={() => choosePreset("all")} />
           <PresetRow label="Today" active={timeframe.kind === "today"} onClick={() => choosePreset("today")} />
 
           {/* Custom range */}
-          <div className="flex flex-col gap-[4px]">
+          <div className="flex min-w-0 flex-col gap-[4px] px-[8px]">
             <span className="font-inter text-[9.838px] font-semibold uppercase tracking-[0.4919px] text-[#1e1e24]">
               From <span className="text-red-500">*</span>
             </span>
             <DateInput value={from} onChange={setFrom} />
           </div>
-          <div className="flex flex-col gap-[4px]">
+          <div className="flex min-w-0 flex-col gap-[4px] px-[8px]">
             <span className="font-inter text-[9.838px] font-semibold uppercase tracking-[0.4919px] text-[#424752]">
               To <span className="text-red-500">*</span>
             </span>
@@ -157,14 +105,15 @@ export default function TimeframeFilter({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-[8px]">
+          <div className="app-toolbar flex items-center justify-between pt-[8px]">
             <button
               type="button"
+              disabled={!from && !to}
               onClick={() => {
                 setFrom("");
                 setTo("");
               }}
-              className="w-[122px] rounded-[4px] px-[17px] py-[9px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#424752]"
+              className="w-[122px] border-0 bg-transparent px-[14px] py-[9px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-brand transition-colors enabled:hover:text-brand/80 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Clear
             </button>
@@ -172,14 +121,14 @@ export default function TimeframeFilter({
               type="button"
               disabled={!canApply}
               onClick={apply}
-              className={`w-[120px] rounded-[50px] px-[16px] py-[8px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] ${
+              className={`w-[120px] rounded-[50px] px-[13px] py-[8px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] ${
                 canApply ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0177c1] opacity-50"
               }`}
             >
               Apply
             </button>
           </div>
-        </div>
+        </FloatingPanel>
       )}
     </div>
   );
@@ -198,8 +147,8 @@ function PresetRow({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-[8px] px-[16px] py-[10px] ${
-        active ? "bg-[rgba(0,94,184,0.1)]" : "bg-[#f1f5f9] hover:bg-[#e9eef4]"
+      className={`flex w-full items-center justify-between rounded-[8px] border-[1.167px] px-[13px] py-[10px] ${
+        active ? "border-[#e5eff8] bg-[#e5eff8]" : "border-[#f1f5f9] bg-[#f1f5f9] app-option-hover"
       }`}
     >
       <span
@@ -210,7 +159,7 @@ function PresetRow({
         {label}
       </span>
       {active && (
-        <Image src="/dashboard/check_small.svg" alt="" width={24} height={24} className="size-6" />
+        <Image src="/dashboard/check_small.svg" alt="" width={24} height={24} className="size-5" />
       )}
     </button>
   );

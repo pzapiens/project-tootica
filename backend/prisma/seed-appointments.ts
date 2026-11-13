@@ -54,9 +54,9 @@ const MEDICAL_NOTES = [
   'No known allergies', 'Penicillin allergy', 'Hypertension — monitor before anaesthetic',
   'Type 2 diabetic', 'Nut allergy', null,
 ];
-// Past appointments: mostly completed, some missed / cancelled.
+// Past appointments: mostly completed, some cancelled.
 const STATUS_WEIGHTS: Array<[AppointmentStatus, number]> = [
-  ['COMPLETED', 68], ['NO_SHOW', 14], ['CANCELLED', 14], ['CONFIRMED', 4],
+  ['COMPLETED', 68], ['CANCELLED', 28], ['CONFIRMED', 4],
 ];
 // Canonical consultation types + lead sources — must mirror the frontend form
 // (src/app/clinic-selection/[code]/dashboard/AppointmentFormStep.tsx) so seeded
@@ -97,7 +97,6 @@ const LEAD_SOURCES = [
 ];
 const APPOINTMENT_NOTES: Record<AppointmentStatus, string[]> = {
   COMPLETED: ['Routine check-up', 'Scaling & polishing', 'Filling', 'Follow-up review', 'Root canal — session complete'],
-  NO_SHOW: ['Patient did not attend', 'No show — did not call'],
   CANCELLED: ['Cancelled by patient', 'Rescheduled — cancelled slot'],
   CONFIRMED: ['Consultation', 'Whitening consultation'],
   SCHEDULED: ['Consultation', 'New booking — awaiting confirmation', 'Requested appointment', 'Follow-up requested'],

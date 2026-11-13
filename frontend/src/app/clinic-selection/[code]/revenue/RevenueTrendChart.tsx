@@ -78,10 +78,10 @@ export default function RevenueTrendChart({
       aria-label="Revenue trend"
       aria-busy={loading}
       data-chart-ready={revealed}
-      className="flex h-[420px] min-w-0 flex-col rounded-[24px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6"
+      className="flex h-[420px] min-w-0 flex-col rounded-[20px] border-[1.167px] border-black bg-white p-4 sm:p-5"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h2 className="font-inter text-[16px] font-bold text-[#1e1e24]">Revenue Trend</h2>
+        <h2 className="font-inter text-[14px] font-bold text-[#1e1e24]">Revenue Trend</h2>
         <select
           aria-label="Revenue graph period"
           value={period}
@@ -90,7 +90,7 @@ export default function RevenueTrendChart({
             setActiveKey(null);
             setPeriodOffset(0);
           }}
-          className="rounded-lg border border-[#c2c6d4] bg-white px-2 py-1 font-inter text-[12px] text-[#1e1e24] outline-none focus:border-[#0077c0]"
+          className="rounded-lg border-[1.167px] border-black bg-white px-2 py-1 font-inter text-[12px] text-[#1e1e24] outline-none focus:border-[#0077c0]"
         >
           <option value="week">Week (Mon–Sun)</option>
           <option value="month">Month</option>
@@ -140,12 +140,12 @@ export default function RevenueTrendChart({
         <>
           <div className="mt-3" aria-live="polite">
             <p className="font-inter text-[12px] text-[#727783]">{trend.metricLabel}</p>
-            <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <p className="font-manrope text-[32px] font-extrabold leading-[40px] tracking-[-0.6px]" style={{ color: BLUE }}>
+            <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3.5 gap-y-1">
+              <p className="font-manrope text-[28px] font-extrabold leading-[35px] tracking-[-0.6px]" style={{ color: BLUE }}>
                 {currency.format(trend.current)}
               </p>
               <p
-                className={`ml-auto text-right font-manrope text-[24px] font-normal leading-8 tabular-nums ${CHANGE_STYLES[trend.direction]}`}
+                className={`ml-auto text-right font-manrope text-[21px] font-normal leading-7 tabular-nums ${CHANGE_STYLES[trend.direction]}`}
                 title={`${changeSign}${currency.format(changeAmount)} vs ${trend.comparisonLabel}`}
               >
                 <span className="whitespace-nowrap">{change}</span>{" "}
@@ -156,9 +156,9 @@ export default function RevenueTrendChart({
             </div>
           </div>
 
-          <div className="relative mt-3 min-h-0 flex-1">
+          <div className="app-chart-scroll relative mt-3 min-h-0 flex-1">
             {active && (
-              <div className="pointer-events-none absolute right-0 top-0 z-10 rounded-md border border-[#e2e8f0] bg-white/95 px-2 py-1 font-inter text-[11px] text-[#1e1e24] shadow-sm">
+              <div className="pointer-events-none absolute right-0 top-0 z-10 rounded-md border-[1.167px] border-black bg-white/95 px-2 py-1 font-inter text-[11px] text-[#1e1e24] shadow-sm">
                 {active.fullLabel}: <strong>{currency.format(active.amount)}</strong>
               </div>
             )}

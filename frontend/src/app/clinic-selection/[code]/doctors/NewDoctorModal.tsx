@@ -25,7 +25,7 @@ import ShiftBuilder from "./ShiftBuilder";
 const LABEL =
   "font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-[#1e1e24]";
 const FIELD =
-  "w-full border-b border-field-border/60 bg-transparent pb-2 pt-1 font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-border focus:border-brand";
+  "w-full border-b-[1.167px] border-black bg-transparent pb-2 pt-1 font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-brand";
 const REQ = <span className="text-red-500">*</span>;
 
 export default function NewDoctorModal({
@@ -45,36 +45,10 @@ export default function NewDoctorModal({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const popupRef = useRef<HTMLDivElement>(null);
-  const [popupScale, setPopupScale] = useState(0.9);
-  const [popupMaxHeight, setPopupMaxHeight] = useState<number>();
-
   useLayoutEffect(() => {
-    const popup = popupRef.current;
-    if (!popup) return;
-
-    function fitPopup() {
-      if (!popup || !popup.offsetWidth) return;
-      const viewport = window.visualViewport;
-      const availableWidth = (viewport?.width ?? window.innerWidth) - 32;
-      const availableHeight = (viewport?.height ?? window.innerHeight) - 32;
-      // Only scale to fit the width. Extra content scrolls inside the dialog.
-      const scale = Math.min(0.9, availableWidth / popup.offsetWidth);
-      setPopupScale(scale);
-      setPopupMaxHeight(availableHeight / scale);
-    }
-
-    fitPopup();
-    window.addEventListener("resize", fitPopup);
-    window.visualViewport?.addEventListener("resize", fitPopup);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
-    return () => {
-      window.removeEventListener("resize", fitPopup);
-      window.visualViewport?.removeEventListener("resize", fitPopup);
-      document.body.style.overflow = previousOverflow;
-    };
+    return () => { document.body.style.overflow = previousOverflow; };
   }, []);
 
   useEffect(() => {
@@ -149,28 +123,23 @@ export default function NewDoctorModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
     >
       <div
-        ref={popupRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-doctor-title"
         aria-busy={saving}
-        style={{
-          transform: `scale(${popupScale})`,
-          maxHeight: popupMaxHeight,
-        }}
-        className="flex w-[880px] shrink-0 origin-center flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_10px_40px_rgba(0,0,0,0.15)]"
+        className="app-dialog my-auto flex w-full max-w-[720px] flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_10px_40px_rgba(0,0,0,0.15)]"
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-field-border/40 px-7 pb-6 pt-9">
+        <div className="app-toolbar flex shrink-0 items-center justify-between border-b-[1.167px] border-black/20 px-6 py-5">
           <h2
             id="new-doctor-title"
-            className="font-manrope text-[26px] font-semibold leading-[34px] tracking-[-0.5px] text-[#1e1e24]"
+            className="font-manrope text-[23px] font-semibold leading-[30px] tracking-[-0.5px] text-[#1e1e24]"
           >
             New Doctor Profile
           </h2>
@@ -181,15 +150,15 @@ export default function NewDoctorModal({
             disabled={saving}
             className="disabled:opacity-50"
           >
-            <CloseIcon className="size-6 text-[#1e1e24]" />
+            <CloseIcon className="size-5 text-[#1e1e24]" />
           </button>
         </div>
 
         {/* Fields */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-4 sm:px-7">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3.5 sm:px-6">
           <fieldset
             disabled={saving || !!createdDoctorId}
-            className="grid grid-cols-1 gap-x-[34px] gap-y-7 border-0 p-0 sm:grid-cols-2 disabled:opacity-60"
+            className="app-form-grid grid grid-cols-1 gap-x-[29px] gap-y-6 border-0 p-0 sm:grid-cols-2 disabled:opacity-60"
           >
             <Field label="Doctor Name" required>
               <input
@@ -225,7 +194,7 @@ export default function NewDoctorModal({
             </Field>
             <Field label="Phone" required>
               <div
-                className={`flex items-center gap-3 border-b pb-2 pt-1 ${showPhoneError ? "border-[#ba1a1a] focus-within:border-[#ba1a1a]" : "border-field-border/60 focus-within:border-brand"}`}
+                className={`flex items-center gap-3 border-b-[1.167px] pb-2 pt-1 ${showPhoneError ? "border-[#ba1a1a] focus-within:border-[#ba1a1a]" : "border-black focus-within:border-brand"}`}
               >
                 <PhoneNumberInput
                   value={phone}
@@ -236,7 +205,7 @@ export default function NewDoctorModal({
                     showPhoneError ? "new-doctor-phone-error" : undefined
                   }
                   placeholder="0000000000"
-                  className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-border"
+                  className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder"
                 />
               </div>
               {showPhoneError && (
@@ -279,12 +248,12 @@ export default function NewDoctorModal({
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center justify-end gap-9 px-5 pb-5 pt-5 sm:px-7">
+        <div className="app-toolbar flex shrink-0 items-center justify-end gap-[20px] border-t-[1.167px] border-black/20 px-4 pb-4 pt-4 sm:px-6">
           <button
             type="button"
             onClick={close}
             disabled={saving}
-            className="font-inter text-[10px] font-semibold uppercase tracking-[0.5px] text-[#1e1e24] disabled:opacity-50"
+            className="cursor-pointer font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] disabled:opacity-50"
           >
             Cancel
           </button>
@@ -292,9 +261,9 @@ export default function NewDoctorModal({
             type="button"
             onClick={create}
             disabled={!canCreate}
-            className={`min-w-[144px] rounded-[10px] px-6 py-[10px] font-inter text-[10px] font-semibold uppercase tracking-[0.5px] text-white shadow-sm transition-colors ${
+            className={`rounded-full px-[clamp(13px,3vw,24px)] py-[13px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-colors ${
               canCreate
-                ? "bg-[#0077c0] hover:bg-[#0069a8]"
+                ? "cursor-pointer bg-[#0077c0] hover:bg-[#0069a8]"
                 : "bg-[#0077c0] opacity-50"
             }`}
           >
@@ -360,9 +329,9 @@ function SelectDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
+        className="flex w-full items-center justify-between border-b-[1.167px] border-black pb-2 pt-1 text-left focus:border-[#0077c0]"
       >
-        <span className="font-inter text-[15px] text-[#1e1e24]">
+        <span className={`font-inter text-[14px] ${value ? "text-[#1e1e24]" : "text-field-placeholder"}`}>
           {value || placeholder}
         </span>
         <Image
@@ -374,7 +343,7 @@ function SelectDropdown({
         />
       </button>
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex max-h-[260px] w-full flex-col gap-[5px] overflow-y-auto rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex max-h-[260px] w-full flex-col gap-[5px] overflow-y-auto rounded-[13px] border-[1.167px] border-black bg-white p-[14px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
           {options.map((opt) => (
             <button
               key={opt}
@@ -383,12 +352,12 @@ function SelectDropdown({
                 onChange(opt);
                 setOpen(false);
               }}
-              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[16px] py-[10px] transition-colors hover:bg-[#e9eef4]"
+              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[13px] py-[10px] transition-colors app-option-hover"
             >
               <span className="font-inter text-[14px] font-normal text-[#1e1e24]">
                 {opt}
               </span>
-              <span className="flex size-3 items-center justify-center rounded-full border border-[#1e1e24]">
+              <span className="flex size-3 items-center justify-center rounded-full border-[1.167px] border-black">
                 {value === opt && (
                   <span className="size-1.5 rounded-full bg-[#1e1e24]" />
                 )}

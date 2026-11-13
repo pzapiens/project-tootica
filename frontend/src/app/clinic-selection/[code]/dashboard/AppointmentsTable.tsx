@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { apiFetch, type AppointmentListItem } from "@/lib/api";
@@ -11,7 +12,9 @@ import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
 import { DashboardTableSkeleton } from "@/components/loading/PageSkeletons";
 
-import { type Time } from "./AppointmentFormStep";
+import { type AppointmentEditResult, type Time } from "./AppointmentFormStep";
+import styles from "./dashboard.module.css";
+import { createTodayDemoAppointments, isDemoAppointment } from "./demo-appointments";
 import NewAppointmentModal, { type EditAppointment } from "./NewAppointmentModal";
 import {
   STATUS_FILTER_OPTIONS,
@@ -64,7 +67,6 @@ const STATUS_MAP: Record<AppointmentListItem["status"], AppointmentStatus> = {
   ONGOING: "On going",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
-  NO_SHOW: "No Show",
 };
 
 /**
@@ -87,8 +89,6 @@ function backendStatusesFor(
       return ["COMPLETED"];
     case "Cancelled":
       return ["CANCELLED"];
-    case "No Show":
-      return ["NO_SHOW"];
     default:
       return "none";
   }
@@ -184,8 +184,7 @@ function toEdit(a: DashboardAppointment): EditAppointment {
 
 // Row styling for each option inside the status dropdown (Figma "Appts Status
 // Dropdown"), derived from the shared dropdown palette so the dropdown, the row
-// badges and the create/edit form stay in sync (incl. its No Show → amber
-// override). `text` colours both the label and the selected check (via
+// badges and the create/edit form stay in sync. `text` colours both the label and the selected check (via
 // currentColor), so the tick always matches its option's text colour. "All
 // status" is not a real status, so it keeps the Figma's neutral grey tint + dark
 // ink (and a dark tick when selected).
@@ -217,28 +216,26 @@ function CheckSmall({ className }: { className?: string }) {
  * newest-first by start time. The table is independent of the top timeframe
  * filter and the mini calendar.
  *
- * When `height` is provided (desktop), the section is fixed to that height so it
- * aligns with the calendar's bottom, and the table body scrolls if the rows
- * overflow.
+ * A local scroll region keeps every column readable in narrower panels.
  */
 export default function AppointmentsTable({
-  height,
   heading,
   status,
   onStatusChange,
 }: {
-  height?: number;
   /** Section heading (default, or a reviewed stat card's metric). */
   heading: string;
   /** Active status filter (controlled — lifted so stat cards can drive it). */
   status: string;
   onStatusChange: (status: string) => void;
 }) {
+  const { code } = useParams<{ code: string }>();
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<AppointmentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<DashboardAppointment | null>(null);
   const [page, setPage] = useState(1);
+  const [demoEdits, setDemoEdits] = useState<Record<string, DashboardAppointment>>({});
 
   // A selected status with no backend equivalent ("On going" / "Rescheduled")
   // has nothing to fetch — the list is simply empty.
@@ -252,6 +249,11 @@ export default function AppointmentsTable({
     const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     return { from, to };
   }, []);
+
+  const demoAppointments = useMemo(
+    () => createTodayDemoAppointments(code, todayRange.from),
+    [code, todayRange],
+  );
 
   // Re-query the backend whenever the status filter changes.
   useEffect(() => {
@@ -283,14 +285,14 @@ export default function AppointmentsTable({
       (b.code ?? "").localeCompare(a.code ?? ""),
     );
     const q = query.trim().toLowerCase();
-    return ordered
-      .map(toDashboardAppointment)
+    return [...ordered.map(toDashboardAppointment), ...demoAppointments.map((a) => demoEdits[a.id] ?? a)]
+      .filter((a) => status === "All status" || a.status === status)
       .filter(
         (a) =>
           !q ||
           [a.patientName, a.treatment, a.doctor].some((f) => f.toLowerCase().includes(q)),
       );
-  }, [items, query, isNoneFilter]);
+  }, [items, query, isNoneFilter, demoAppointments, demoEdits, status]);
 
   // Paginate the filtered rows, 20 per page. `page` is clamped here (rather than
   // reset via an effect) so a shrinking list — e.g. after a status/search change
@@ -305,31 +307,26 @@ export default function AppointmentsTable({
   const lastRow = Math.min(safePage * PAGE_SIZE, rows.length);
 
   if (loading && !isNoneFilter) {
-    return <div className="min-w-0 flex-1"><DashboardTableSkeleton /></div>;
+    return <div className={`${styles.tableSection} ${styles.tableLoading}`}><DashboardTableSkeleton /></div>;
   }
 
   return (
-    <section
-      className="flex min-w-0 flex-1 flex-col"
-      // Cap at the calendar height (align bottoms + scroll long lists) but let a
-      // short list shrink the bordered table down to header + its rows.
-      style={height ? { maxHeight: height } : undefined}
-    >
+    <section className={styles.tableSection}>
       {/* Toolbar */}
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 pb-[28px]">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 pb-[20px]">
         <div className="flex items-center gap-3">
-          <h2 className="font-inter text-[21px] font-semibold leading-[28px] text-[#1e1e24]">
+          <h2 className="font-inter text-[19px] font-semibold leading-[26px] text-[#1e1e24]">
             {heading}
           </h2>
         </div>
-        <div className="flex items-center gap-[14px]">
-          <div className="relative">
+        <div className={styles.tableFilters}>
+          <div className={styles.search}>
             <Image
               src="/dashboard/search.svg"
               alt=""
               width={24}
               height={24}
-              className="pointer-events-none absolute left-[16px] top-1/2 size-6 -translate-y-1/2"
+              className="pointer-events-none absolute left-[14px] top-1/2 size-5 -translate-y-1/2"
             />
             <input
               type="search"
@@ -338,9 +335,9 @@ export default function AppointmentsTable({
                 setQuery(e.target.value);
                 setPage(1);
               }}
+              aria-label="Search today's appointments"
               placeholder="Search here..."
-              aria-label="Search appointments"
-              className="h-[40px] w-[180px] rounded-full border-[1.167px] border-[#c2c6d4] pl-[50px] pr-[10px] font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#64748b] focus:border-[#0077c0]"
+              className="app-search-input h-[40px] w-full rounded-full border-[1.167px] border-black pl-[42px] pr-[10px] font-inter text-[14px] text-[#1e1e24] outline-none "
             />
           </div>
           <StatusFilter
@@ -353,45 +350,53 @@ export default function AppointmentsTable({
         </div>
       </div>
 
-      {/* Bordered table — height hugs its content, capped by the section max */}
-      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[18.667px] border-[1.2px] border-[#c2c6d4] bg-white shadow-[0px_1.167px_2.333px_0px_rgba(0,0,0,0.05)]">
-        {/* Header row */}
-        <div className="grid shrink-0 grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)] gap-x-5 border-b-[1.167px] border-[#c2c6d4] px-[18.667px]">
-          {["Patient Name", "Doctor", "Date & Time", "Status", "Action"].map((h, i) => (
-            <span
-              key={h}
-              className={`py-[16px] font-inter text-[12px] font-medium uppercase leading-[18.667px] tracking-[0.35px] text-[#1e1e24] ${
-                i === 4 ? "w-[60px] justify-self-end" : ""
-              } ${i === 3 ? "text-center" : ""}`}
-            >
-              {h}
-            </span>
-          ))}
-        </div>
+      {/* Table columns and long lists scroll within this region. */}
+      <div role="region" aria-label="Today's appointments table" tabIndex={0} className={`${styles.tableScroll} rounded-[16px] border border-black bg-white shadow-sm focus-visible:outline-2 focus-visible:outline-brand`}>
+        <div className={styles.tableContent}>
+          {/* Header row */}
+          <div className={`app-table-header ${styles.tableRow} ${styles.tableHeader} border-b border-black`}>
+            {["Patient Name", "Doctor", "Date & Time", "Status", "Action"].map((h, i) => (
+              <span
+                key={h}
+                className={`whitespace-nowrap py-[14px] text-left font-inter text-[12px] font-medium uppercase leading-[18.667px] tracking-[0.35px] text-[#1e1e24] ${
+                  i === 4 ? "w-[60px] justify-self-end" : ""
+                }`}
+              >
+                {h}
+              </span>
+            ))}
+          </div>
 
-        {/* Body */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {loading ? (
-            <p className="px-[18.667px] py-8 font-inter text-[16px] text-[#94a3b8]">
-              Loading appointments…
-            </p>
-          ) : rows.length === 0 ? (
-            <p className="px-[18.667px] py-8 font-inter text-[16px] text-[#94a3b8]">
-              {query.trim() && items.length > 0 && !isNoneFilter
-                ? "No appointments match your search."
-                : isNoneFilter || status !== STATUS_FILTER_OPTIONS[0]
-                  ? "No appointments today for this filter."
-                  : "No appointments today."}
-            </p>
-          ) : (
-            pageRows.map((a) => <Row key={a.id} appt={a} onEdit={() => setEditing(a)} />)
-          )}
+          {/* The vertical scrollbar begins below the fixed column header. */}
+          <div role="region" aria-label="Appointment rows" tabIndex={0} className={styles.tableBody}>
+            {loading ? (
+              <p className="px-[18.667px] py-8 font-inter text-[14px] text-[#94a3b8]">
+                Loading appointments…
+              </p>
+            ) : rows.length === 0 ? (
+              <p className="px-[18.667px] py-8 font-inter text-[14px] text-[#94a3b8]">
+                {query.trim() && (items.length > 0 || demoAppointments.length > 0) && !isNoneFilter
+                  ? "No appointments match your search."
+                  : isNoneFilter || status !== STATUS_FILTER_OPTIONS[0]
+                    ? "No appointments today for this filter."
+                    : "No appointments today."}
+              </p>
+            ) : (
+              pageRows.map((a) => (
+                <Row
+                  key={a.id}
+                  appt={a}
+                  onEdit={() => setEditing(a)}
+                />
+              ))
+            )}
+          </div>
         </div>
       </div>
 
       {/* Pagination — only when the filtered list spans more than one page. */}
       {!loading && rows.length > 0 && pageCount > 1 && (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 pt-[18px]">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 pt-[12px]">
           <span className="font-inter text-[14px] leading-[18.667px] text-[#727783]">
             Showing {firstRow}–{lastRow} of {rows.length}
           </span>
@@ -413,7 +418,29 @@ export default function AppointmentsTable({
       )}
 
       {editing && (
-        <NewAppointmentModal edit={toEdit(editing)} onClose={() => setEditing(null)} />
+        <NewAppointmentModal
+          edit={toEdit(editing)}
+          onClose={() => setEditing(null)}
+          onPreviewSave={isDemoAppointment(editing.id) ? (result: AppointmentEditResult) => {
+            setDemoEdits((previous) => ({
+              ...previous,
+              [editing.id]: {
+                ...editing,
+                treatment: result.consultationType || "--",
+                consultationType: result.consultationType,
+                leadSource: result.leadSource,
+                message: result.message,
+                scheduleMode: result.scheduleMode,
+                date: result.date,
+                startTime: result.startTime || "--",
+                endTime: result.endTime || "--",
+                doctor: result.doctor ? `Dr. ${result.doctor}` : "Unassigned",
+                status: result.status as AppointmentStatus,
+                nonMandatory: result.nonMandatory,
+              },
+            }));
+          } : undefined}
+        />
       )}
     </section>
   );
@@ -434,7 +461,7 @@ function PageButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="rounded-full border-[1.167px] border-[#c2c6d4] px-[16px] py-[7px] font-inter text-[14px] font-medium text-[#1e1e24] transition-colors hover:border-[#0077c0] hover:text-[#0077c0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#c2c6d4] disabled:hover:text-[#1e1e24]"
+      className="rounded-full border-[1.167px] border-black px-[16px] py-[7px] font-inter text-[14px] font-medium text-[#1e1e24] transition-colors hover:text-[#0077c0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-black disabled:hover:text-[#1e1e24]"
     >
       {children}
     </button>
@@ -450,11 +477,11 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
   const contentStyle = ongoing ? { color: statusColor(appt.status).accent } : undefined;
 
   return (
-    <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)] items-center gap-x-5 border-t-[1.167px] border-[#c2c6d4] px-[18.667px]">
+    <div className={`${styles.tableRow} border-t border-black first:border-t-0`}>
       {/* Patient */}
-      <div className="py-[20px]">
+      <div className="py-[16px]">
         <p
-          className={`font-inter text-[15px] font-medium leading-[22px] ${ongoing ? "" : "text-[#1e1e24]"}`}
+          className={`font-inter text-[14px] font-medium leading-[20px] ${ongoing ? "" : "text-[#1e1e24]"}`}
           style={contentStyle}
         >
           {appt.patientName}
@@ -462,7 +489,7 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
       </div>
       {/* Doctor */}
       <span
-        className={`font-inter text-[15px] font-medium leading-[22px] ${ongoing ? "" : "text-[#1e1e24]"}`}
+        className={`font-inter text-[14px] font-medium leading-[20px] ${ongoing ? "" : "text-[#1e1e24]"}`}
         style={contentStyle}
       >
         {appt.doctor === "Unassigned" ? "--" : appt.doctor}
@@ -478,9 +505,9 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
         </span>
       </div>
       {/* Status */}
-      <div className="flex justify-center">
+      <div className="flex justify-start">
         <span
-          className={`inline-flex rounded-full px-[14px] py-[4px] font-inter text-[14px] font-medium leading-[18.667px] ${statusDropdownBadgeClass(appt.status)}`}
+          className={`inline-flex whitespace-nowrap rounded-full px-[12px] py-[4px] font-inter text-[13px] font-medium leading-[18.667px] ${statusDropdownBadgeClass(appt.status)}`}
         >
           {appt.status}
         </span>
@@ -491,14 +518,14 @@ function Row({ appt, onEdit }: { appt: DashboardAppointment; onEdit: () => void 
           type="button"
           onClick={onEdit}
           aria-label={`Edit ${appt.patientName}'s appointment`}
-          className="group relative flex items-center justify-center"
+          className="group relative flex size-8 items-center justify-center"
         >
           <Image
             src={ongoing ? "/dashboard/edit_square_blue.svg" : "/dashboard/edit_square.svg"}
             alt=""
             width={24}
             height={24}
-            className="size-6"
+            className="size-5"
           />
           <Tip label="Edit" />
         </button>
@@ -530,21 +557,21 @@ function StatusFilter({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-[40px] items-center gap-1 rounded-full border-[1.167px] border-[#c2c6d4] px-[16.167px] transition-colors hover:border-[#0077c0]"
+        className="flex h-[36px] items-center gap-1 rounded-full border-[1.167px] border-black px-[12px] transition-colors"
       >
-        <span className="whitespace-nowrap font-inter text-[15px] font-medium leading-[22px] text-[#1e1e24]">
+        <span className="whitespace-nowrap font-inter text-[12px] font-medium leading-[18px] text-[#1e1e24]">
           {value}
         </span>
         <Image
           src="/dashboard/chevron_dark.svg"
           alt=""
-          width={24}
-          height={24}
-          className={`size-6 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          width={16}
+          height={16}
+          className={`size-4 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
       {open && (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-30 flex w-[216px] flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div className="absolute right-0 top-[calc(100%+6px)] z-30 flex w-[192px] flex-col gap-1 rounded-[10px] border-[1.167px] border-black bg-white p-[10px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
           {STATUS_FILTER_OPTIONS.map((opt) => {
             const style = STATUS_OPTION[opt];
             const selected = opt === value;
@@ -556,12 +583,12 @@ function StatusFilter({
                   onChange(opt);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between rounded-[8px] px-[16px] py-[10px] ${style.row} ${style.text}`}
+                className={`app-option-hover flex w-full items-center justify-between rounded-[6px] px-[10px] py-[8px] ${style.row} ${style.text}`}
               >
-                <span className="font-manrope text-[14px] font-semibold leading-[20px]">
+                <span className="font-inter text-[12px] font-medium leading-[18px]">
                   {opt}
                 </span>
-                {selected && <CheckSmall className="size-6" />}
+                {selected && <CheckSmall className="size-4" />}
               </button>
             );
           })}

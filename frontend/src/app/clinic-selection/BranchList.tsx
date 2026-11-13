@@ -55,10 +55,10 @@ export default function BranchList({
   }
 
   return (
-    <div role="radiogroup" aria-label="Select a branch" className="flex flex-col gap-5">
+    <div role="radiogroup" aria-label="Select a branch" className="flex flex-col gap-4">
       {branches.map((b) => {
         const selected = b.id === selectedId;
-        const muted = selected ? "text-white/80 lg:text-white" : "text-ink/60 lg:text-ink";
+        const muted = selected ? "text-white/95 lg:text-white" : "text-ink/80 lg:text-ink";
         return (
           <div
             key={b.id}
@@ -74,22 +74,22 @@ export default function BranchList({
               }
             }}
             className={[
-              "grid cursor-pointer grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-[22px] border-[2px] px-6 py-4 text-left transition-colors",
-              "lg:min-h-[90px] lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)] lg:items-center lg:gap-x-6 lg:px-7 lg:py-0",
+              "app-branch-row grid cursor-pointer grid-cols-[1fr_auto] gap-x-3.5 gap-y-1 rounded-[18px] border-[1.167px] px-5 py-2.5 text-left transition-colors",
+              "lg:min-h-[90px] lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)] lg:items-center lg:gap-x-5 lg:px-6 lg:py-0",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               selected
                 ? "border-brand bg-brand text-white"
-                : "border-[#C2C6D4] bg-[#F8F8FD] text-ink hover:bg-[#E3F1FF]",
+                : "border-black bg-[#F8F8FD] text-ink app-option-hover",
             ].join(" ")}
           >
             {/* Branch — id badge shown before the name */}
-            <span className="col-start-1 row-start-1 flex flex-wrap items-center gap-x-2.5 font-inter text-[15px] font-medium leading-[23px] lg:col-start-1 lg:row-start-1 lg:text-[15.5px] lg:leading-[23.333px]">
+            <span className="col-start-1 row-start-1 flex flex-wrap items-center gap-x-2.5 font-inter text-[14px] font-medium leading-[20px] lg:col-start-1 lg:row-start-1 lg:text-[14px] lg:leading-[21px]">
               {b.code && (
                 <span
-                  className={`inline-flex shrink-0 items-center rounded-md border px-2 py-1 font-mono text-[11px] font-semibold uppercase leading-none tracking-[0.6px] tabular-nums shadow-[0_1px_1px_rgba(0,0,0,0.04)] ${
+                  className={`inline-flex shrink-0 items-center rounded-md border-[1.167px] px-2 py-1 font-mono text-[11px] font-semibold uppercase leading-none tracking-[0.6px] tabular-nums shadow-[0_1px_1px_rgba(0,0,0,0.04)] ${
                     selected
                       ? "border-white/50 bg-white/15 text-white"
-                      : "border-[#C2C6D4] bg-[#E3F1FF] text-[#3A3F4B]"
+                      : "border-black bg-[#E3F1FF] text-[#3A3F4B]"
                   }`}
                 >
                   {b.code}
@@ -99,18 +99,18 @@ export default function BranchList({
             </span>
             {/* Person in charge */}
             <span
-              className={`col-start-1 row-start-2 font-inter text-[14px] font-normal leading-5 lg:col-start-2 lg:row-start-1 lg:text-[15.5px] lg:leading-[23.333px] ${muted}`}
+              className={`col-start-1 row-start-2 font-inter text-[14px] font-normal leading-5 lg:col-start-2 lg:row-start-1 lg:text-[14px] lg:leading-[21px] ${muted}`}
             >
               {b.pic}
             </span>
             {/* Contact */}
             <span
-              className={`col-start-1 row-start-3 font-inter text-[14px] font-normal leading-5 lg:col-start-3 lg:row-start-1 lg:text-[15.5px] lg:leading-[23.333px] ${muted}`}
+              className={`col-start-1 row-start-3 font-inter text-[14px] font-normal leading-5 lg:col-start-3 lg:row-start-1 lg:text-[14px] lg:leading-[21px] ${muted}`}
             >
               {b.contact}
             </span>
             {/* Actions + chevron */}
-            <span className="col-start-2 row-start-1 row-span-3 flex items-center justify-end gap-3 self-center lg:col-start-4 lg:row-span-1 lg:pr-7">
+            <span className="col-start-2 row-start-1 row-span-3 flex items-center justify-end gap-3 self-center lg:col-start-4 lg:row-span-1 lg:pr-6">
               {hasActions && (
                 <span className="flex items-center gap-1.5">
                   {onManage && (
@@ -122,10 +122,10 @@ export default function BranchList({
                         e.stopPropagation();
                         onManage(b);
                       }}
-                      className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
+                      className={`flex size-9 items-center justify-center rounded-full border-[1.167px] transition-colors ${
                         selected
                           ? "border-white/40 text-white hover:bg-white/10"
-                          : "border-field-border text-[#1E1E24] hover:border-brand hover:text-brand"
+                          : "border-black text-black hover:bg-black/[.05]"
                       }`}
                     >
                       <ManageIcon />
@@ -139,10 +139,10 @@ export default function BranchList({
                         e.stopPropagation();
                         onEdit(b);
                       }}
-                      className={`group relative flex size-9 items-center justify-center rounded-full border transition-colors ${
+                      className={`group relative flex size-9 items-center justify-center rounded-full border-[1.167px] transition-colors ${
                         selected
                           ? "border-white/40 text-white hover:bg-white/10"
-                          : "border-field-border text-[#1E1E24] hover:border-brand hover:text-brand"
+                          : "border-black text-black hover:bg-black/[.05]"
                       }`}
                     >
                       <EditIcon />
@@ -157,10 +157,10 @@ export default function BranchList({
                         e.stopPropagation();
                         onDelete(b);
                       }}
-                      className={`group relative flex size-9 items-center justify-center rounded-full border transition-colors ${
+                      className={`group relative flex size-9 items-center justify-center rounded-full border-[1.167px] transition-colors ${
                         selected
                           ? "border-white/40 text-white hover:bg-white/10"
-                          : "border-field-border text-[#1E1E24] hover:border-red-500 hover:text-red-500"
+                          : "border-black text-black hover:bg-red-50"
                       }`}
                     >
                       <DeleteIcon />
@@ -174,7 +174,7 @@ export default function BranchList({
                 alt=""
                 width={24}
                 height={24}
-                className="size-6 rotate-180"
+                className="size-5 rotate-180"
               />
             </span>
           </div>

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   createAppointmentSchema,
   updateAppointmentSchema,
+  listAppointmentsQuerySchema,
 } from '../src/modules/appointments/schema';
 
 const booking = {
@@ -100,4 +101,17 @@ test('skip choice reaches storage, list/detail responses and subsequent edits', 
     assert.equal(updated.nonMandatory, nonMandatory);
     assert.equal((await appointmentService.list('clinic-a'))[0].nonMandatory, nonMandatory);
   }
+});
+
+test('appointment create, edit and list filters accept only supported statuses', () => {
+  for (const status of ['SCHEDULED', 'CONFIRMED', 'ONGOING', 'COMPLETED', 'CANCELLED']) {
+    assert.equal(createAppointmentSchema.safeParse({ ...booking, status }).success, true);
+    assert.equal(updateAppointmentSchema.safeParse({ status }).success, true);
+    assert.equal(listAppointmentsQuerySchema.safeParse({ status }).success, true);
+  }
+  const status = 'NO_SHOW';
+  assert.equal(createAppointmentSchema.safeParse({ ...booking, status }).success, false);
+  assert.equal(updateAppointmentSchema.safeParse({ status }).success, false);
+  assert.equal(listAppointmentsQuerySchema.safeParse({ status }).success, false);
+  assert.equal(listAppointmentsQuerySchema.safeParse({ status: ['CANCELLED', status] }).success, false);
 });

@@ -1,24 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { apiFetch, type AppointmentListItem } from "@/lib/api";
 import { useAppointmentsRevision } from "@/lib/appointmentsBus";
 
 import AppointmentsTable from "./AppointmentsTable";
 import MiniCalendar from "./MiniCalendar";
+import styles from "./dashboard.module.css";
 import { CalendarGridSkeleton, LoadingFrame } from "@/components/loading/PageSkeletons";
 
-/**
- * Lower dashboard row: the appointments table and the mini calendar side by
- * side. On desktop the table is capped to the calendar's height so their
- * bottoms line up; if the appointment list is taller, the table body scrolls.
- * On smaller screens they stack and the table grows naturally.
- *
- * The two are independent: the table filters only by its own status filter +
- * search, and the calendar is display-only (a dot per day that has an
- * appointment). Clicking a calendar day does nothing to the table.
- */
+/** Table and calendar share a row only when their content container has room. */
 export default function LowerSection({
   status,
   onStatusChange,
@@ -27,10 +19,6 @@ export default function LowerSection({
   status: string;
   onStatusChange: (status: string) => void;
 }) {
-  const calRef = useRef<HTMLDivElement>(null);
-  const [calHeight, setCalHeight] = useState<number>();
-  const [isDesktop, setIsDesktop] = useState(false);
-
   // Full list (recent) — only used to mark which days have appointments and to
   // pick the initial calendar month. The table fetches its own filtered slice.
   const [allAppointments, setAllAppointments] = useState<AppointmentListItem[]>([]);
@@ -68,35 +56,16 @@ export default function LowerSection({
   // The table shows today's appointments.
   const heading = "Today's Appointments";
 
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
-    const onChange = () => setIsDesktop(mq.matches);
-    onChange();
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  useEffect(() => {
-    const el = calRef.current;
-    if (!el) return;
-    const measure = () => setCalHeight(el.offsetHeight);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   return (
-    <div className="flex flex-col items-stretch gap-[28px] xl:flex-row xl:items-start">
+    <div className={styles.lower}>
       <AppointmentsTable
-        height={isDesktop ? calHeight : undefined}
         heading={heading}
         status={status}
         onStatusChange={onStatusChange}
       />
-      <div ref={calRef} className="shrink-0 self-start">
+      <div className={styles.calendarSlot}>
         {loading ? (
-          <LoadingFrame name="appointment calendar" className="w-[340px] max-w-full"><CalendarGridSkeleton compact /></LoadingFrame>
+          <LoadingFrame name="appointment calendar"><CalendarGridSkeleton compact /></LoadingFrame>
         ) : <MiniCalendar appointments={allAppointments} initialMonth={initialMonth} />}
       </div>
     </div>

@@ -19,11 +19,11 @@ export default function DashboardTop({
   setMe: (me: MeResponse) => void;
 }) {
   return (
-    <header className="flex shrink-0 flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-      <h1 className="font-inter text-[26px] font-semibold leading-tight text-ink md:text-[35px] md:leading-[42px]">
+    <header className="flex shrink-0 flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      <h1 className="font-inter text-[23px] font-semibold leading-tight text-ink md:text-[31px] md:leading-[37px]">
         Welcome, {greetingName}
       </h1>
-      <div className="flex flex-wrap items-center gap-3 md:gap-[19px]">
+      <div className="flex flex-wrap items-center gap-3 md:gap-[16px]">
         <AccountMenu me={me} setMe={setMe} showAccounts={false} />
       </div>
     </header>

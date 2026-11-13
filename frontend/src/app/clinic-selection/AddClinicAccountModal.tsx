@@ -75,8 +75,8 @@ function SelectField({
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-labelledby={`${id}-label`}
-          className={`flex w-full items-center justify-between rounded-lg border bg-white/60 px-4 py-4 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
-            error ? "border-red-500" : "border-field-border"
+          className={`clinic-field-border app-toolbar flex w-full items-center justify-between rounded-lg border-[1.167px] bg-white/60 px-3.5 py-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
+            error ? "border-red-500" : "border-black"
           }`}
         >
           <span className={`font-inter text-[14px] ${current ? "text-ink" : "text-field-placeholder"}`}>
@@ -93,7 +93,7 @@ function SelectField({
         {open && (
           <div
             role="listbox"
-            className="absolute left-0 top-full z-20 mt-2 flex w-full flex-col gap-[5px] rounded-[15px] border border-field-border bg-white p-[10px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
+            className="absolute left-0 top-full z-20 mt-2 flex w-full flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[10px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
           >
             {options.map((opt) => (
               <button
@@ -105,13 +105,13 @@ function SelectField({
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-4 py-[10px] text-left transition-colors hover:bg-[#e7edf4]"
+                className="app-toolbar flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-3.5 py-[10px] text-left transition-colors app-option-hover"
               >
                 <span className="font-manrope text-[14px] font-semibold leading-5 text-ink">
                   {opt.label}
                 </span>
                 {opt.value === value && (
-                  <span className="flex size-3 shrink-0 items-center justify-center rounded-full border border-ink">
+                  <span className="flex size-3 shrink-0 items-center justify-center rounded-full border-[1.167px] border-black">
                     <span className="size-1.5 rounded-full bg-ink" />
                   </span>
                 )}
@@ -184,8 +184,8 @@ function Combobox<T extends { id: string }>({
       <span className={LABEL_CLASS}>{label}</span>
       <div ref={ref} className="relative">
         <div
-          className={`flex items-center gap-2 rounded-lg border border-field-border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus-within:border-brand ${
-            disabled ? "opacity-50" : ""
+          className={`clinic-field-border flex items-center gap-2 rounded-lg border-[1.167px] border-black bg-white/60 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
+            disabled ? "opacity-50 [--field-placeholder:#000]" : ""
           }`}
         >
           <Image src="/clinic/search.svg" alt="" width={20} height={20} className="size-5 shrink-0" />
@@ -200,14 +200,14 @@ function Combobox<T extends { id: string }>({
             disabled={disabled}
             placeholder={placeholder}
             aria-label={label}
-            className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none placeholder:text-field-placeholder disabled:cursor-not-allowed"
+            className="app-search-input min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none disabled:cursor-not-allowed"
           />
         </div>
 
         {open && !disabled && (
-          <div className="absolute left-0 top-full z-20 mt-2 flex max-h-[260px] w-full flex-col gap-[5px] overflow-y-auto rounded-[15px] border border-field-border bg-white p-[10px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+          <div className="absolute left-0 top-full z-20 mt-2 flex max-h-[260px] w-full flex-col gap-[5px] overflow-y-auto rounded-[13px] border-[1.167px] border-black bg-white p-[10px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
             {filtered.length === 0 ? (
-              <p className="px-2 py-3 font-inter text-[13px] text-ink/60">{emptyText}</p>
+              <p className="px-2 py-3 font-inter text-[13px] text-ink/80">{emptyText}</p>
             ) : (
               filtered.map((it) => (
                 <button
@@ -218,13 +218,13 @@ function Combobox<T extends { id: string }>({
                     setQuery("");
                     setOpen(false);
                   }}
-                  className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-4 py-[10px] text-left transition-colors hover:bg-[#e7edf4]"
+                  className="app-toolbar flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-3.5 py-[10px] text-left transition-colors app-option-hover"
                 >
                   <span className="font-manrope text-[14px] font-semibold leading-5 text-ink">
                     {getName(it)}
                   </span>
                   {selected?.id === it.id && (
-                    <span className="flex size-3 shrink-0 items-center justify-center rounded-full border border-ink">
+                    <span className="flex size-3 shrink-0 items-center justify-center rounded-full border-[1.167px] border-black">
                       <span className="size-1.5 rounded-full bg-ink" />
                     </span>
                   )}
@@ -327,11 +327,11 @@ function AddClinicForm({
   }
 
   return (
-    <Overlay onClose={onCancel} labelledBy="add-clinic-title" className="[zoom:0.82]">
-      <h2 id="add-clinic-title" className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink">
+    <Overlay onClose={onCancel} labelledBy="add-clinic-title" className="">
+      <h2 id="add-clinic-title" className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink">
         Add New Clinic
       </h2>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <LabeledInput
           id="clinic-name"
           label="Clinic Name"
@@ -349,18 +349,18 @@ function AddClinicForm({
           error={codeError}
         />
 
-        <div className="flex flex-col gap-4 border-t border-field-border pt-5">
-          <div className="flex items-center justify-between">
-            <span className="font-manrope text-[16px] font-semibold text-ink">Branches</span>
-            <span className="font-inter text-[13px] text-ink/50">
+        <div className="flex flex-col gap-3.5 border-t-[1.167px] border-black pt-4">
+          <div className="app-toolbar flex items-center justify-between">
+            <span className="font-manrope text-[14px] font-semibold text-ink">Branches</span>
+            <span className="font-inter text-[13px] text-ink/70">
               A clinic can have one or more branches.
             </span>
           </div>
 
           {branches.map((b, i) => (
-            <div key={i} className="flex flex-col gap-4 rounded-2xl border border-field-border p-4">
-              <div className="flex items-center justify-between">
-                <span className="font-inter text-[13px] font-semibold uppercase tracking-[1px] text-ink/60">
+            <div key={i} className="flex flex-col gap-3.5 rounded-[14px] border-[1.167px] border-black p-3.5">
+              <div className="app-toolbar flex items-center justify-between">
+                <span className="font-inter text-[13px] font-semibold uppercase tracking-[1px] text-ink/80">
                   Branch {i + 1}
                 </span>
                 {branches.length > 1 && (
@@ -401,7 +401,7 @@ function AddClinicForm({
           <button
             type="button"
             onClick={() => setBranches((prev) => [...prev, emptyBranch()])}
-            className="flex items-center justify-center gap-1 rounded-lg border border-dashed border-brand px-4 py-[10px] font-inter text-[14px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
+            className="flex items-center justify-center gap-1 rounded-lg border-[1.167px] border-dashed border-brand px-3.5 py-[10px] font-inter text-[14px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
           >
             + Add another branch
           </button>
@@ -440,21 +440,21 @@ function TemporaryPasswordBox({ password }: { password: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-field-border bg-[#f1f5f9] p-4">
+    <div className="flex flex-col gap-2 rounded-lg border-[1.167px] border-black bg-[#f1f5f9] p-3.5">
       <span className={LABEL_CLASS}>Temporary Password</span>
       <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 truncate font-mono text-[16px] font-semibold tracking-wide text-ink">
+        <code className="min-w-0 flex-1 truncate font-mono text-[14px] font-semibold tracking-wide text-ink">
           {password}
         </code>
         <button
           type="button"
           onClick={copy}
-          className="shrink-0 rounded-[8px] border border-brand px-3 py-1.5 font-inter text-[13px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
+          className="shrink-0 rounded-[8px] border-[1.167px] border-brand px-3 py-1.5 font-inter text-[13px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
         >
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <p className="font-inter text-[12px] leading-4 text-ink/60">
+      <p className="font-inter text-[12px] leading-4 text-ink/80">
         Share this with the user — they’ll be asked to set a new password and accept
         the Terms &amp; Conditions on first login. It won’t be shown again.
       </p>
@@ -569,10 +569,10 @@ export default function AddClinicAccountModal({
   if (done) {
     return (
       <Overlay onClose={onClose} labelledBy="done-title">
-        <h2 id="done-title" className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink">
+        <h2 id="done-title" className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink">
           Account created
         </h2>
-        <p className="font-inter text-[15px] leading-[24px] text-ink">
+        <p className="font-inter text-[14px] leading-[21px] text-ink">
           The account for <span className="font-semibold">{email}</span> was created under{" "}
           <span className="font-semibold">
             {selectedClinic?.name}
@@ -581,7 +581,7 @@ export default function AddClinicAccountModal({
           .
         </p>
         <div
-          className={`flex items-start gap-2 rounded-lg px-4 py-3 font-inter text-[13px] leading-5 ${
+          className={`flex items-start gap-2 rounded-lg px-3.5 py-3 font-inter text-[13px] leading-5 ${
             emailSent ? "bg-[#f0fdf4] text-green-700" : "bg-amber-50 text-amber-700"
           }`}
         >
@@ -600,16 +600,16 @@ export default function AddClinicAccountModal({
 
   return (
     <>
-      <Overlay onClose={onClose} labelledBy="add-title" className="[zoom:0.82]">
-        <div className="flex items-center justify-between">
-          <h2 id="add-title" className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink">
+      <Overlay onClose={onClose} labelledBy="add-title" className="">
+        <div className="app-toolbar flex items-center justify-between">
+          <h2 id="add-title" className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink">
             Add Clinic &amp; Account
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* Step 1 — clinic + branch (stacked so each gets the full width) */}
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             <div>
               <Combobox
                 label="Clinic"
@@ -629,7 +629,7 @@ export default function AddClinicAccountModal({
                   <button
                     type="button"
                     onClick={() => setShowAddClinic(true)}
-                    className="mt-1 flex w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-brand px-4 py-[10px] font-inter text-[14px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
+                    className="mt-1 flex w-full items-center justify-center gap-1 rounded-[8px] border-[1.167px] border-dashed border-brand px-3.5 py-[10px] font-inter text-[14px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
                   >
                     + Add New Clinic
                   </button>
@@ -663,17 +663,17 @@ export default function AddClinicAccountModal({
           {/* Step 2 — account details (enabled once a clinic is chosen) */}
           <fieldset
             disabled={!selectedClinic}
-            className={`flex flex-col gap-5 border-t border-field-border pt-6 ${selectedClinic ? "" : "opacity-50"}`}
+            className={`flex flex-col gap-4 border-t-[1.167px] border-black pt-5 ${selectedClinic ? "" : "opacity-50 [--field-placeholder:#000]"}`}
           >
-            <legend className="px-1 font-manrope text-[16px] font-semibold text-ink">
+            <legend className="px-1 font-manrope text-[14px] font-semibold text-ink">
               Account Details
             </legend>
             {!selectedClinic && (
-              <p className="px-1 font-inter text-[13px] leading-5 text-ink/60">
+              <p className="px-1 font-inter text-[13px] leading-5 text-ink/80">
                 Select or create a clinic to add an account.
               </p>
             )}
-            <div className="flex flex-col gap-5 sm:flex-row">
+            <div className="flex flex-col gap-4 sm:flex-row">
               <div className="flex-1">
                 <LabeledInput id="first-name" label="First Name" value={firstName} onChange={(v) => { setFirstName(v); setErrors((e) => ({ ...e, firstName: "" })); }} placeholder="First name" error={errors.firstName} />
               </div>
@@ -681,7 +681,7 @@ export default function AddClinicAccountModal({
                 <LabeledInput id="last-name" label="Last Name" value={lastName} onChange={(v) => { setLastName(v); setErrors((e) => ({ ...e, lastName: "" })); }} placeholder="Last name" error={errors.lastName} />
               </div>
             </div>
-            <div className="flex flex-col gap-5 sm:flex-row">
+            <div className="flex flex-col gap-4 sm:flex-row">
               <div className="flex-1">
                 <SelectField id="title" label="Title" value={title} onChange={setTitle} options={TITLE_OPTIONS.map((t) => ({ value: t, label: t }))} placeholder="Select title" />
               </div>

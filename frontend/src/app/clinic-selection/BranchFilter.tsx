@@ -49,7 +49,7 @@ export default function BranchFilter({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-[54px] max-w-[260px] items-center gap-2 rounded-full border-[1.167px] border-field-border px-4 font-inter text-[16.333px] font-medium leading-[23.333px] text-ink"
+        className="clinic-field-border flex h-[40px] max-w-[260px] items-center gap-2 rounded-full border-[1.167px] border-black px-3.5 font-inter text-[14px] font-medium leading-[21px] text-ink"
       >
         <span className="truncate">{current.label}</span>
         <Image
@@ -57,7 +57,7 @@ export default function BranchFilter({
           alt=""
           width={24}
           height={24}
-          className={`size-6 shrink-0 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          className={`size-5 shrink-0 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
 
@@ -65,7 +65,7 @@ export default function BranchFilter({
         <div
           role="listbox"
           aria-label="Filter by branch"
-          className="absolute left-0 top-full z-20 mt-2 flex w-[295px] max-w-[calc(100vw-2rem)] flex-col gap-[5px] rounded-[15px] border border-field-border bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
+          className="absolute left-0 top-full z-20 mt-2 flex w-[295px] max-w-[calc(100vw-2rem)] flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
         >
           {options.map((opt) => {
             const selected = opt.id === selectedId;
@@ -79,17 +79,17 @@ export default function BranchFilter({
                   onSelect(opt.id);
                   setOpen(false);
                 }}
-                className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] py-[10px] pl-4 pr-4 text-left transition-colors hover:bg-[#e7edf4]"
+                className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] py-[10px] pl-3.5 pr-3.5 text-left transition-colors app-option-hover"
               >
                 <span className="font-manrope text-[14px] font-semibold leading-5 text-ink">
                   {opt.label}
                 </span>
                 {selected ? (
-                  <span className="flex size-3 shrink-0 items-center justify-center rounded-full border border-ink">
+                  <span className="flex size-3 shrink-0 items-center justify-center rounded-full border-[1.167px] border-black">
                     <span className="size-1.5 rounded-full bg-ink" />
                   </span>
                 ) : (
-                  <span className="size-3 shrink-0 rounded-full border border-ink" />
+                  <span className="size-3 shrink-0 rounded-full border-[1.167px] border-black" />
                 )}
               </button>
             );

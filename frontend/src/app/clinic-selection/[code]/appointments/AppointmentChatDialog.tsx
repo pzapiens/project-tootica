@@ -106,7 +106,7 @@ export default function AppointmentChatDialog({
   );
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !busy) onClose();
       }}
@@ -115,13 +115,13 @@ export default function AppointmentChatDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="appt-chat-title"
-        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#c2c6d4] bg-white p-6 font-inter text-[#1e1e24] shadow-xl"
+        className="app-dialog max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[14px] border-[1.167px] border-black bg-white p-5 font-inter text-[#1e1e24] shadow-xl"
       >
         <div className="flex items-center gap-3">
           <Image src="/dashboard/chat.svg" alt="" width={24} height={24} />
           <h2
             id="appt-chat-title"
-            className="font-manrope text-xl font-semibold"
+            className="font-manrope text-lg font-semibold"
           >
             WhatsApp message
           </h2>
@@ -145,7 +145,7 @@ export default function AppointmentChatDialog({
           </p>
         )}
         {bundle && !connection?.connected && (
-          <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm">
+          <p className="mt-4 rounded-xl bg-amber-50 p-3.5 text-sm">
             WhatsApp API sending is not configured. Ask your clinic admin to
             check Clinic settings.
           </p>
@@ -171,14 +171,14 @@ export default function AppointmentChatDialog({
                       values.map((v, j) => (j === i ? e.target.value : v)),
                     )
                   }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 disabled:bg-gray-100"
+                  className="mt-1 block w-full rounded-lg border-[1.167px] border-black px-3 py-2 disabled:bg-gray-100"
                 />
               </label>
             ))}
             <p className="mt-4 text-xs font-semibold uppercase text-gray-600">
               Template body preview
             </p>
-            <p className="mt-2 whitespace-pre-wrap rounded-xl bg-sky-50 p-4 text-sm">
+            <p className="mt-2 whitespace-pre-wrap rounded-xl bg-sky-50 p-3.5 text-sm">
               {preview}
             </p>
             <label className="mt-4 flex items-start gap-2 text-sm">
@@ -226,7 +226,7 @@ export default function AppointmentChatDialog({
                 !phone ||
                 parameters.some((p) => !p.trim())
               }
-              className="mt-5 w-full rounded-full bg-[#0077c0] px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-5 w-full rounded-full bg-[#0077c0] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy
                 ? "Submitting..."
@@ -249,7 +249,7 @@ export default function AppointmentChatDialog({
             </ul>
           </details>
         )}
-        <div className="mt-6 flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+        <div className="app-toolbar mt-6 flex items-center justify-between gap-3 border-t-[1.167px] border-gray-200 pt-3.5">
           <button
             type="button"
             disabled={!phone.replace(/\D/g, "")}
@@ -262,7 +262,7 @@ export default function AppointmentChatDialog({
             type="button"
             disabled={busy}
             onClick={onClose}
-            className="rounded-full border border-gray-400 px-5 py-2 text-sm disabled:opacity-50"
+            className="rounded-full border-[1.167px] border-black px-4 py-2 text-sm disabled:opacity-50"
           >
             Close
           </button>

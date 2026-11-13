@@ -7,19 +7,24 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 const root = path.resolve(__dirname, "../src");
+const cssModule = { __esModule: true, default: new Proxy({}, { get: (_target, key) => String(key) }) };
 function load(relative, imports = {}, browserWindow, clockPerformance = performance) {
   const code = ts.transpileModule(fs.readFileSync(path.join(root, relative), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText;
   const module = { exports: {} };
-  new Function("require", "module", "exports", "window", "performance", code)(
-    (name) => Object.hasOwn(imports, name) ? imports[name] : require(name), module, module.exports, browserWindow, clockPerformance,
+  new Function("require", "module", "exports", "window", "performance", "document", code)(
+    (name) => name.endsWith(".module.css") ? cssModule : Object.hasOwn(imports, name) ? imports[name] : require(name), module, module.exports, browserWindow, clockPerformance, browserWindow?.document ?? { addEventListener() {}, removeEventListener() {} },
   );
   return module.exports;
 }
 
 const loadingActivity = load("components/loading/LoadingActivity.tsx");
-const skeletons = load("components/loading/PageSkeletons.tsx", { "./LoadingActivity": loadingActivity });
+const skeletons = load("components/loading/PageSkeletons.tsx", {
+  "./LoadingActivity": loadingActivity,
+  "@/app/login/FitToViewport": load("app/login/FitToViewport.tsx"),
+  "@/app/login/auth-card": load("app/login/auth-card.ts"),
+});
 const DonutChart = load("components/DonutChart.tsx", { "./loading/LoadingActivity": loadingActivity }).default;
 const destinations = {
   dashboard: "DashboardSkeleton", appointments: "AppointmentsSkeleton", patients: "PatientsSkeleton",
@@ -77,11 +82,11 @@ test("authentication and clinic selection have layouts matching their own screen
   );
 });
 
-test("revenue loading previews seven vertical bars with chart axes instead of a trend line", () => {
+test("revenue loading previews seven vertical bars without chart strokes", () => {
   const chart = renderToStaticMarkup(React.createElement(skeletons.RevenueBarChartSkeleton));
   const page = renderToStaticMarkup(React.createElement(skeletons.RevenueSkeleton));
   assert.equal((chart.match(/width="9"/g) ?? []).length, 7);
-  assert.equal((chart.match(/<line /g) ?? []).length, 5);
+  assert.equal((chart.match(/<line /g) ?? []).length, 0);
   assert.ok(!chart.includes("<path"));
   assert.ok(page.includes(chart));
 });
@@ -330,10 +335,10 @@ test("navigation wireframe matches sidebar dimensions and adapts to role-specifi
     const markup = renderToStaticMarkup(React.createElement(skeletons.SidebarSkeleton, { itemCount }));
     assert.ok(markup.includes('aria-label="Loading navigation"'));
     assert.ok(markup.includes("motion-reduce:animate-none"));
-    assert.ok(markup.includes("w-[271px]"));
-    assert.ok(markup.includes("[zoom:0.9]"));
-    assert.equal((markup.match(/size-6 shrink-0 opacity-20/g) ?? []).length, itemCount);
-    assert.ok(markup.includes("size-[37px]"), "account avatar has its own placeholder");
+    assert.ok(markup.includes("sidebar"));
+    assert.ok(!markup.includes("zoom:"), "navigation uses natural viewport sizing");
+    assert.equal((markup.match(/size-5 shrink-0 opacity-20/g) ?? []).length, itemCount);
+    assert.ok(markup.includes("size-[32px]"), "account avatar has its own placeholder");
     assert.ok(!/<(button|a)\b/.test(markup));
   }
 });
@@ -359,7 +364,7 @@ test("standalone navigations reset timing by destination; clinic transitions sta
 
 // Run the real page component and effects with controlled pending API promises.
 // Inspect its returned element without mounting unrelated dialogs or writing data.
-function pageHarness(file, extraImports = {}) {
+function pageHarness(file, extraImports = {}, browserWindow = { matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) }) {
   const cells = [];
   const effects = [];
   const requests = [];
@@ -373,6 +378,7 @@ function pageHarness(file, extraImports = {}) {
       return [cells[index], (next) => { cells[index] = typeof next === "function" ? next(cells[index]) : next; }];
     },
     useEffect(effect) { if (firstRender) effects.push(effect); },
+    useSyncExternalStore: (_subscribe, snapshot) => snapshot(),
     useMemo: (fn) => fn(), useCallback: (fn) => fn, useRef: (value) => ({ current: value }),
   };
   const pending = (url) => new Promise((resolve, reject) => requests.push({ url, resolve, reject }));
@@ -410,7 +416,7 @@ function pageHarness(file, extraImports = {}) {
       imports[name] = new Proxy({ __esModule: true, default: () => null }, { get: (object, key) => object[key] ?? (() => null) });
     }
   }
-  const Page = load(file, imports).default;
+  const Page = load(file, imports, browserWindow).default;
   return {
     requests,
     render() {
@@ -493,7 +499,7 @@ for (const [role, count] of [["CLIENT_ADMIN", 6], ["DOCTOR", 4]]) test(`sidebar 
   assert.equal(compact.props.items.length, count, "role-based visibility stays intact");
   const aside = compact.type(compact.props);
   assert.equal(aside.props.id, "clinic-sidebar");
-  assert.ok(aside.props.className.includes("w-[80px]"));
+  assert.equal(findElement(tree, (element) => element.props?.["data-collapsed"] === true).props["data-collapsed"], true);
   const nav = findElement(aside, (element) => element.type === "nav");
   const links = React.Children.toArray(nav.props.children);
   assert.equal(links.length, count);
@@ -533,3 +539,28 @@ for (const [file, skeleton] of [
     assert.notEqual(page.render().type, skeletons[skeleton]);
   });
 }
+
+// A resize changes the default; a deliberate user toggle remains under user control.
+test("navigation follows available width and supports a manual override", async () => {
+  let width = 1366;
+  const PageTransition = () => null;
+  const shell = pageHarness("app/clinic-selection/[code]/DashboardShell.tsx", {
+    "@/components/loading/PageTransition": PageTransition,
+    "./session": { DashboardSessionProvider: () => null },
+  }, { matchMedia: () => ({ matches: width < 1280 }) });
+  shell.render();
+  shell.requests.find(({ url }) => url === "/auth/me").resolve({ user: { id: "me", role: "CLIENT_ADMIN", mustResetPassword: false } });
+  shell.requests.find(({ url }) => url === "/branches").resolve([]);
+  await settle();
+  const toggle = () => findElement(shell.render(), (element) => element.props?.["aria-controls"] === "clinic-sidebar");
+  assert.equal(toggle().props["aria-expanded"], true);
+  width = 1024;
+  assert.equal(toggle().props["aria-expanded"], false);
+  width = 1536;
+  assert.equal(toggle().props["aria-expanded"], true);
+  width = 768;
+  toggle().props.onClick();
+  assert.equal(toggle().props["aria-expanded"], true, "compact navigation can be expanded manually");
+  width = 1100;
+  assert.equal(toggle().props["aria-expanded"], true, "manual choice survives resizing");
+});

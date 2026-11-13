@@ -115,10 +115,10 @@ export default function EditClinicModal({
 
   return (
     <Overlay onClose={onClose} labelledBy="edit-clinic-title">
-      <h2 id="edit-clinic-title" className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink">
+      <h2 id="edit-clinic-title" className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink">
         Edit Clinic
       </h2>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <LabeledInput
           id="edit-clinic-name"
           label="Clinic Name"
@@ -131,21 +131,21 @@ export default function EditClinicModal({
           error={errors.name}
         />
 
-        <div className="rounded-xl border border-field-border p-4">
+        <div className="rounded-xl border-[1.167px] border-black p-3.5">
           <label className="flex items-center gap-3 font-inter text-sm font-semibold text-ink">
             <input type="checkbox" checked={whatsAppEnabled} onChange={(e) => setWhatsAppEnabled(e.target.checked)} disabled={submitting} className="size-4 accent-[#0077c0]" />
             Enable WhatsApp usage
           </label>
-          <p className="mt-2 text-sm text-ink/60">Allow this account to send WhatsApp templates and receive WhatsApp bookings across all branches. Disabling keeps its saved connection.</p>
+          <p className="mt-2 text-sm text-ink/80">Allow this account to send WhatsApp templates and receive WhatsApp bookings across all branches. Disabling keeps its saved connection.</p>
         </div>
 
-        <div className="flex flex-col gap-5 border-t border-field-border pt-5">
-          <p className="font-manrope text-[15px] font-semibold text-ink">Person in Charge (PIC)</p>
+        <div className="flex flex-col gap-4 border-t-[1.167px] border-black pt-4">
+          <p className="font-manrope text-[14px] font-semibold text-ink">Person in Charge (PIC)</p>
           {loading ? (
-            <p className="font-inter text-[14px] text-ink/60">Loading…</p>
+            <p className="font-inter text-[14px] text-ink/80">Loading…</p>
           ) : adminId ? (
             <>
-              <div className="flex flex-col gap-5 sm:flex-row">
+              <div className="flex flex-col gap-4 sm:flex-row">
                 <div className="flex-1">
                   <LabeledInput
                     id="edit-clinic-pic-first"
@@ -185,7 +185,7 @@ export default function EditClinicModal({
               />
             </>
           ) : (
-            <p className="font-inter text-[13px] leading-5 text-ink/60">
+            <p className="font-inter text-[13px] leading-5 text-ink/80">
               This clinic has no admin yet — add one from “Manage” to set a PIC.
             </p>
           )}

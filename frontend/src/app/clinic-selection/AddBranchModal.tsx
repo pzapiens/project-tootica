@@ -68,14 +68,14 @@ export default function AddBranchModal({
   return (
     <Overlay onClose={onClose} labelledBy="add-branch-title">
       <div className="flex flex-col gap-1">
-        <h2 id="add-branch-title" className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink">
+        <h2 id="add-branch-title" className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink">
           Add Branch
         </h2>
-        <p className="font-inter text-[14px] leading-5 text-ink/60">
+        <p className="font-inter text-[14px] leading-5 text-ink/80">
           New branch under <span className="font-semibold text-ink">{clinicName}</span>.
         </p>
       </div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <LabeledInput
           id="new-branch-name"
           label="Branch Name"

@@ -1,5 +1,7 @@
 "use client";
 
+import TableViewport from "@/components/TableViewport";
+
 import { AppointmentsSkeleton } from "@/components/loading/PageSkeletons";
 
 import Image from "next/image";
@@ -16,7 +18,7 @@ import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { Tip } from "@/components/HoverTip";
 
 import NewAppointmentModal, { type EditAppointment } from "../dashboard/NewAppointmentModal";
-import { CONSULTATION_TYPES, LEAD_SOURCES, type Time } from "../dashboard/AppointmentFormStep";
+import { LEAD_SOURCES, type Time } from "../dashboard/AppointmentFormStep";
 import { type Timeframe } from "../dashboard/mock";
 import TimeframeFilter from "../dashboard/TimeframeFilter";
 import AppointmentFilterPanel, {
@@ -107,7 +109,6 @@ const STATUS_LABEL: Record<AppointmentStatus, string> = {
   ONGOING: "On going",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
-  NO_SHOW: "No Show",
 };
 
 /** The appointment-form status labels (used for the Edit prefill). Both SCHEDULED
@@ -119,7 +120,6 @@ const FORM_STATUS: Record<AppointmentStatus, string> = {
   ONGOING: "On going",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
-  NO_SHOW: "No Show",
 };
 
 /** Which backend statuses each status chip selects (empty = no equivalent). */
@@ -129,7 +129,6 @@ const CHIP_STATUSES: Record<string, AppointmentStatus[]> = {
   "On going": ["ONGOING"],
   Completed: ["COMPLETED"],
   Cancelled: ["CANCELLED"],
-  "No Show": ["NO_SHOW"],
 };
 
 /** A flattened appointment row: display fields + the raw bits an edit needs. */
@@ -241,10 +240,8 @@ function csvCell(v: string): string {
 // `minmax(0,…fr)` (not bare `fr`) so a long cell value can't stretch its column
 // past its share — otherwise body columns would grow wider than the header's and
 // the two would stop lining up. Header + every row share this template. The
-// Actions column keeps a fixed min-width so its icon buttons (payment glyph +
-// edit + ⋮) always fit and never get clipped by the row's overflow-hidden.
-const COLS =
-  "grid-cols-[minmax(0,130fr)_minmax(0,185fr)_minmax(0,175fr)_minmax(0,150fr)_minmax(0,155fr)_minmax(0,150fr)_minmax(0,105fr)_minmax(160px,110fr)]";
+// Actions retain enough space for all four buttons while text columns wrap.
+const COLS = "app-appointments-row";
 
 /** The active row dialog (accept/reject/delete confirm, cancel, or info). */
 type RowDialog =
@@ -350,12 +347,6 @@ export default function AppointmentsClient() {
     return [...map].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
   }, [allRows]);
 
-  // The consultation-type filter offers the same canonical list used when
-  // creating an appointment (not just the types already present in the data).
-  const consultationOptions = useMemo<FilterOption[]>(
-    () => CONSULTATION_TYPES.map((c) => ({ value: c, label: titleCase(c) })),
-    [],
-  );
 
   // The Booking Channel filter offers the two fixed channels (Web / WhatsApp),
   // matching the backend `bookingChannel` enum.
@@ -521,7 +512,7 @@ export default function AppointmentsClient() {
       <AppointmentFilterPanel
         applied={filters}
         doctorOptions={doctorOptions}
-        consultationOptions={consultationOptions}
+
         channelOptions={channelOptions}
         sourceOptions={sourceOptions}
         onApply={(f) => {
@@ -534,10 +525,10 @@ export default function AppointmentsClient() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-[24px]">
+    <div className="app-page flex flex-1 flex-col gap-[20px]">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-[16px]">
-        <h1 className="flex-1 font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
+      <div className="app-toolbar flex shrink-0 items-center gap-[13px]">
+        <h1 className="app-page-title flex-1 font-manrope text-[31px] font-bold leading-[39px] tracking-[-0.7px] text-[#1e1e24]">
           Appointments
         </h1>
         <TimeframeFilter timeframe={timeframe} onChange={(t) => { setTimeframe(t); setPage(1); }} />
@@ -559,22 +550,22 @@ export default function AppointmentsClient() {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="flex h-[54px] items-center gap-[10px] rounded-[50px] bg-[#0077c0] px-[26px] font-inter text-[15px] font-semibold uppercase tracking-[0.5px] text-white transition-colors hover:bg-[#0069a8]"
+          className="app-action-button flex h-[40px] items-center rounded-[50px] bg-[#0077c0] font-inter text-[14px] font-semibold uppercase tracking-[0.5px] text-white transition-colors hover:bg-[#0069a8]"
         >
-          <Image src="/dashboard/add.svg" alt="" width={22} height={22} className="size-[22px] [filter:brightness(0)_invert(1)]" />
+          <Image src="/dashboard/add.svg" alt="" width={14} height={14} className="size-3.5 shrink-0" />
           New Appointment
         </button>
       </div>
 
       {/* Search + reload + count */}
-      <div className="flex shrink-0 items-center gap-[16px]">
-        <div className="relative flex-1">
+      <div className="app-toolbar flex shrink-0 items-center gap-[13px]">
+        <div className="app-search-field app-search-field-half relative flex-1">
           <Image
             src="/dashboard/search.svg"
             alt=""
             width={24}
             height={24}
-            className="pointer-events-none absolute left-[22px] top-1/2 size-6 -translate-y-1/2"
+            className="pointer-events-none absolute left-[22px] top-1/2 size-5 -translate-y-1/2"
           />
           <input
             type="search"
@@ -585,17 +576,17 @@ export default function AppointmentsClient() {
             }}
             placeholder="Search here..."
             aria-label="Search appointments"
-            className="h-[54px] w-full rounded-[27px] border-[1.2px] border-[#c2c6d4] pl-[58px] pr-[20px] font-inter text-[16px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
+            className="app-search-input h-[40px] w-full rounded-[23px] border-[1.167px] border-black pl-[49px] pr-[17px] font-inter text-[14px] text-[#1e1e24] outline-none "
           />
         </div>
-        <p className="shrink-0 font-inter text-[19px] leading-[28px] text-[#1e1e24]">
+        <p className="shrink-0 font-inter text-[17px] leading-[25px] text-[#1e1e24]">
           Counts : <span className="font-bold">{loading ? "—" : total}</span>
         </p>
       </div>
 
       {/* Single-patient filter banner (from the patients page's Appointments action). */}
       {patientFilterId && (
-        <div className="flex shrink-0 items-center gap-[10px] self-start rounded-full bg-[#e6f2fb] py-[8px] pl-[16px] pr-[10px]">
+        <div className="flex shrink-0 items-center gap-[10px] self-start rounded-full bg-[#e6f2fb] py-[8px] pl-[13px] pr-[10px]">
           <span className="font-inter text-[14px] text-[#0077c0]">
             Showing appointments for{" "}
             <span className="font-semibold">{patientFilterName || "this patient"}</span>
@@ -618,7 +609,7 @@ export default function AppointmentsClient() {
 
       {/* Source-of-enquiry filter banner (from the analytics "Source of Enquiry" card). */}
       {sourceFilter && (
-        <div className="flex shrink-0 items-center gap-[10px] self-start rounded-full bg-[#e6f2fb] py-[8px] pl-[16px] pr-[10px]">
+        <div className="flex shrink-0 items-center gap-[10px] self-start rounded-full bg-[#e6f2fb] py-[8px] pl-[13px] pr-[10px]">
           <span className="font-inter text-[14px] text-[#0077c0]">
             Showing appointments from source <span className="font-semibold">{sourceFilter}</span>
           </span>
@@ -639,17 +630,16 @@ export default function AppointmentsClient() {
       )}
 
       {/* Table */}
-      <div className="flex flex-col overflow-hidden rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white">
+      <TableViewport label="Appointments" minWidth="880px" className="app-appointments-table flex flex-col rounded-[24px] border border-black bg-white">
         {/* Header row */}
-        <div className={`grid shrink-0 ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)]`}>
+        <div className={`app-table-header grid shrink-0 ${COLS} items-center border-b border-black`}>
           {["ID", "Patient Name", "Consultation Type", "Doctor", "Date & Time", "Status", "Age / Gender", "Actions"].map(
             (h) => (
               <span
                 key={h}
-                // The Actions cell's content is padded to px-[16px] (tighter, to
-                // fit its icon buttons), so its header matches that start.
-                className={`py-[24px] text-left font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.5px] text-[#727783] ${
-                  h === "Actions" ? "px-[16px]" : "px-[20px]"
+                // Shared column padding keeps each heading aligned with its rows.
+                className={`py-[20px] text-left font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.5px] text-[#727783] ${
+                  h === "Actions" ? "px-[13px]" : "px-[17px]"
                 }`}
               >
                 {h}
@@ -661,9 +651,9 @@ export default function AppointmentsClient() {
         {/* Body */}
         <div>
           {loading ? (
-            <p className="px-[20px] py-10 font-inter text-[16px] text-[#94a3b8]">Loading appointments…</p>
+            <p className="px-[17px] py-8 font-inter text-[14px] text-[#94a3b8]">Loading appointments…</p>
           ) : total === 0 ? (
-            <p className="px-[20px] py-10 font-inter text-[16px] text-[#94a3b8]">
+            <p className="px-[17px] py-8 font-inter text-[14px] text-[#94a3b8]">
               {query.trim() || filterCount(filters) > 0 || patientFilterId || sourceFilter
                 ? "No appointments match your search."
                 : "No appointments yet."}
@@ -706,14 +696,14 @@ export default function AppointmentsClient() {
             ))
           )}
         </div>
-      </div>
+      </TableViewport>
 
       {/* Footer — mt-auto pins it to the page bottom when the table is too
           short to scroll; when the table overflows it just follows the rows. */}
       {!loading && total > 0 && (
-        <div className="mt-auto flex shrink-0 flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-[24px]">
-            <span className="font-inter text-[15px] leading-[22px] text-[#1e1e24]">
+        <div className="mt-auto flex shrink-0 flex-wrap items-center justify-between gap-3.5">
+          <div className="app-pagination flex items-center gap-[20px]">
+            <span className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
               Showing {firstRow}-{lastRow} of {total} records
             </span>
             <div className="flex items-center gap-[10px]">
@@ -837,9 +827,9 @@ function IconButton({
       type="button"
       aria-label={badge > 0 ? `${label} (${badge} active)` : label}
       onClick={onClick}
-      className="group relative flex size-[54px] items-center justify-center rounded-full border-[1.4px] border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
+      className="group relative flex size-[40px] items-center justify-center rounded-full border-[1.167px] border-black transition-colors"
     >
-      <Image src={icon} alt="" width={28} height={28} className="size-7" />
+      <Image src={icon} alt="" width={28} height={28} className="size-5" />
       {badge > 0 && (
         <span className="absolute -right-[2px] -top-[2px] flex size-[22px] items-center justify-center rounded-full border-2 border-white bg-[#0077c0] font-inter text-[12px] font-semibold leading-none text-white">
           {badge}
@@ -886,44 +876,44 @@ function AppointmentRowView({
   const paymentComplete = row.paymentComplete;
 
   return (
-    <div className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0`}>
+    <div className={`grid ${COLS} items-center border-b border-black last:border-b-0`}>
       {/* ID */}
-      <span className={`px-[20px] py-[22px] font-inter text-[15px] font-medium leading-[21px] ${textColor}`}>
+      <span className={`px-[17px] py-[18px] font-inter text-[14px] font-medium leading-[21px] ${textColor}`}>
         {row.code}
       </span>
       {/* Patient Name — opens the patient's history summary (when a patient exists). */}
-      <span className="px-[20px] py-[22px]">
+      <span className="px-[17px] py-[18px]">
         {onPatient ? (
           <button
             type="button"
             onClick={onPatient}
-            className={`cursor-pointer text-left font-inter text-[15px] font-medium leading-[21px] transition-colors hover:text-[#0077c0] ${textColor}`}
+            className={`cursor-pointer text-left font-inter text-[14px] font-medium leading-[21px] transition-colors hover:text-[#0077c0] ${textColor}`}
           >
             {row.patientName}
           </button>
         ) : (
-          <span className={`font-inter text-[15px] font-medium leading-[21px] ${textColor}`}>
+          <span className={`font-inter text-[14px] font-medium leading-[21px] ${textColor}`}>
             {row.patientName}
           </span>
         )}
       </span>
       {/* Consultation Type */}
-      <span className={`px-[20px] py-[22px] font-inter text-[14px] font-medium leading-[20px] ${textColor}`}>
+      <span className={`px-[17px] py-[18px] font-inter text-[14px] font-medium leading-[20px] ${textColor}`}>
         {row.consultationType}
       </span>
       {/* Doctor */}
-      <span className={`px-[20px] py-[22px] font-inter text-[14px] font-medium leading-[20px] ${textColor}`}>
+      <span className={`px-[17px] py-[18px] font-inter text-[14px] font-medium leading-[20px] ${textColor}`}>
         {row.doctor === "Unassigned" ? "--" : row.doctor}
       </span>
       {/* Date & Time */}
-      <div className={`flex flex-col gap-[3px] px-[20px] py-[22px] font-inter text-[13px] font-medium leading-[18px] ${textColor}`}>
+      <div className={`flex flex-col gap-[3px] px-[17px] py-[18px] font-inter text-[13px] font-medium leading-[18px] ${textColor}`}>
         <span>{row.date}</span>
         <span className="opacity-80">{row.timeRange}</span>
       </div>
       {/* Status */}
-      <div className="flex items-center gap-[6px] px-[20px] py-[22px]">
+      <div className="flex items-center gap-[6px] px-[17px] py-[18px]">
         <span
-          className={`inline-flex rounded-full px-[12px] py-[4px] font-inter text-[13px] font-medium leading-[18px] ${statusDropdownBadgeClass(
+          className={`inline-flex rounded-full px-[8px] py-[4px] font-inter text-[13px] font-medium leading-[18px] ${statusDropdownBadgeClass(
             row.statusLabel,
           )}`}
         >
@@ -931,19 +921,19 @@ function AppointmentRowView({
         </span>
       </div>
       {/* Age / Gender */}
-      <span className={`px-[20px] py-[22px] font-inter text-[14px] font-medium leading-[20px] ${textColor}`}>
+      <span className={`px-[17px] py-[18px] font-inter text-[14px] font-medium leading-[20px] ${textColor}`}>
         {row.age === null ? "--" : row.age} / {row.gender || "--"}
       </span>
       {/* Actions — Pending shows Accept/Reject; otherwise Records, Payments,
           Edit + an overflow menu for the rest. */}
-      <div className="flex items-center justify-start gap-[8px] px-[16px] py-[22px]">
+      <div className="flex items-center justify-start gap-[4px] px-[13px] py-[18px]">
         {pending ? (
           <>
             <button
               type="button"
               onClick={onAccept}
               aria-label={`Accept ${row.patientName}'s appointment`}
-              className="flex size-[34px] items-center justify-center text-[#16a34a] transition-transform hover:scale-110"
+              className="flex size-[28px] items-center justify-center text-[#16a34a] transition-transform hover:scale-110"
             >
               <CircleGlyph kind="check" className="size-7" />
             </button>
@@ -951,30 +941,30 @@ function AppointmentRowView({
               type="button"
               onClick={onReject}
               aria-label={`Reject ${row.patientName}'s appointment`}
-              className="flex size-[34px] items-center justify-center text-[#dc2626] transition-transform hover:scale-110"
+              className="flex size-[28px] items-center justify-center text-[#dc2626] transition-transform hover:scale-110"
             >
               <CircleGlyph kind="x" className="size-7" />
             </button>
           </>
         ) : (
           <>
-            <button type="button" onClick={onRecords} aria-label={`View ${row.patientName}'s records`} className="group relative flex size-[34px] items-center justify-center">
-              <RecordsIcon className={`size-6 ${textColor}`} />
+            <button type="button" onClick={onRecords} aria-label={`View ${row.patientName}'s records`} className="group relative flex size-[28px] items-center justify-center">
+              <RecordsIcon className={`size-5 ${textColor}`} />
               <Tip label="Records" />
             </button>
             <button
               type="button"
               onClick={onPayments}
               aria-label={`Manage ${row.patientName}'s payments${paymentComplete ? " (received)" : ""}`}
-              className="group relative flex size-[34px] items-center justify-center"
+              className="group relative flex size-[28px] items-center justify-center"
             >
               {/* Paid keeps its semantic green; otherwise the icon follows the
                   row's colour (blue when ongoing, ink otherwise). */}
-              <PaymentsIcon className={`size-6 ${paymentComplete ? "text-[#16a34a]" : textColor}`} />
+              <PaymentsIcon className={`size-5 ${paymentComplete ? "text-[#16a34a]" : textColor}`} />
               <Tip label={paymentComplete ? "Payments (Received)" : "Payments (Pending)"} />
             </button>
-            <button type="button" onClick={onEdit} aria-label={`Edit ${row.patientName}'s appointment`} className="group relative flex size-[34px] items-center justify-center">
-              <Image src={ongoing ? "/dashboard/edit_square_blue.svg" : "/dashboard/edit_square.svg"} alt="" width={24} height={24} className="size-6" />
+            <button type="button" onClick={onEdit} aria-label={`Edit ${row.patientName}'s appointment`} className="group relative flex size-[28px] items-center justify-center">
+              <Image src={ongoing ? "/dashboard/edit_square_blue.svg" : "/dashboard/edit_square.svg"} alt="" width={24} height={24} className="size-5" />
               <Tip label="Edit" />
             </button>
             <MoreMenu
@@ -1019,9 +1009,9 @@ function MoreMenu({
   // table body's scroll/overflow clipping; `pos` is computed on open.
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Menu footprint: 5 pills (py-10 + 20px line = 40px), 4×5px gaps, 2×17 padding.
-  const MENU_WIDTH = 220;
-  const MENU_HEIGHT = 5 * 40 + 4 * 5 + 2 * 17;
+  // Five 34px rows, four 4px gaps, 10px padding and the outer border.
+  const MENU_WIDTH = 200;
+  const MENU_HEIGHT = 5 * 34 + 4 * 4 + 2 * 10 + 2 * 1.167;
 
   /** Place the menu above or below the trigger based on available space. */
   function place() {
@@ -1083,9 +1073,9 @@ function MoreMenu({
         aria-label={`More actions for ${row.patientName}'s appointment`}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
+        className="flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
       >
-        <MoreIcon className={`size-6 ${row.statusLabel === "On going" ? "text-[#0077c0]" : "text-[#1e1e24]"}`} />
+        <MoreIcon className={`size-5 ${row.statusLabel === "On going" ? "text-[#0077c0]" : "text-[#1e1e24]"}`} />
       </button>
       {open && pos && typeof document !== "undefined" &&
         createPortal(
@@ -1093,7 +1083,7 @@ function MoreMenu({
             ref={menuRef}
             role="menu"
             style={{ position: "fixed", top: pos.top, left: pos.left, width: MENU_WIDTH }}
-            className="z-[120] flex flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
+            className="z-[120] flex flex-col gap-[4px] rounded-[10px] border-[1.167px] border-black bg-white p-[10px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
           >
             <MenuItem
               label="Call"
@@ -1139,11 +1129,11 @@ function MenuItem({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`w-full rounded-[8px] px-[16px] py-[10px] text-left font-manrope text-[14px] font-semibold leading-[20px] transition-colors ${
+      className={`w-full rounded-[6px] px-[10px] py-[8px] text-left font-manrope text-[12px] font-semibold leading-[18px] transition-colors ${
         tone === "danger"
-          ? "bg-[#f9f1f1] text-[#ab2222] hover:bg-[#f4e3e3]"
-          : "bg-[#f1f5f9] text-[#1e1e24] hover:bg-[#e9eef4]"
-      } ${disabled ? "cursor-not-allowed opacity-60 hover:bg-[#f1f5f9]" : ""}`}
+          ? "bg-[#f9f1f1] text-[#ab2222] app-option-hover"
+          : "bg-[#f1f5f9] text-[#1e1e24] app-option-hover"
+      } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
     >
       {label}
     </button>
@@ -1178,7 +1168,7 @@ function PerPageDropdown({ value, onChange }: { value: number; onChange: (n: num
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-[44px] items-center gap-[10px] rounded-[10px] border-[1.2px] border-[#c2c6d4] px-[16px] font-inter text-[15px] text-[#1e1e24] transition-colors hover:border-[#0077c0]"
+        className="flex h-[44px] items-center gap-[10px] rounded-[10px] border-[1.167px] border-black px-[13px] font-inter text-[14px] text-[#1e1e24] transition-colors"
       >
         {value} per page
         <Image
@@ -1190,7 +1180,7 @@ function PerPageDropdown({ value, onChange }: { value: number; onChange: (n: num
         />
       </button>
       {open && (
-        <div className="absolute bottom-[calc(100%+8px)] left-0 z-30 flex w-[176px] flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div className="absolute bottom-[calc(100%+8px)] left-0 z-30 flex w-[176px] flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
           {PER_PAGE_OPTIONS.map((n) => {
             const selected = n === value;
             return (
@@ -1201,17 +1191,17 @@ function PerPageDropdown({ value, onChange }: { value: number; onChange: (n: num
                   onChange(n);
                   setOpen(false);
                 }}
-                className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] p-[10px] text-left transition-colors hover:bg-[#e9eef4]"
+                className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] p-[10px] text-left transition-colors app-option-hover"
               >
                 <span className="font-manrope text-[14px] font-semibold leading-[20px] text-[#1e1e24]">
                   {n} per page
                 </span>
                 {selected ? (
-                  <span className="flex size-3 shrink-0 items-center justify-center rounded-full border border-[#1e1e24]">
+                  <span className="flex size-3 shrink-0 items-center justify-center rounded-full border-[1.167px] border-black">
                     <span className="size-1.5 rounded-full bg-[#1e1e24]" />
                   </span>
                 ) : (
-                  <span className="size-3 shrink-0 rounded-full border border-[#1e1e24]" />
+                  <span className="size-3 shrink-0 rounded-full border-[1.167px] border-black" />
                 )}
               </button>
             );
@@ -1234,11 +1224,11 @@ function Pagination({
 }) {
   if (total <= 1) return null;
   return (
-    <div className="flex items-center gap-[8px]">
+    <div className="app-pagination-controls flex items-center gap-[8px]">
       <PageArrow label="Previous page" disabled={current === 1} onClick={() => onChange(current - 1)} flip />
       {pageList(current, total).map((p, i) =>
         p === "…" ? (
-          <span key={`e${i}`} className="px-[6px] font-inter text-[15px] text-[#94a3b8]">
+          <span key={`e${i}`} className="px-[6px] font-inter text-[14px] text-[#94a3b8]">
             …
           </span>
         ) : (
@@ -1247,8 +1237,8 @@ function Pagination({
             type="button"
             aria-current={p === current ? "page" : undefined}
             onClick={() => onChange(p)}
-            className={`flex size-[40px] items-center justify-center rounded-[10px] font-inter text-[15px] transition-colors ${
-              p === current ? "bg-[#0077c0] font-semibold text-white" : "text-[#1e1e24] hover:bg-[#f1f5f9]"
+            className={`flex size-[40px] items-center justify-center rounded-[10px] font-inter text-[14px] transition-colors ${
+              p === current ? "bg-[#0077c0] font-semibold text-white" : "text-[#1e1e24] app-option-hover"
             }`}
           >
             {p}
@@ -1277,7 +1267,7 @@ function PageArrow({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-[40px] items-center justify-center rounded-[10px] border-[1.2px] border-[#c2c6d4] transition-colors hover:border-[#0077c0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#c2c6d4]"
+      className="flex size-[40px] items-center justify-center rounded-[10px] border-[1.167px] border-black transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-black"
     >
       <Image src="/dashboard/chevron_dark.svg" alt="" width={20} height={20} className={`size-5 ${flip ? "" : "rotate-180"}`} />
     </button>

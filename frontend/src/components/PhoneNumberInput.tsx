@@ -30,7 +30,7 @@ export default function PhoneNumberInput({
     <>
       <span
         id={countryCodeId}
-        className={`shrink-0 border-r border-field-border pr-3 font-inter text-[14px] leading-5 text-ink ${disabled ? "opacity-50" : ""}`}
+        className={`shrink-0 border-r-[1.167px] border-black pr-3 font-inter text-[14px] leading-5 text-ink ${disabled ? "opacity-50" : ""}`}
       >
         <span className="sr-only">Country code </span>+91
       </span>

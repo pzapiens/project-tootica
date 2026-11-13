@@ -1,6 +1,7 @@
 import categories from "../data/treatments.json";
 
 export const TREATMENT_CATEGORIES = categories;
+export const MAX_APPOINTMENT_TREATMENTS = 5;
 export const UNDECIDED_TREATMENT = "CONSULTATION / TREATMENT TO BE DECIDED";
 const labels = new Map(categories.flatMap(category => category.treatments.map(t => [t.value, t.label] as const)));
 labels.set(UNDECIDED_TREATMENT, "Consultation / treatment to be decided");

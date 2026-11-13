@@ -18,7 +18,7 @@ import type { PatientRow } from "./PatientsClient";
 
 const LABEL = "font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-[#1e1e24]";
 const FIELD =
-  "w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]";
+  "w-full border-b-[1.167px] border-black bg-transparent pb-2 pt-1 font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-[#0077c0]";
 const REQ = <span className="text-red-500">*</span>;
 const GENDERS = ["M", "F"];
 
@@ -86,7 +86,7 @@ export default function EditPatientModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -95,32 +95,32 @@ export default function EditPatientModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-patient-title"
-        className="my-auto flex w-full max-w-[600px] flex-col gap-[28px] rounded-[24px] bg-white p-[36px] shadow-[0_10px_40px_rgba(0,0,0,0.15)]"
+        className="app-dialog my-auto flex w-full max-w-[600px] flex-col gap-[24px] rounded-[20px] bg-white p-[clamp(13px,3vw,30px)] shadow-[0_10px_40px_rgba(0,0,0,0.15)]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 id="edit-patient-title" className="font-manrope text-[26px] font-bold tracking-[-0.5px] text-[#1e1e24]">
+        <div className="app-toolbar flex items-center justify-between">
+          <h2 id="edit-patient-title" className="font-manrope text-[23px] font-bold tracking-[-0.5px] text-[#1e1e24]">
             Edit Patient Profile
           </h2>
           <button type="button" aria-label="Close" onClick={onClose}>
-            <CloseIcon className="size-6 text-[#1e1e24]" />
+            <CloseIcon className="size-5 text-[#1e1e24]" />
           </button>
         </div>
 
         {/* Fields */}
-        <div className="grid grid-cols-2 gap-x-[32px] gap-y-[24px]">
+        <div className="app-form-grid grid grid-cols-2 gap-x-[27px] gap-y-[20px]">
           <Field label="Patient Name" required>
             <input value={name} onChange={(e) => setName(e.target.value)} className={FIELD} />
           </Field>
           <Field label="Date of Birth" required>
-            <DateInput value={dob} onChange={setDob} />
+            <DateInput value={dob} onChange={setDob} disableFuture />
           </Field>
           <Field label="Phone" required>
-            <div className="flex items-center gap-2 border-b border-[#c2c6d4] pb-2 pt-1 focus-within:border-[#0077c0]">
+            <div className="flex items-center gap-2 border-b-[1.167px] border-black pb-2 pt-1 focus-within:border-[#0077c0]">
               <PhoneNumberInput
                 value={phone}
                 onChange={setPhone}
-                className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none"
+                className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-[#1e1e24] outline-none"
               />
             </div>
           </Field>
@@ -144,7 +144,7 @@ export default function EditPatientModal({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-[24px]">
+        <div className="app-toolbar flex items-center justify-end gap-[20px]">
           <button
             type="button"
             onClick={onClose}
@@ -157,7 +157,7 @@ export default function EditPatientModal({
             type="button"
             onClick={save}
             disabled={!canSave}
-            className={`rounded-full px-[28px] py-[13px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-colors ${
+            className={`rounded-full px-[clamp(13px,3vw,24px)] py-[13px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-colors ${
               canSave ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
             }`}
           >
@@ -210,9 +210,9 @@ function GenderDropdown({ value, onChange }: { value: string; onChange: (v: stri
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
+        className="flex w-full items-center justify-between border-b-[1.167px] border-black pb-2 pt-1 text-left focus:border-[#0077c0]"
       >
-        <span className="font-inter text-[15px] text-[#1e1e24]">
+        <span className={`font-inter text-[14px] ${value ? "text-[#1e1e24]" : "text-field-placeholder"}`}>
           {value || "Select"}
         </span>
         <Image
@@ -224,7 +224,7 @@ function GenderDropdown({ value, onChange }: { value: string; onChange: (v: stri
         />
       </button>
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex w-full flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex w-full flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
           {GENDERS.map((opt) => (
             <button
               key={opt}
@@ -233,10 +233,10 @@ function GenderDropdown({ value, onChange }: { value: string; onChange: (v: stri
                 onChange(opt);
                 setOpen(false);
               }}
-              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[16px] py-[10px] transition-colors hover:bg-[#e9eef4]"
+              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[13px] py-[10px] transition-colors app-option-hover"
             >
               <span className="font-inter text-[14px] font-normal text-[#1e1e24]">{opt}</span>
-              <span className="flex size-3 items-center justify-center rounded-full border border-[#1e1e24]">
+              <span className="flex size-3 items-center justify-center rounded-full border-[1.167px] border-black">
                 {value === opt && <span className="size-1.5 rounded-full bg-[#1e1e24]" />}
               </span>
             </button>

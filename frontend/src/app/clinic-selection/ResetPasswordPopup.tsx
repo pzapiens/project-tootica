@@ -85,36 +85,36 @@ export default function ResetPasswordPopup({ onClose }: { onClose: () => void })
   return createPortal(
     <>
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
+      className="app-dialog-backdrop fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="rp-title"
     >
       {done ? (
-        <div className="flex max-w-[calc(100vw-32px)] items-center gap-[12px] rounded-[14px] bg-white px-[22px] py-[16px] shadow-[0px_10px_40px_rgba(0,0,0,0.18)]">
+        <div className="flex max-w-[calc(100vw-32px)] items-center gap-[12px] rounded-[14px] bg-white px-[18px] py-[13px] shadow-[0px_10px_40px_rgba(0,0,0,0.18)]">
           <SuccessTick className="size-[22px]" />
-          <p className="font-inter text-[15px] font-medium text-[#1e1e24]">Password reset successfully</p>
+          <p className="font-inter text-[14px] font-medium text-[#1e1e24]">Password reset successfully</p>
         </div>
       ) : (
       <form
         onSubmit={handleSubmit}
-        className="flex w-[460px] max-w-[calc(100vw-32px)] flex-col gap-[32px] rounded-[24px] bg-white p-[40px] shadow-[0px_10px_40px_rgba(0,0,0,0.18)]"
+        className="app-dialog my-auto flex w-full max-w-[460px] flex-col gap-[27px] rounded-[20px] bg-white p-[clamp(13px,3vw,34px)] shadow-[0px_10px_40px_rgba(0,0,0,0.18)]"
       >
         {/* Header */}
         <div className="flex w-full flex-col items-center gap-[11px] pt-[8px]">
           <h2
             id="rp-title"
-            className="text-center font-manrope text-[36px] font-normal leading-[44px] tracking-[-0.72px] text-[#1e1e24]"
+            className="text-center font-manrope text-[32px] font-normal leading-[39px] tracking-[-0.72px] text-[#1e1e24]"
           >
             Reset Password
           </h2>
-          <p className="max-w-[332px] text-center font-inter text-[15px] leading-[24.38px] text-[#1e1e24]">
+          <p className="max-w-[332px] text-center font-inter text-[14px] leading-[21px] text-[#1e1e24]">
             Please reset your password and accept the Terms &amp; Conditions and Privacy Policy to continue.
           </p>
         </div>
 
         {/* Form */}
-        <div className="flex w-full flex-col gap-[23.5px] pt-[8px]">
+        <div className="flex w-full flex-col gap-[20px] pt-[8px]">
           <div className="flex w-full flex-col gap-[10px]">
             <PasswordField
               label="Enter Password"
@@ -155,7 +155,7 @@ export default function ResetPasswordPopup({ onClose }: { onClose: () => void })
                 checked={agree}
                 onChange={(e) => setAgree(e.target.checked)}
                 aria-label="I agree to the Privacy Policy and Terms & Conditions"
-                className="peer size-[16px] cursor-pointer appearance-none rounded-[3px] border border-[#1e1e24] bg-white checked:border-[#0077c0] checked:bg-[#0077c0]"
+                className="peer size-[16px] cursor-pointer appearance-none rounded-[3px] border-[1.167px] border-black bg-white checked:border-[#0077c0] checked:bg-[#0077c0]"
               />
               <svg
                 viewBox="0 0 16 16"
@@ -193,12 +193,12 @@ export default function ResetPasswordPopup({ onClose }: { onClose: () => void })
           <button
             type="submit"
             disabled={!canSubmit}
-            className={`flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-[#0077c0] py-[16px] font-inter text-[15px] font-semibold text-white transition-opacity ${
+            className={`flex w-full items-center justify-center gap-[8px] rounded-[8px] bg-[#0077c0] py-[13px] font-inter text-[14px] font-semibold text-white transition-opacity ${
               canSubmit ? "hover:bg-[#0069a8]" : "cursor-not-allowed opacity-50"
             }`}
           >
             {submitting ? "Resetting…" : "Reset Password"}
-            <Image src="/auth/chevron.svg" alt="" width={28} height={28} className="size-7 rotate-180" />
+            <Image src="/auth/chevron.svg" alt="" width={28} height={28} className="size-5 rotate-180" />
           </button>
         </div>
       </form>
@@ -237,20 +237,20 @@ function PasswordField({
         {label}
       </span>
       <div
-        className={`flex items-center gap-[15px] rounded-[8px] border bg-white/60 px-[16px] py-[16px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
-          invalid ? "border-red-500 focus-within:border-red-500" : "border-[#c2c6d4] focus-within:border-[#0077c0]"
+        className={`clinic-field-border flex items-center gap-[15px] rounded-[8px] border-[1.167px] bg-white/60 px-[13px] py-[13px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] ${
+          invalid ? "border-red-500 focus-within:border-red-500" : "border-black focus-within:border-black"
         }`}
       >
-        <Image src="/auth/key.svg" alt="" width={24} height={24} className="size-6 shrink-0" />
+        <Image src="/auth/key.svg" alt="" width={24} height={24} className="size-5 shrink-0" />
         <input
           type={show ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="••••••••••••"
           autoComplete="new-password"
-          className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4]/70"
+          className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder"
         />
-        <PasswordToggle visible={show} onToggle={onToggle} />
+        <PasswordToggle visible={show} hasValue={value.length > 0} onToggle={onToggle} />
       </div>
     </div>
   );
@@ -272,7 +272,7 @@ function PolicyPopup({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
+      className="app-dialog-backdrop fixed inset-0 z-[130] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5 backdrop-blur-[2px]"
       onMouseDown={onClose}
       role="dialog"
       aria-modal="true"
@@ -280,23 +280,23 @@ function PolicyPopup({
     >
       <div
         onMouseDown={(e) => e.stopPropagation()}
-        className="flex max-h-[90dvh] w-[640px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-[30px] bg-white shadow-[0px_30px_60px_-15px_rgba(0,0,0,0.1)]"
+        className="app-dialog my-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-[25px] bg-white shadow-[0px_30px_60px_-15px_rgba(0,0,0,0.1)]"
       >
-        <div className="flex shrink-0 items-center justify-between px-[30px] pb-[15px] pt-[30px]">
-          <h2 id="policy-title" className="font-manrope text-[28px] font-semibold tracking-[-0.71px] text-[#1e1e24]">
+        <div className="app-toolbar flex shrink-0 items-center justify-between px-[clamp(13px,3vw,25px)] pb-[15px] pt-[25px]">
+          <h2 id="policy-title" className="font-manrope text-[25px] font-semibold tracking-[-0.71px] text-[#1e1e24]">
             {title}
           </h2>
           <button type="button" onClick={onClose} aria-label="Close">
-            <CloseIcon className="size-6 text-[#1e1e24]" />
+            <CloseIcon className="size-5 text-[#1e1e24]" />
           </button>
         </div>
-        <div className="flex min-h-0 flex-col gap-[20px] overflow-y-auto px-[30px] pb-[40px] font-inter text-[15px] leading-[24.38px] text-[#1e1e24]">
+        <div className="flex min-h-0 flex-col gap-[17px] overflow-y-auto px-[clamp(13px,3vw,25px)] pb-[34px] font-inter text-[14px] leading-[21px] text-[#1e1e24]">
           <p className="font-inter text-[13px] text-[#1e1e24]/60">
             Effective date: {POLICY_EFFECTIVE_DATE}
           </p>
           {sections.map((section) => (
             <section key={section.heading} className="flex flex-col gap-[8px]">
-              <h3 className="font-manrope text-[17px] font-semibold tracking-[-0.3px] text-[#1e1e24]">
+              <h3 className="font-manrope text-[15px] font-semibold tracking-[-0.3px] text-[#1e1e24]">
                 {section.heading}
               </h3>
               {section.body.map((p, i) => (
@@ -328,10 +328,10 @@ function PasswordChecklist({ password }: { password: string }) {
         >
           <span
             aria-hidden
-            className={`flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] ${
+            className={`flex size-4 shrink-0 items-center justify-center rounded-full border-[1.167px] text-[9px] ${
               rule.met
                 ? "border-green-600 bg-green-600 text-white"
-                : "border-[#c2c6d4] text-transparent"
+                : "border-black text-transparent"
             }`}
           >
             ✓

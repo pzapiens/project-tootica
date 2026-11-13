@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import DashboardOverview from "./DashboardOverview";
 import LowerSection from "./LowerSection";
+import styles from "./dashboard.module.css";
 import { STATUS_FILTER_OPTIONS, type Timeframe } from "./mock";
 
 /**
@@ -22,7 +23,7 @@ export default function DashboardClient() {
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_OPTIONS[0]);
 
   return (
-    <div className="flex flex-col gap-[32px]">
+    <div className={styles.dashboard}>
       <DashboardOverview timeframe={timeframe} onTimeframeChange={setTimeframe} />
       <LowerSection status={statusFilter} onStatusChange={setStatusFilter} />
     </div>

@@ -15,6 +15,7 @@ import { notifyAppointmentsChanged } from "@/lib/appointmentsBus";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 import { emailError, phoneLocalPart, phoneWithCc } from "@/lib/validation";
 import PhoneNumberInput from "@/components/PhoneNumberInput";
+import FloatingPanel from "@/components/FloatingPanel";
 
 import AppointmentFormStep, {
   type AppointmentEditResult,
@@ -88,7 +89,6 @@ const STATUS_TO_BACKEND: Record<string, AppointmentStatus> = {
   "On going": "ONGOING",
   Completed: "COMPLETED",
   Cancelled: "CANCELLED",
-  "No Show": "NO_SHOW",
 };
 
 /** Combine a `dd/mm/yyyy` date + `hh:mm AM` clock into an ISO datetime. */
@@ -99,9 +99,12 @@ function combineDateTime(dmy: string, clock: string, fallbackHour: number): stri
   let hh = fallbackHour;
   let mm = 0;
   if (m) {
+    if (Number(m[1]) < 1 || Number(m[1]) > 12 || Number(m[2]) > 59) return null;
     hh = Number(m[1]) % 12;
     if (/pm/i.test(m[3])) hh += 12;
     mm = Number(m[2]);
+  } else if (clock.trim()) {
+    return null;
   }
   d.setHours(hh, mm, 0, 0);
   return d.toISOString();
@@ -127,9 +130,12 @@ export interface EditAppointment {
 export default function NewAppointmentModal({
   onClose,
   edit,
+  onPreviewSave,
 }: {
   onClose: () => void;
   edit?: EditAppointment;
+  /** Save a sample appointment locally when previewing the edit UI. */
+  onPreviewSave?: (result: AppointmentEditResult) => void;
 }) {
   const [step, setStep] = useState<Step>(edit ? "form" : "search");
   const [query, setQuery] = useState("");
@@ -199,6 +205,7 @@ export default function NewAppointmentModal({
         (p) =>
           (digits.length > 0 && (p.phone ?? "").replace(/\D/g, "").includes(digits)) ||
           p.id.toLowerCase().includes(s) ||
+          (p.code ?? "").toLowerCase().includes(s) ||
           p.name.toLowerCase().includes(s),
       );
       setChecked(true);
@@ -245,6 +252,8 @@ export default function NewAppointmentModal({
     const doctorId =
       result.doctorId || (result.doctor && doctorByName.get(result.doctor)) || "";
     const hasTime = Boolean(result.startTime);
+    if (!result.nonMandatory && !hasTime) throw new Error("Select an appointment time range.");
+    if (!hasTime && result.endTime) throw new Error("Enter both the start and end time.");
     const start = combineDateTime(result.date, result.startTime, hasTime ? 9 : 0);
     if (!start) throw new Error("Pick a valid appointment date.");
     let end: string;
@@ -253,10 +262,8 @@ export default function NewAppointmentModal({
       end = start;
     } else {
       const chosen = result.endTime ? combineDateTime(result.date, result.endTime, 9) : null;
-      end =
-        !chosen || new Date(chosen) <= new Date(start)
-          ? new Date(new Date(start).getTime() + 30 * 60_000).toISOString()
-          : chosen;
+      if (!chosen || new Date(chosen) <= new Date(start)) throw new Error("The end time must be after the start time.");
+      end = chosen;
     }
     return { doctorId, start, end };
   }
@@ -357,7 +364,7 @@ export default function NewAppointmentModal({
         patient={selected}
         initial={edit?.initial}
         doctors={doctorOptions}
-        excludeAppointmentId={edit?.id}
+        excludeAppointmentId={onPreviewSave ? undefined : edit?.id}
         submitting={creating}
         error={createError}
         onCancel={edit ? onClose : () => setStep("search")}
@@ -365,12 +372,14 @@ export default function NewAppointmentModal({
           setCreating(true);
           setCreateError("");
           try {
-            if (edit) {
+            if (edit && onPreviewSave) {
+              onPreviewSave(result);
+            } else if (edit) {
               await updateAppointment(result);
             } else {
               await createAppointment(result);
             }
-            notifyAppointmentsChanged();
+            if (!onPreviewSave) notifyAppointmentsChanged();
             onClose();
           } catch (err) {
             setCreateError(
@@ -398,7 +407,7 @@ export default function NewAppointmentModal({
 
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+      className="app-dialog-backdrop animate-fade-in fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/40 p-3.5 sm:items-center"
       // Close only on a backdrop click, so open dropdowns inside the form still
       // close on outside-click (their listeners need the mousedown to bubble).
       onMouseDown={(e) => {
@@ -409,20 +418,25 @@ export default function NewAppointmentModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="na-title"
-        className={`animate-modal-in my-auto flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2)] [zoom:1] ${
+        className={`app-dialog animate-modal-in my-auto flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-[13px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2)] ${
           step === "form" ? "max-w-[612px]" : "max-w-[540px]"
         }`}
       >
         {/* Header (fixed) */}
-        <div className="flex shrink-0 items-center justify-between border-b border-[#c2c6d4]/40 px-[32px] py-[22px]">
-          <h2 id="na-title" className="font-inter text-[24px] font-normal tracking-[-0.5px] text-[#1e1e24]">
+        <div className="app-toolbar flex shrink-0 items-center justify-between border-b-[1.167px] border-black/20 px-[clamp(13px,3vw,27px)] py-[18px]">
+          <h2 id="na-title" className="font-inter text-[21px] font-normal tracking-[-0.5px] text-[#1e1e24]">
             {step === "form" && edit ? "Edit Appointment" : TITLES[step]}
           </h2>
           <button type="button" onClick={handleHeaderClose} aria-label="Close">
-            <CloseIcon className="size-6 text-[#1e1e24]" />
+            <CloseIcon className="size-5 text-[#1e1e24]" />
           </button>
         </div>
         {/* Body (header + footer stay fixed; this region scrolls) */}
+        {edit && onPreviewSave && (
+          <p className="shrink-0 bg-[#f1f5f9] px-[clamp(13px,3vw,27px)] py-2 font-inter text-[12px] leading-[18px] text-[#424752]">
+            Demo appointment. Changes are saved only until this page is refreshed.
+          </p>
+        )}
         <div className="flex min-h-0 flex-1 flex-col">{body}</div>
       </div>
     </div>,
@@ -459,12 +473,12 @@ function SearchStep({
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col gap-[24px] overflow-y-auto px-[32px] py-[24px]">
-        <div className="rounded-[8px] border border-[#c2c6d4]/30 px-[24px] pb-[24px] pt-[18px] shadow-[0px_3px_10px_rgba(0,0,0,0.02)]">
-          <h3 className="font-inter text-[23px] font-normal tracking-[-0.7px] text-[#1e1e24]">
+      <div className="flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto px-[27px] py-[20px]">
+        <div className="rounded-[8px] border-[1.167px] border-black px-[20px] pb-[20px] pt-[15px] shadow-[0px_3px_10px_rgba(0,0,0,0.02)]">
+          <h3 className="font-inter text-[20px] font-normal tracking-[-0.7px] text-[#1e1e24]">
             Patient Search
           </h3>
-          <p className="mt-2 font-inter text-[15px] text-[#1e1e24]">
+          <p className="mt-2 font-inter text-[14px] text-[#1e1e24]">
             Verify existing patient records in the system.
           </p>
 
@@ -483,7 +497,7 @@ function SearchStep({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search here..."
                 aria-label="Search patient by ID or phone"
-                className="h-[45px] w-full rounded-full border border-[#c2c6d4] pl-[44px] pr-[40px] font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]/70 focus:border-[#0077c0]"
+                className="app-search-input h-[45px] w-full rounded-full border-[1.167px] border-black pl-[37px] pr-[34px] font-inter text-[14px] text-[#1e1e24] outline-none "
               />
               {query && (
                 <button
@@ -524,10 +538,10 @@ function SearchStep({
                       key={p.id}
                       type="button"
                       onClick={() => onSelect(p)}
-                      className={`flex flex-col items-start gap-1 rounded-[8px] px-4 py-3 text-left transition-colors ${
+                      className={`flex flex-col items-start gap-1 rounded-[8px] px-3.5 py-3 text-left transition-colors ${
                         isSelected
                           ? "border-2 border-[#0077c0] bg-[#f1f5f9]"
-                          : "border border-[#c2c6d4] bg-white hover:bg-[#f8fafc]"
+                          : "border-[1.167px] border-black bg-white app-option-hover"
                       }`}
                     >
                       <span
@@ -549,7 +563,7 @@ function SearchStep({
           )}
         </div>
 
-        <div className="flex flex-col items-center gap-[15px] rounded-[13px] border border-[#c2c6d4]/50 bg-[#f1f5f9] p-[27px]">
+        <div className="flex flex-col items-center gap-[15px] rounded-[13px] border-[1.167px] border-black bg-[#f1f5f9] p-[23px]">
           <Image src="/dashboard/na_person.svg" alt="" width={40} height={40} className="size-10" />
           <div className="flex flex-col items-center gap-[5px]">
             <p className="font-inter text-[13px] font-normal text-[#1e1e24]">New Patient?</p>
@@ -561,14 +575,14 @@ function SearchStep({
           <button
             type="button"
             onClick={onCreateProfile}
-            className="rounded-[6px] border-2 border-[#0077c0] px-[35px] py-[11px] font-inter text-[10px] font-normal uppercase tracking-[0.5px] text-[#0077c0] transition-colors hover:bg-[#0077c0]/[.06]"
+            className="rounded-[6px] border-2 border-[#0077c0] px-[29px] py-[11px] font-inter text-[10px] font-normal uppercase tracking-[0.5px] text-[#0077c0] transition-colors hover:bg-[#0077c0]/[.06]"
           >
             Create New Patient Profile
           </button>
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center justify-end gap-6 border-t border-[#c2c6d4]/40 px-[32px] py-[20px]">
+      <div className="flex shrink-0 items-center justify-end gap-5 border-t-[1.167px] border-black/20 px-[27px] py-[17px]">
         <button
           type="button"
           onClick={onCancel}
@@ -580,11 +594,11 @@ function SearchStep({
           type="button"
           disabled={!canProceed}
           onClick={onNewAppointment}
-          className={`flex items-center gap-2 rounded-full px-[25px] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
+          className={`app-action-button flex items-center rounded-full py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
             canProceed ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
           }`}
         >
-          <Image src="/dashboard/add.svg" alt="" width={20} height={20} className="size-5" />
+          <Image src="/dashboard/add.svg" alt="" width={14} height={14} className="size-3.5 shrink-0" />
           New Appointment
         </button>
       </div>
@@ -619,8 +633,12 @@ function NewPatientStep({
   const [error, setError] = useState("");
 
   const emailErr = emailError(email);
+  const dobDate = parseDmy(dob);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const validDob = Boolean(dobDate && dobDate <= today);
   const canCreate =
-    Boolean(name.trim() && dob.trim() && phone.length === 10 && gender && !emailErr) && !submitting;
+    Boolean(name.trim() && validDob && phone.length === 10 && gender && !emailErr) && !submitting;
 
   async function submit() {
     if (!canCreate) return;
@@ -642,7 +660,7 @@ function NewPatientStep({
 
   return (
     <>
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-x-[32px] gap-y-[24px] overflow-y-auto px-[32px] py-[28px]">
+      <div className="app-form-grid grid min-h-0 flex-1 grid-cols-2 gap-x-[27px] gap-y-[20px] overflow-y-auto px-[27px] py-[24px]">
         <Field label="Patient Name" required>
           <input
             value={name}
@@ -652,15 +670,16 @@ function NewPatientStep({
           />
         </Field>
         <Field label="Date of Birth" required>
-          <DateInput value={dob} onChange={setDob} />
+          <DateInput value={dob} onChange={setDob} disableFuture />
+          {dob.length === 10 && !validDob && <p role="alert" className="text-[12px] text-red-500">Enter a valid date of birth that is not in the future.</p>}
         </Field>
         <Field label="Phone" required>
-          <div className="flex items-center gap-2 border-b border-[#c2c6d4] pb-2 pt-1 focus-within:border-[#0077c0]">
+          <div className="flex items-center gap-2 border-b-[1.167px] border-black pb-2 pt-1 focus-within:border-[#0077c0]">
             <PhoneNumberInput
               value={phone}
               onChange={setPhone}
               placeholder="10-digit mobile number"
-              className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]"
+              className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder"
             />
           </div>
           {phone.length > 0 && phone.length < 10 && (
@@ -684,13 +703,13 @@ function NewPatientStep({
         </Field>
       </div>
 
-      <div className="flex shrink-0 flex-col gap-3 border-t border-[#c2c6d4]/40 px-[32px] py-[20px]">
+      <div className="flex shrink-0 flex-col gap-3 border-t-[1.167px] border-black/20 px-[27px] py-[17px]">
         {error && (
           <p role="alert" className="font-inter text-[13px] text-red-500">
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-6">
+        <div className="flex items-center justify-end gap-5">
           <button
             type="button"
             onClick={onCancel}
@@ -703,7 +722,7 @@ function NewPatientStep({
             type="button"
             disabled={!canCreate}
             onClick={submit}
-            className={`rounded-full px-[25px] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
+            className={`rounded-full px-[21px] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
               canCreate ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
             }`}
           >
@@ -716,7 +735,7 @@ function NewPatientStep({
 }
 
 const INPUT_CLASS =
-  "w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]";
+  "w-full border-b-[1.167px] border-black bg-transparent pb-2 pt-1 font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-[#0077c0]";
 
 function Field({
   label,
@@ -744,24 +763,19 @@ function Field({
  */
 function GenderDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useExclusiveDropdown();
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [setOpen]);
+  const ref = useRef<HTMLButtonElement>(null);
 
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
+        ref={ref}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className="flex w-full items-center justify-between border-b-[1.167px] border-black pb-2 pt-1 text-left focus:border-[#0077c0]"
       >
-        <span className="font-inter text-[15px] text-[#1e1e24]">
+        <span className={`font-inter text-[14px] ${value ? "text-[#1e1e24]" : "text-field-placeholder"}`}>
           {value || "Select"}
         </span>
         <Image
@@ -773,7 +787,7 @@ function GenderDropdown({ value, onChange }: { value: string; onChange: (v: stri
         />
       </button>
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex w-full flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <FloatingPanel anchor={ref} onClose={() => setOpen(false)} role="dialog" label="Gender" className="flex flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] shadow-lg">
           {GENDER_OPTIONS.map((opt) => (
             <button
               key={opt}
@@ -782,15 +796,15 @@ function GenderDropdown({ value, onChange }: { value: string; onChange: (v: stri
                 onChange(opt);
                 setOpen(false);
               }}
-              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[16px] py-[10px] transition-colors hover:bg-[#e9eef4]"
+              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[13px] py-[10px] transition-colors app-option-hover"
             >
               <span className="font-inter text-[14px] font-normal text-[#1e1e24]">{opt}</span>
-              <span className="flex size-3 items-center justify-center rounded-full border border-[#1e1e24]">
+              <span className="flex size-3 items-center justify-center rounded-full border-[1.167px] border-black">
                 {value === opt && <span className="size-1.5 rounded-full bg-[#1e1e24]" />}
               </span>
             </button>
           ))}
-        </div>
+        </FloatingPanel>
       )}
     </div>
   );
@@ -811,9 +825,9 @@ function CreatedStep({ patient }: { patient: FoundPatient }) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-[32px] py-[28px]">
-      <Image src="/dashboard/check_circle.svg" alt="" width={34} height={34} className="size-[34px]" />
-      <h3 className="mt-3 font-inter text-[30px] font-normal tracking-[-0.6px] text-[#1e1e24]">
+    <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-[27px] py-[24px]">
+      <Image src="/dashboard/check_circle.svg" alt="" width={34} height={34} className="size-[28px]" />
+      <h3 className="mt-3 font-inter text-[26px] font-normal tracking-[-0.6px] text-[#1e1e24]">
         Profile Created
       </h3>
       <p className="mt-2 max-w-[420px] text-center font-inter text-[14px] leading-[20px] text-[#1e1e24]">
@@ -821,14 +835,14 @@ function CreatedStep({ patient }: { patient: FoundPatient }) {
       </p>
 
       <div className="mt-6 w-[366px] max-w-full">
-        <div className="flex flex-col items-center gap-1 rounded-[8px] border border-[#c2c6d4] bg-[#eff4ff] p-[25px]">
+        <div className="flex flex-col items-center gap-1 rounded-[8px] border-[1.167px] border-black bg-[#eff4ff] p-[21px]">
           <span className="font-inter text-[12px] uppercase tracking-[0.6px] text-[#1e1e24]">
             Patient ID
           </span>
           <div className="flex items-center gap-2">
-            <span className="font-inter text-[18px] font-normal text-[#1e1e24]">{patient.code}</span>
+            <span className="font-inter text-[16px] font-normal text-[#1e1e24]">{patient.code}</span>
             <button type="button" onClick={copy} aria-label="Copy patient ID">
-              <Image src="/dashboard/content_copy.svg" alt="" width={24} height={24} className="size-6" />
+              <Image src="/dashboard/content_copy.svg" alt="" width={24} height={24} className="size-5" />
             </button>
           </div>
         </div>
@@ -859,23 +873,23 @@ function Placeholder({
   onClose: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-6 px-[32px] py-[40px]">
+    <div className="flex flex-col gap-5 px-[27px] py-[34px]">
       <div className="flex flex-col items-center gap-2 text-center">
-        <h3 className="font-inter text-[20px] font-normal text-[#1e1e24]">{title}</h3>
+        <h3 className="font-inter text-[18px] font-normal text-[#1e1e24]">{title}</h3>
         <p className="font-inter text-[14px] text-[#1e1e24]/60">{note}</p>
       </div>
       <div className="flex items-center justify-center gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="rounded-full border border-[#c2c6d4] px-6 py-3 font-inter text-[14px] font-normal text-[#1e1e24] hover:bg-black/[.02]"
+          className="rounded-full border-[1.167px] border-black px-5 py-3 font-inter text-[14px] font-normal text-[#1e1e24] hover:bg-black/[.02]"
         >
           Back
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full bg-[#0077c0] px-6 py-3 font-inter text-[14px] font-normal text-white hover:bg-[#0069a8]"
+          className="rounded-full bg-[#0077c0] px-5 py-3 font-inter text-[14px] font-normal text-white hover:bg-[#0069a8]"
         >
           Close
         </button>

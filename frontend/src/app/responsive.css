@@ -1,0 +1,512 @@
+/* Responsive primitives shared by every application route. */
+.app-page {
+  container: app / inline-size;
+  min-width: 0;
+  width: 100%;
+}
+.app-page > *,
+.app-dialog > *,
+.app-form-grid > *,
+.app-details-grid > * {
+  min-width: 0;
+}
+.app-page-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(22px, 1.8vw, 26px);
+  line-height: 1.25;
+}
+.app-toolbar {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.app-toolbar > h1,
+.app-toolbar > h2 {
+  flex: 1 1 220px;
+}
+.app-toolbar > button {
+  flex-shrink: 0;
+}
+.app-search-row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.app-search-field {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+@container app (min-width: 640px) {
+  .app-search-field.app-search-field-half {
+    flex: 0.4 1 0;
+  }
+  .app-search-field-half + p {
+    margin-inline-start: auto;
+  }
+}
+.app-pagination {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.app-pagination-controls {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.app-tabs {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.app-form-surface {
+  container: fields / inline-size;
+  min-width: 0;
+}
+.app-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.app-form-grid > .col-span-2 {
+  grid-column: 1 / -1;
+}
+.app-chart-grid,
+.app-details-grid,
+.app-profile-grid,
+.app-tooth-layout,
+.app-filter-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.app-chart-card {
+  container: chart / inline-size;
+  height: auto;
+  min-height: 380px;
+}
+.app-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.app-stat-card {
+  border-radius: 20px;
+  padding: clamp(16px, 1.3vw, 20px);
+  min-width: 0;
+  min-height: 160px;
+  height: auto;
+}
+.app-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+}
+.app-filter-page {
+  container: app / inline-size;
+  display: flex;
+  min-width: 0;
+  min-height: 100%;
+  height: auto;
+  flex: 1;
+  flex-direction: column;
+}
+.app-dialog {
+  container: app fields / inline-size;
+  min-width: 0;
+  max-height: var(--app-popup-max-height);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.app-dialog :where(form, fieldset, label) {
+  min-width: 0;
+}
+.app-dialog :where(input, select, textarea),
+.app-page :where(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+.app-dialog :where(p, h2, h3),
+.app-page :where(p, h1, h2, h3) {
+  overflow-wrap: anywhere;
+}
+.app-dialog > form {
+  flex-shrink: 0;
+}
+.app-scroll-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+.app-record-card {
+  min-width: 0;
+  padding: clamp(14px, 2vw, 22px);
+}
+.app-tooth-details {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 20px;
+}
+.app-tooth-table {
+  max-height: 360px;
+}
+.app-perio-artwork {
+  transform: scale(0.94);
+  transform-origin: center;
+}
+.app-donut {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+}
+.app-donut-plot {
+  justify-self: center;
+}
+.app-chart-scroll {
+  min-height: 180px;
+  overflow-x: auto;
+}
+.app-chart-scroll svg {
+  min-width: 360px;
+}
+.app-otp {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: clamp(4px, 1vw, 10px);
+}
+.app-otp input {
+  min-width: 0;
+  width: 100%;
+  height: 40px;
+}
+.app-drawer {
+  inset: 8px 8px 8px auto;
+  max-width: calc(100vw - 16px);
+}
+@container app (min-width: 800px) {
+  .app-details-grid,
+  .app-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container app (min-width: 960px) {
+  .app-profile-grid {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+  .app-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@container app (min-width: 1100px) {
+  .app-chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container app (min-width: 900px) {
+  .app-tooth-layout {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+  /* Only the chart determines the row height, regardless of the remarks count. */
+  .app-tooth-details {
+    align-self: stretch;
+    min-height: 0;
+    contain: size;
+    overflow: hidden;
+  }
+  .app-tooth-remarks,
+  .app-tooth-table {
+    flex: 0 1 auto;
+  }
+  .app-tooth-table {
+    max-height: none;
+  }
+}
+@container app (max-width: 600px) {
+  .app-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container fields (max-width: 520px) {
+  .app-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container app (max-width: 420px) {
+  .app-stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app-tabs {
+    border-radius: 14px;
+  }
+}
+@container chart (max-width: 460px) {
+  .app-donut {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: none;
+  }
+  .app-donut-plot {
+    width: min(100%, 240px);
+    max-height: none;
+    flex: none;
+    align-self: center;
+  }
+  .app-donut-legend {
+    width: 100%;
+    max-height: 260px;
+    flex: none;
+  }
+}
+@media (max-width: 639px) {
+  .app-dialog-backdrop {
+    padding: 8px;
+  }
+  .app-page-title {
+    font-size: 22px;
+  }
+}
+
+.app-shift-layout {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+@container fields (min-width: 640px) {
+  .app-shift-layout.app-shift-layout-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container fields (min-width: 760px) {
+  .app-shift-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.app-donut-legend {
+  max-height: 300px;
+}
+
+.app-floating-panel {
+  z-index: 200;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.app-date-popover {
+  max-width: calc(100vw - 24px);
+  max-height: var(--app-popup-max-height);
+  overflow: auto;
+}
+
+.app-loading-frame {
+  container: app / inline-size;
+  min-width: 0;
+}
+.app-dialog-backdrop {
+  padding-block: var(--app-popup-inset);
+  overflow-y: auto;
+}
+.app-drawer {
+  top: var(--app-popup-inset);
+  bottom: var(--app-popup-inset);
+  max-height: var(--app-popup-max-height);
+}
+
+.app-branch-header {
+  display: none;
+}
+.app-branch-row {
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: 16px;
+  gap: 10px;
+}
+.app-branch-row > * {
+  min-width: 0;
+  grid-column: 1;
+  grid-row: auto;
+  overflow-wrap: anywhere;
+}
+@container app (min-width: 960px) {
+  .app-branch-header {
+    display: grid;
+  }
+  .app-branch-row {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr) minmax(
+        0,
+        1fr
+      ) 200px;
+  }
+  .app-branch-row > :nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .app-branch-row > :nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .app-branch-row > :nth-child(3) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .app-branch-row > :nth-child(4) {
+    grid-column: 4;
+    grid-row: 1;
+  }
+}
+
+.app-data-table {
+  border-radius: 16px;
+}
+/* Keep one horizontal track and start the vertical track below the header. */
+.app-table-frame {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 100%;
+}
+.app-table-heading {
+  flex-shrink: 0;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+}
+.app-table-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain auto;
+  scrollbar-gutter: stable;
+}
+/* Fit every appointment column alongside the expanded navigation. */
+.app-appointments-table :is(.app-table-heading, .app-table-body) {
+  scrollbar-gutter: auto;
+}
+.app-appointments-row {
+  grid-template-columns:
+    minmax(0, 0.85fr) minmax(0, 1.25fr) minmax(0, 1.4fr)
+    minmax(0, 1.1fr) minmax(124px, 1.25fr) minmax(102px, 1fr)
+    minmax(74px, 0.75fr) 148px;
+}
+.app-appointments-row > * {
+  padding-inline: 10px;
+}
+.app-appointments-row > :first-child {
+  padding-left: 16px;
+}
+.app-appointments-row.app-table-header > * {
+  font-size: 12px;
+  letter-spacing: 0.35px;
+}
+.app-appointments-row > :last-child > * {
+  flex-shrink: 0;
+}
+/* Raised chart tabs with a shared baseline and softly rounded upper corners. */
+.app-dentition-tabs {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  align-items: flex-end;
+  border-bottom: 1.167px solid #000;
+}
+.app-dentition-tab {
+  flex-shrink: 0;
+  margin-bottom: -1.167px;
+  border: 1.167px solid transparent;
+  border-bottom-color: #000;
+  border-radius: 6px 6px 0 0;
+  padding: 10px clamp(10px, 2vw, 16px);
+  color: #000;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+  white-space: nowrap;
+  transition: color 150ms, background-color 150ms, border-color 150ms;
+}
+.app-dentition-tab[aria-selected="true"] {
+  border-color: #000;
+  border-bottom-color: #eaf4ff;
+  background-color: #eaf4ff;
+  color: #000;
+}
+.app-dentition-tab[aria-selected="false"]:hover {
+  background-color: #f3f8fe;
+  color: #000;
+}
+.app-data-table .grid > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Compact clinical records, tooth remarks, medical history, and activity logs. */
+[data-patient-records] .app-data-table .grid > * {
+  padding-block: 10px;
+}
+[data-patient-records] .app-table-body > p {
+  padding-block: 16px;
+}
+.app-floating-panel :where(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+@container app (min-width: 960px) {
+  .app-branch-header {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr) minmax(
+        0,
+        1fr
+      ) 200px;
+  }
+}
+
+/* Icon and label actions share the same visible inset on both ends. */
+.app-action-button {
+  padding-inline: 16px;
+  gap: 8px;
+  justify-content: center;
+}
+.app-action-button > :is(svg, img) {
+  flex-shrink: 0;
+}
+
+/* All field hints match the clinic-selection search placeholder. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--field-placeholder);
+  opacity: 1;
+}
+/* Search bars keep their resting appearance while focused or typing. */
+:is(.app-search-input, input[type="search"]):is(:focus, :focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Clinic-selection form controls match the search field outline. */
+.clinic-field-border {
+  border-width: 1.167px;
+}
+
+/* A consistent heading row for page tables, dialogs, and loading previews. */
+.app-table-header {
+  background-color: #e3f1ff;
+  color: #000;
+}
+.app-table-header :where(span, th) {
+  color: #000;
+}
+
+/* Keep long email entries inside their column without changing row height. */
+input[type="email"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Option hovers exclude checkbox rows and disabled controls. */
+.app-option-hover:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--app-option-hover-fill);
+}

@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 
+import styles from "./dashboard.module.css";
+
 import { STAT_CARDS, STAT_CARD_REVIEW, type StatCounts } from "./mock";
 
 /**
@@ -24,26 +26,27 @@ export default function StatCards({ counts }: { counts: StatCounts }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-[24px] xl:flex-nowrap">
+    <div className={styles.stats}>
       {STAT_CARDS.map((card) => (
         <div
           key={card.key}
-          className="flex h-[180px] min-w-[210px] flex-1 flex-col justify-between overflow-hidden rounded-[24px] bg-[#0077c0] p-[22px]"
+          className={`${styles.statCard} flex flex-col justify-between rounded-[20px] bg-[#0077c0]`}
         >
           <div className="flex flex-col gap-[4.667px]">
-            <span className="font-inter text-[36px] font-bold leading-[40px] text-white">
+            <span className="font-inter text-[32px] font-bold leading-[36px] text-white">
               {counts[card.key]}
             </span>
-            <span className="font-inter text-[16px] font-medium leading-[24px] text-white">
+            <span className="font-inter text-[14px] font-medium leading-[20px] text-white">
               {card.label}
             </span>
           </div>
           <div className="flex items-end justify-between pt-[12px]">
-            <Image src={card.icon} alt="" width={34} height={34} className="size-[34px]" />
+            <Image src={card.icon} alt="" width={28} height={28} className="size-[28px]" />
             <button
               type="button"
               onClick={() => review(card.key)}
-              className="cursor-pointer font-inter text-[14px] font-medium leading-[20px] text-white"
+              aria-label={`View ${card.label.toLowerCase()}`}
+              className="min-h-8 cursor-pointer whitespace-nowrap font-inter text-[13px] font-medium leading-[20px] text-white"
             >
               View all
             </button>

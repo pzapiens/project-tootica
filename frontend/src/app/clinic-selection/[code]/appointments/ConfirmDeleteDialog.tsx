@@ -34,7 +34,7 @@ export default function ConfirmDeleteDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[130] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[130] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -43,28 +43,28 @@ export default function ConfirmDeleteDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-delete-title"
-        className="my-auto flex w-full max-w-[460px] flex-col gap-[20px] rounded-[20px] bg-white p-[28px] shadow-[0_10px_40px_rgba(0,0,0,0.15)]"
+        className="app-dialog my-auto flex w-full max-w-[460px] flex-col gap-[17px] rounded-[17px] bg-white p-[clamp(13px,3vw,24px)] shadow-[0_10px_40px_rgba(0,0,0,0.15)]"
       >
         <div className="flex items-center gap-[10px]">
-          <TrashIcon className="size-6 text-[#ba1a1a]" />
-          <h2 id="confirm-delete-title" className="font-manrope text-[22px] font-bold tracking-[-0.4px] text-[#1e1e24]">
+          <TrashIcon className="size-5 text-[#ba1a1a]" />
+          <h2 id="confirm-delete-title" className="font-manrope text-[19px] font-bold tracking-[-0.4px] text-[#1e1e24]">
             {title}
           </h2>
         </div>
-        <p className="font-inter text-[15px] leading-[23px] text-[#1e1e24]">{message}</p>
+        <p className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">{message}</p>
 
-        <div className="flex items-center justify-end gap-[16px]">
+        <div className="app-toolbar flex items-center justify-end gap-[13px]">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border-[1.2px] border-[#c2c6d4] px-[24px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:border-[#0077c0]"
+            className="rounded-full border-[1.167px] border-black px-[clamp(13px,3vw,20px)] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-full bg-[#ba1a1a] px-[24px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-opacity hover:opacity-90"
+            className="rounded-full bg-[#ba1a1a] px-[clamp(13px,3vw,20px)] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-opacity hover:opacity-90"
           >
             {confirmLabel}
           </button>

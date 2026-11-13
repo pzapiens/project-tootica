@@ -135,7 +135,7 @@ export default function DonutChart({
   }, [animationKey, revealed]);
 
   if (data.length === 0 || total === 0) {
-    return <p className="py-6 font-inter text-[15px] text-[#94a3b8]">{emptyLabel}</p>;
+    return <p className="py-5 font-inter text-[14px] text-[#94a3b8]">{emptyLabel}</p>;
   }
 
   const slices = data.map((d, i) => {
@@ -158,10 +158,10 @@ export default function DonutChart({
 
   return (
     <div key={animationKey} data-chart-ready={revealed} className={compact
-      ? "flex min-h-0 w-full min-w-0 flex-1 items-center gap-4"
-      : "flex flex-col items-center gap-[24px] sm:flex-row sm:items-center sm:gap-[32px]"}>
+      ? "app-donut flex min-h-0 w-full min-w-0 flex-1 items-center gap-3.5"
+      : "app-donut flex flex-col items-center gap-[20px] sm:flex-row sm:items-center sm:gap-[27px]"}>
       {/* Donut — left */}
-      <div className={`relative aspect-square w-full ${compact ? "max-h-full min-w-0 flex-[1.4]" : "shrink-0"}`} style={{ maxWidth: size }}>
+      <div className={`app-donut-plot relative aspect-square w-full ${compact ? "max-h-full min-w-0 flex-[1.4]" : "shrink-0"}`} style={{ maxWidth: size }}>
         <svg viewBox="0 0 220 220" className="absolute inset-0 h-full w-full" role="img" aria-label="Distribution chart">
           <g ref={segmentsRef}>
             {slices.map((s) => (
@@ -203,14 +203,14 @@ export default function DonutChart({
               <span className="line-clamp-2 font-inter text-[13px] font-semibold leading-[16px] text-[#1e1e24]">
                 {active.label}
               </span>
-              <span className="font-inter text-[20px] font-bold leading-[24px] text-[#0077c0]">
+              <span className="font-inter text-[18px] font-bold leading-[21px] text-[#0077c0]">
                 {fmtCenter(active.value)}
               </span>
               <span className="font-inter text-[12px] leading-[16px] text-[#727783]">{pct(active.frac)}%</span>
             </>
           ) : (
             <>
-              <span className="font-inter text-[24px] font-bold leading-[28px] text-[#1e1e24]">{fmtCenter(total)}</span>
+              <span className="font-inter text-[21px] font-bold leading-[25px] text-[#1e1e24]">{fmtCenter(total)}</span>
               <span className="font-inter text-[12px] font-semibold uppercase tracking-[0.5px] text-[#727783]">
                 {totalLabel}
               </span>
@@ -223,7 +223,7 @@ export default function DonutChart({
       <ul
         aria-label="Chart legend"
         tabIndex={0}
-        className={`flex min-h-0 min-w-0 flex-1 flex-col gap-[10px] overflow-y-auto overscroll-contain p-1 pr-2 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0] ${compact ? "max-h-full" : "w-full"}`}
+        className={`app-donut-legend flex min-h-0 min-w-0 flex-1 flex-col gap-[10px] overflow-y-auto overscroll-contain p-1 pr-2 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0] ${compact ? "max-h-full" : "w-full"}`}
         style={compact ? undefined : { maxHeight: size }}
       >
         {slices.map((s) => (

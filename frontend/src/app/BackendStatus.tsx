@@ -24,7 +24,7 @@ export default function BackendStatus() {
   }, []);
 
   return (
-    <div className="w-full max-w-md rounded-lg border border-black/[.08] p-4 text-sm dark:border-white/[.145]">
+    <div className="w-full max-w-md rounded-lg border-[1.167px] border-black/[.08] p-3.5 text-sm dark:border-white/[.145]">
       <div className="mb-2 font-medium">Backend connection</div>
       {state.kind === "loading" && (
         <span className="text-zinc-500">Checking…</span>

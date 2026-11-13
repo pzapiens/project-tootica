@@ -164,16 +164,16 @@ export default function PatientHistoryClient() {
   const lastVisit = pastAppointments[0] ? fmtDayMonYear(pastAppointments[0].startTime) : "--";
 
   return (
-    <div className="flex flex-1 flex-col gap-[40px]">
+    <div className="app-page flex flex-1 flex-col gap-[34px]">
       {/* Header: back + title on the left, patient badge on the right. */}
-      <div className="flex shrink-0 items-start justify-between gap-6">
-        <div className="flex items-center gap-[14px]">
+      <div className="app-toolbar app-toolbar flex shrink-0 items-start justify-between gap-5">
+        <div className="app-toolbar flex items-center gap-[14px]">
           <BackButton onClick={() => router.back()} ariaLabel="Back" />
           <div>
-            <h1 className="font-manrope text-[32px] font-bold leading-[40px] tracking-[-0.6px] text-[#1e1e24]">
+            <h1 className="app-page-title font-manrope text-[28px] font-bold leading-[35px] tracking-[-0.6px] text-[#1e1e24]">
               Patient history summary
             </h1>
-            <p className="font-manrope text-[15px] font-medium leading-[21px] text-[#1e1e24]">
+            <p className="font-manrope text-[14px] font-medium leading-[21px] text-[#1e1e24]">
               A detailed view of previous appointments and the patient&rsquo;s overall care journey.
             </p>
           </div>
@@ -181,17 +181,17 @@ export default function PatientHistoryClient() {
 
         {patient && (
           <div className="flex shrink-0 flex-col items-start gap-[2px]">
-            <div className="flex items-center gap-[8px]">
-              <span className="font-manrope text-[27px] font-semibold leading-[normal] text-[#1e1e24]">
+            <div className="app-pagination-controls flex items-center gap-[8px]">
+              <span className="font-manrope text-[24px] font-semibold leading-[normal] text-[#1e1e24]">
                 {patient.name}
               </span>
               {patient.code && (
-                <span className="rounded-[6px] bg-[rgba(0,94,184,0.1)] px-[8px] py-[2px] font-manrope text-[15px] font-semibold text-[#0077c0]">
+                <span className="rounded-[6px] bg-[rgba(0,94,184,0.1)] px-[8px] py-[2px] font-manrope text-[14px] font-semibold text-[#0077c0]">
                   {patient.code}
                 </span>
               )}
             </div>
-            <span className="font-manrope text-[15px] leading-[normal] text-[#727783]">
+            <span className="font-manrope text-[14px] leading-[normal] text-[#727783]">
               Age {age ?? "--"} • {patient.gender ? titleCase(patient.gender) : "--"} • Last Visit: {lastVisit}
             </span>
           </div>
@@ -200,13 +200,13 @@ export default function PatientHistoryClient() {
 
       {/* Appointment cards */}
       {loading ? (
-        <p className="font-inter text-[16px] text-[#94a3b8]">Loading patient history…</p>
+        <p className="font-inter text-[14px] text-[#94a3b8]">Loading patient history…</p>
       ) : pastAppointments.length === 0 ? (
-        <p className="font-inter text-[16px] text-[#94a3b8]">
+        <p className="font-inter text-[14px] text-[#94a3b8]">
           No previous appointments for this patient yet.
         </p>
       ) : (
-        <div className="flex flex-col gap-[25px]">
+        <div className="flex flex-col gap-[21px]">
           {pastAppointments.map((appt) => {
             const noTime = appt.startTime === appt.endTime;
             return (
@@ -243,21 +243,21 @@ function AppointmentHistoryCard({
   const rows = entries[active];
 
   return (
-    <section className="flex flex-col gap-[16px] rounded-[20px] border-[1.2px] border-[#c2c6d4] bg-white p-[20px]">
+    <section className="flex flex-col gap-[13px] rounded-[17px] border-[1.167px] border-black bg-white p-[17px]">
       {/* Card header: appointment id + date/time */}
-      <div className="flex items-center justify-between gap-4">
-        <span className="font-manrope text-[20px] font-bold leading-[normal] text-[#1e1e24]">{code}</span>
-        <div className="flex items-center gap-[8px]">
+      <div className="app-toolbar app-toolbar flex items-center justify-between gap-3.5">
+        <span className="font-manrope text-[18px] font-bold leading-[normal] text-[#1e1e24]">{code}</span>
+        <div className="app-pagination-controls flex items-center gap-[8px]">
           <Image src="/dashboard/calendar_today.svg" alt="" width={16} height={16} className="size-[16px]" />
-          <span className="font-manrope text-[15px] font-semibold leading-[normal] text-[#1e1e24]">{date}</span>
+          <span className="font-manrope text-[14px] font-semibold leading-[normal] text-[#1e1e24]">{date}</span>
           {time && (
-            <span className="font-manrope text-[15px] font-normal leading-[normal] text-[#1e1e24]">{time}</span>
+            <span className="font-manrope text-[14px] font-normal leading-[normal] text-[#1e1e24]">{time}</span>
           )}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-[4px]">
+      <div className="app-tabs flex gap-[4px]">
         {(Object.keys(TAB_LABELS) as TabKey[]).map((key) => {
           const selected = key === active;
           return (
@@ -266,10 +266,10 @@ function AppointmentHistoryCard({
               type="button"
               onClick={() => setActive(key)}
               aria-pressed={selected}
-              className={`rounded-[8px] px-[16px] py-[10px] font-manrope text-[15px] leading-[normal] transition-colors ${
+              className={`rounded-[8px] px-[13px] py-[10px] font-manrope text-[14px] leading-[normal] transition-colors ${
                 selected
-                  ? "border border-[#0077c0] bg-[rgba(0,94,184,0.1)] font-bold text-[#0077c0]"
-                  : "font-medium text-[#727783] hover:text-[#0077c0]"
+                  ? "border-[1.167px] border-[#0077c0] bg-[rgba(0,94,184,0.1)] font-bold text-[#0077c0]"
+                  : "font-medium text-[#727783] app-option-hover hover:text-[#0077c0]"
               }`}
             >
               {TAB_LABELS[key]}
@@ -279,7 +279,7 @@ function AppointmentHistoryCard({
       </div>
 
       {/* Tab panel */}
-      <div className="rounded-[12px] bg-[rgba(0,94,184,0.1)] p-[16px]">
+      <div className="rounded-[12px] bg-[rgba(0,94,184,0.1)] p-[13px]">
         {rows.length === 0 ? (
           <p className="font-manrope text-[14px] text-[#727783]">
             No {TAB_LABELS[active].toLowerCase()} records for this appointment.
@@ -288,7 +288,7 @@ function AppointmentHistoryCard({
           <div className="flex flex-col gap-[12px]">
             {rows.map((e) => (
               <div key={e.id} className="flex flex-col gap-[6px]">
-                <p className="font-manrope text-[15px] font-normal leading-[1.4] text-[#1e1e24]">{e.text}</p>
+                <p className="font-manrope text-[14px] font-normal leading-[1.4] text-[#1e1e24]">{e.text}</p>
                 <p className="font-manrope text-[11px] leading-[normal] text-[#727783]">
                   {e.author ? (
                     <>

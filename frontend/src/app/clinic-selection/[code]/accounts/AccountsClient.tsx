@@ -1,5 +1,10 @@
 "use client";
 
+import FloatingPanel from "@/components/FloatingPanel";
+import TableViewport from "@/components/TableViewport";
+import TablePagination from "@/components/TablePagination";
+import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
+
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
@@ -10,6 +15,7 @@ import {
   roleAvatar,
   ROLE_LABELS,
   type ClinicAccount,
+  type Role,
 } from "@/lib/api";
 import { passwordPolicyError } from "@/lib/password";
 import { AccountsSkeleton } from "@/components/loading/PageSkeletons";
@@ -20,7 +26,7 @@ import { useMe } from "../session";
 // follow the Figma "Accounts Table" (Full Name / Email / Role / Status / Created
 // / Actions).
 const COLS =
-  "grid-cols-[minmax(0,185fr)_minmax(0,300fr)_minmax(0,169fr)_minmax(0,138fr)_minmax(0,154fr)_minmax(0,125fr)]";
+  "grid-cols-[minmax(0,185fr)_minmax(0,332fr)_minmax(0,169fr)_minmax(0,138fr)_minmax(0,122fr)_minmax(0,125fr)]";
 
 const p2 = (n: number) => String(n).padStart(2, "0");
 
@@ -39,6 +45,9 @@ export default function AccountsClient() {
   // table — you manage your own account from Profile settings.
   const [accounts, setAccounts] = useState<ClinicAccount[] | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [role, setRole] = useState<Role | "all">("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ClinicAccount | null>(null);
@@ -66,7 +75,13 @@ export default function AccountsClient() {
   }, [isAdmin]);
 
   // Hide the signed-in account from the table (both admin and super admin).
-  const rows = accounts ? accounts.filter((a) => a.id !== me.user.id) : null;
+  const rows = accounts ? accounts.filter((account) =>
+    account.id !== me.user.id && (role === "all" || account.role === role)
+  ) : null;
+  const total = rows?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = rows?.slice((currentPage - 1) * pageSize, currentPage * pageSize) ?? [];
 
   function upsertAccount(updated: ClinicAccount) {
     setAccounts((list) => (list ?? []).map((a) => (a.id === updated.id ? updated : a)));
@@ -76,11 +91,11 @@ export default function AccountsClient() {
 
   if (!isAdmin) {
     return (
-      <div className="flex flex-1 flex-col gap-[24px]">
-        <h1 className="font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
+      <div className="flex flex-1 flex-col gap-[20px]">
+        <h1 className="app-page-title font-manrope text-[31px] font-bold leading-[39px] tracking-[-0.7px] text-[#1e1e24]">
           Accounts Management
         </h1>
-        <p className="font-inter text-[16px] text-[#727783]">
+        <p className="font-inter text-[14px] text-[#727783]">
           You don&apos;t have access to account management.
         </p>
       </div>
@@ -88,36 +103,43 @@ export default function AccountsClient() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-[40px]">
-      <h1 className="font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
-        Accounts Management
-      </h1>
+    <div className="app-page flex flex-1 flex-col gap-[34px]">
+      <div className="app-toolbar flex flex-wrap items-center justify-between gap-[14px]">
+        <h1 className="app-page-title font-manrope text-[31px] font-bold leading-[39px] tracking-[-0.7px] text-[#1e1e24]">
+          Accounts Management
+        </h1>
+        <RoleFilter value={role} onChange={(next) => { setRole(next); setPage(1); setOpenMenuId(null); }} />
+      </div>
 
       {/* Accounts table */}
-      <div className="flex flex-col rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white shadow-[0px_4px_13px_rgba(0,0,0,0.02)]">
+      <TableViewport label="Accounts" minWidth="1100px" className="flex flex-col rounded-[24px] border border-black bg-white shadow-[0px_4px_13px_rgba(0,0,0,0.02)]">
         {/* Header row */}
-        <div className={`grid ${COLS} items-center border-b-[1.2px] border-[#c2c6d4]`}>
+        <div className={`app-table-header grid ${COLS} items-center border-b border-black`}>
           {["Full Name", "Email", "Role", "Status", "Created"].map((h) => (
             <span
               key={h}
-              className="px-[26px] py-[18px] font-inter text-[13px] font-semibold uppercase leading-[18px] tracking-[0.6px] text-[#727783]"
+              className="px-[22px] py-[15px] font-inter text-[13px] font-semibold uppercase leading-[18px] tracking-[0.6px] text-[#727783]"
             >
               {h}
             </span>
           ))}
-          <span className="px-[26px] py-[18px] text-right font-inter text-[13px] font-semibold uppercase leading-[18px] tracking-[0.6px] text-[#727783]">
+          <span className="px-[22px] py-[15px] text-right font-inter text-[13px] font-semibold uppercase leading-[18px] tracking-[0.6px] text-[#727783]">
             Actions
           </span>
         </div>
 
         {rows === null ? (
-          <p className="px-[26px] py-10 font-inter text-[16px] text-[#94a3b8]">Loading accounts…</p>
+          <p className="px-[22px] py-8 font-inter text-[14px] text-[#94a3b8]">Loading accounts…</p>
         ) : loadError ? (
-          <p role="alert" className="px-[26px] py-10 font-inter text-[16px] text-[#ba1a1a]">
+          <p role="alert" className="px-[22px] py-8 font-inter text-[14px] text-[#ba1a1a]">
             {loadError}
           </p>
         ) : (
-          rows.map((account) => (
+          total === 0 ? (
+            <p role="status" className="px-[22px] py-8 font-inter text-[14px] text-[#727783]">
+              {role === "all" ? "No accounts yet." : "No accounts match this role."}
+            </p>
+          ) : pageRows.map((account) => (
             <AccountRow
               key={account.id}
               account={account}
@@ -148,7 +170,20 @@ export default function AccountsClient() {
             />
           ))
         )}
-      </div>
+      </TableViewport>
+
+      {!loadError && total > 0 && (
+        <div className="mt-auto">
+          <TablePagination
+            totalRecords={total}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            paginationLabel="Account pages"
+            onPageChange={(next) => { setPage(next); setOpenMenuId(null); }}
+            onPageSizeChange={(size) => { setPageSize(size); setPage(1); setOpenMenuId(null); }}
+          />
+        </div>
+      )}
 
       {editing && (
         <EditAccountProfileDialog
@@ -203,40 +238,24 @@ function AccountRow({
   onToggleStatus: () => void;
   onDelete: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLButtonElement>(null);
   const active = account.status === "ACTIVE";
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onCloseMenu();
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCloseMenu();
-    }
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen, onCloseMenu]);
-
   return (
-    <div className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0`}>
-      <span className="px-[26px] py-[22px] font-inter text-[15px] font-medium leading-[22px] text-[#1e1e24]">
+    <div className={`grid ${COLS} items-center border-b border-black last:border-b-0`}>
+      <span className="px-[22px] py-[18px] font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
         {displayName(account)}
       </span>
-      <span className="break-all px-[26px] py-[22px] font-inter text-[15px] font-medium leading-[22px] text-[#1e1e24]">
+      <span title={account.email} className="min-w-0 truncate px-[22px] py-[18px] font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
         {account.email}
       </span>
-      <div className="px-[26px] py-[22px]">
+      <div className="px-[22px] py-[18px]">
         <span className="inline-flex items-center gap-[5px] rounded-full bg-[#0077c0] px-[12px] py-[3px] font-inter text-[13px] font-semibold leading-[18px] text-white">
           <Image src={roleAvatar(account.role)} alt="" width={18} height={18} className="size-[18px]" />
           {ROLE_LABELS[account.role]}
         </span>
       </div>
-      <div className="px-[26px] py-[22px]">
+      <div className="px-[22px] py-[18px]">
         <span
           className={`inline-flex rounded-full px-[12px] py-[3px] font-inter text-[13px] font-semibold leading-[18px] text-white ${
             active ? "bg-[#16a34a]" : "bg-[#94a3b8]"
@@ -245,12 +264,13 @@ function AccountRow({
           {active ? "Active" : "Disabled"}
         </span>
       </div>
-      <span className="px-[26px] py-[22px] font-inter text-[15px] font-medium leading-[22px] text-[#1e1e24]">
+      <span className="px-[22px] py-[18px] font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
         {fmtDate(account.createdAt)}
       </span>
-      <div ref={ref} className="relative flex justify-end px-[26px] py-[22px]">
+      <div className="relative flex justify-end px-[22px] py-[18px]">
         <button
           type="button"
+          ref={ref}
           onClick={onToggleMenu}
           aria-label={`Actions for ${displayName(account)}`}
           aria-haspopup="menu"
@@ -261,15 +281,14 @@ function AccountRow({
         </button>
 
         {menuOpen && (
-          <div
-            role="menu"
-            className="absolute right-[18px] top-[calc(100%-4px)] z-30 flex w-[216px] flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] shadow-[0px_10px_24px_rgba(0,0,0,0.10)]"
+          <FloatingPanel anchor={ref} width={216} onClose={onCloseMenu} role="menu"
+            className="flex flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] shadow-[0px_10px_24px_rgba(0,0,0,0.10)]"
           >
             <MenuItem label="Edit" onClick={onEditProfile} />
             <MenuItem label="Reset Password" onClick={onResetPassword} />
             <MenuItem label={active ? "Disable" : "Enable"} onClick={onToggleStatus} />
             <MenuItem label="Delete" danger onClick={onDelete} />
-          </div>
+          </FloatingPanel>
         )}
       </div>
     </div>
@@ -292,10 +311,10 @@ function MenuItem({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className={`w-full rounded-[8px] px-[16px] py-[10px] text-left font-manrope text-[14px] font-semibold leading-[20px] transition-colors ${
+      className={`w-full rounded-[8px] px-[13px] py-[10px] text-left font-manrope text-[14px] font-semibold leading-[20px] transition-colors ${
         danger
-          ? "bg-[#f9f1f1] text-[#ab2222] hover:bg-[#f3e4e4]"
-          : "bg-[#f1f5f9] text-[#1e1e24] hover:bg-[#e6ebf1]"
+          ? "bg-[#f9f1f1] text-[#ab2222] app-option-hover"
+          : "bg-[#f1f5f9] text-[#1e1e24] app-option-hover"
       }`}
     >
       {label}
@@ -348,7 +367,7 @@ function EditAccountProfileDialog({
   return (
     <DialogShell title="Edit Account Profile" onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col">
-        <div className="grid grid-cols-1 gap-x-[38px] gap-y-[24px] px-[30px] pb-[24px] pt-[16px] sm:grid-cols-2">
+        <div className="app-form-grid grid grid-cols-1 gap-x-[32px] gap-y-[20px] px-[25px] pb-[20px] pt-[13px] sm:grid-cols-2">
           <Field label="Full Name" required>
             <UnderlineInput value={fullName} onChange={setFullName} placeholder="Full name" autoFocus />
           </Field>
@@ -357,23 +376,23 @@ function EditAccountProfileDialog({
           </Field>
         </div>
         {error && (
-          <p role="alert" className="px-[30px] pb-[8px] font-inter text-[13px] text-[#ba1a1a]">
+          <p role="alert" className="px-[25px] pb-[8px] font-inter text-[13px] text-[#ba1a1a]">
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-[12px] px-[30px] py-[22px]">
+        <div className="flex items-center justify-end gap-[12px] px-[25px] py-[18px]">
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-[12px] px-[30px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:bg-[#f1f5f9] disabled:opacity-50"
+            className="rounded-[12px] px-[25px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:bg-[#f1f5f9] disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-[12px] bg-[#0077c0] px-[30px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_4px_6px_rgba(0,71,141,0.2)] transition-colors hover:bg-[#0069a8] disabled:opacity-50"
+            className="rounded-[12px] bg-[#0077c0] px-[25px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_4px_6px_rgba(0,71,141,0.2)] transition-colors hover:bg-[#0069a8] disabled:opacity-50"
           >
             {saving ? "Saving…" : "Update Profile"}
           </button>
@@ -433,7 +452,7 @@ function ResetPasswordDialog({
   return (
     <DialogShell title="Reset Password" onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col">
-        <div className="grid grid-cols-1 gap-x-[38px] gap-y-[24px] px-[30px] pb-[24px] pt-[16px] sm:grid-cols-2">
+        <div className="app-form-grid grid grid-cols-1 gap-x-[32px] gap-y-[20px] px-[25px] pb-[20px] pt-[13px] sm:grid-cols-2">
           <Field label="Password" required>
             <UnderlineInput
               value={password}
@@ -461,16 +480,16 @@ function ResetPasswordDialog({
         {(error || done) && (
           <p
             role="alert"
-            className={`px-[30px] pb-[8px] font-inter text-[13px] ${done ? "text-[#15803d]" : "text-[#ba1a1a]"}`}
+            className={`px-[25px] pb-[8px] font-inter text-[13px] ${done ? "text-[#15803d]" : "text-[#ba1a1a]"}`}
           >
             {done ? `Password updated for ${displayName(account)}.` : error}
           </p>
         )}
-        <div className="flex items-center justify-end px-[30px] py-[22px]">
+        <div className="flex items-center justify-end px-[25px] py-[18px]">
           <button
             type="submit"
             disabled={!canSubmit}
-            className={`rounded-[12px] px-[30px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_4px_11px_rgba(0,71,141,0.2)] transition-colors ${
+            className={`rounded-[12px] px-[25px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_4px_11px_rgba(0,71,141,0.2)] transition-colors ${
               canSubmit ? "bg-[#0077c0] hover:bg-[#0069a8]" : "cursor-not-allowed bg-[rgba(0,119,192,0.5)]"
             }`}
           >
@@ -536,7 +555,7 @@ function ConfirmAccountActionDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -545,7 +564,7 @@ function ConfirmAccountActionDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-account-title"
-        className="flex w-full max-w-[448px] flex-col gap-[16px] rounded-[15px] border border-[#c2c6d4] bg-white p-[24px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+        className="app-dialog flex w-full max-w-[448px] flex-col gap-[13px] rounded-[13px] border-[1.167px] border-black bg-white p-[clamp(13px,3vw,20px)] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
       >
         <div className="flex items-center gap-[12px]">
           {isDelete ? (
@@ -555,7 +574,7 @@ function ConfirmAccountActionDialog({
           )}
           <h2
             id="confirm-account-title"
-            className="font-manrope text-[20px] font-semibold leading-[28px] text-[#1e1e24]"
+            className="font-manrope text-[18px] font-semibold leading-[25px] text-[#1e1e24]"
           >
             {title}
           </h2>
@@ -570,12 +589,12 @@ function ConfirmAccountActionDialog({
             {error}
           </p>
         )}
-        <div className="flex items-center justify-end gap-[12px] pt-[16px]">
+        <div className="app-toolbar flex items-center justify-end gap-[12px] pt-[13px]">
           <button
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="rounded-full border border-[#1e1e24] px-[21px] py-[10px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:bg-[#f1f5f9] disabled:opacity-50"
+            className="rounded-full border-[1.167px] border-black px-[18px] py-[10px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:bg-[#f1f5f9] disabled:opacity-50"
           >
             Cancel
           </button>
@@ -583,7 +602,7 @@ function ConfirmAccountActionDialog({
             type="button"
             onClick={handleConfirm}
             disabled={busy}
-            className={`rounded-full px-[20px] py-[10px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-opacity hover:opacity-90 disabled:opacity-50 ${
+            className={`rounded-full px-[17px] py-[10px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-opacity hover:opacity-90 disabled:opacity-50 ${
               isDelete ? "bg-[#c0202b]" : "bg-[#0077c0]"
             }`}
           >
@@ -618,7 +637,7 @@ function DialogShell({
 
   return (
     <div
-      className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -627,12 +646,12 @@ function DialogShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby="account-dialog-title"
-        className="flex w-full max-w-[640px] flex-col overflow-hidden rounded-[30px] bg-white shadow-[0px_30px_60px_-15px_rgba(0,0,0,0.1)]"
+        className="app-dialog flex w-full max-w-[640px] flex-col overflow-hidden rounded-[25px] bg-white shadow-[0px_30px_60px_-15px_rgba(0,0,0,0.1)]"
       >
-        <div className="flex items-center justify-between border-b border-[rgba(194,198,212,0.5)] px-[30px] pb-[15px] pt-[30px]">
+        <div className="app-toolbar flex items-center justify-between border-b-[1.167px] border-black px-[clamp(13px,3vw,25px)] pb-[15px] pt-[25px]">
           <h2
             id="account-dialog-title"
-            className="font-manrope text-[28px] font-semibold leading-[36px] tracking-[-0.7px] text-[#1e1e24]"
+            className="font-manrope text-[25px] font-semibold leading-[32px] tracking-[-0.7px] text-[#1e1e24]"
           >
             {title}
           </h2>
@@ -691,7 +710,7 @@ function UnderlineInput({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       autoFocus={autoFocus}
-      className="border-b border-[rgba(194,198,212,0.6)] pb-[10px] pt-[9px] font-inter text-[15px] text-[#1e1e24] outline-none transition-colors placeholder:text-[#c2c6d4] focus:border-[#0077c0]"
+      className="border-b-[1.167px] border-black pb-[10px] pt-[9px] font-inter text-[14px] text-[#1e1e24] outline-none transition-colors placeholder:text-field-placeholder focus:border-black"
     />
   );
 }
@@ -732,5 +751,52 @@ function BlockIcon({ className }: { className?: string }) {
       <circle cx="12" cy="12" r="9" />
       <path d="M5.6 5.6l12.8 12.8" strokeLinecap="round" />
     </svg>
+  );
+}
+
+
+/** Role filter uses the same floating option menu as the app's other filters. */
+function RoleFilter({ value, onChange }: {
+  value: Role | "all";
+  onChange: (role: Role | "all") => void;
+}) {
+  const [open, setOpen] = useExclusiveDropdown();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const options: Array<{ value: Role | "all"; label: string }> = [
+    { value: "all", label: "All Role" },
+    ...(["CLIENT_ADMIN", "DOCTOR", "RECEPTIONIST", "GUEST_DOCTOR"] as const).map(role => ({ value: role, label: ROLE_LABELS[role] })),
+  ];
+
+  return (
+    <div>
+      <button
+        ref={trigger}
+        type="button"
+        aria-label="Filter accounts by role"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+        className="flex h-[44px] items-center gap-[10px] rounded-[10px] border-[1.167px] border-black bg-white px-[13px] font-inter text-[14px] text-[#1e1e24]"
+      >
+        {value === "all" ? "All Role" : ROLE_LABELS[value]}
+        <Image src="/dashboard/chevron_dark.svg" alt="" width={20} height={20} className={"size-5 transition-transform " + (open ? "rotate-90" : "-rotate-90")} />
+      </button>
+      {open && (
+        <FloatingPanel anchor={trigger} width={216} role="menu" label="Account roles" onClose={() => setOpen(false)} className="flex flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] shadow-lg">
+          {options.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === option.value}
+              onClick={() => { onChange(option.value); setOpen(false); }}
+              className={"flex w-full items-center justify-between gap-3 rounded-[8px] px-[13px] py-[10px] text-left font-manrope text-[14px] font-semibold transition-colors " + (value === option.value ? "bg-[#0077c0] text-white" : "app-option-hover text-[#1e1e24]")}
+            >
+              {option.label}
+            </button>
+          ))}
+        </FloatingPanel>
+      )}
+    </div>
   );
 }

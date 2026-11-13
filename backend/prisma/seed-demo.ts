@@ -503,14 +503,13 @@ async function seedClinic(clinicId: string, passwordHash: string): Promise<void>
         'CONFIRMED',
         'SCHEDULED',
         'CANCELLED',
-        'NO_SHOW',
       ];
       let chatAppointmentId = '';
       for (let d = 0; d < doctors.length; d++) {
         for (let h = 0; h < 36; h++) {
           const offset = -180 + h * 5;
           const status: AppointmentStatus =
-            h % 9 === 7 ? 'CANCELLED' : h % 9 === 8 ? 'NO_SHOW' : 'COMPLETED';
+            h % 9 >= 7 ? 'CANCELLED' : 'COMPLETED';
           const appt = await appointment(
             `history:${d}:${h}`,
             offset,

@@ -1,5 +1,7 @@
 "use client";
 
+import TableViewport from "@/components/TableViewport";
+
 import Image from "next/image";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -55,7 +57,7 @@ import { useMe } from "../session";
  * (`/api/patients/:patientId/records/...`). Each table exports to `.xls`.
  */
 
-const CARD = "rounded-[8px] border border-[#c2c6d4] bg-white/50";
+const CARD = "rounded-[8px] border-[1.167px] border-black bg-white/50";
 const LABEL = "font-inter text-[12px] font-medium uppercase tracking-[0.6px] text-[#1e1e24]";
 
 export default function PatientRecordsView({
@@ -126,42 +128,42 @@ export default function PatientRecordsView({
   }, [onClose]);
 
   return (
-    <div className="flex flex-1 flex-col gap-[48px]">
+    <div data-patient-records className="app-page flex flex-1 flex-col gap-[40px]">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between gap-4">
+      <div className="app-toolbar app-toolbar flex shrink-0 items-center justify-between gap-3.5">
         <div className="flex items-center gap-[15px]">
           <BackButton onClick={onClose} ariaLabel="Back to appointments" />
           <div>
-            <h1 className="font-manrope text-[32px] font-bold leading-[40px] tracking-[-0.6px] text-[#1e1e24]">
+            <h1 className="app-page-title font-manrope text-[28px] font-bold leading-[35px] tracking-[-0.6px] text-[#1e1e24]">
               Patient Records
             </h1>
-            <p className="font-inter text-[15px] leading-[21px] text-[#1e1e24]">
+            <p className="font-inter text-[14px] leading-[21px] text-[#1e1e24]">
               Manage patient records and documentations.
             </p>
           </div>
         </div>
 
         {/* Info action + patient card */}
-        <div className="flex shrink-0 items-center gap-[14px]">
+        <div className="app-toolbar app-toolbar flex shrink-0 items-center gap-[14px]">
           <button
             type="button"
             onClick={() => setShowInfo(true)}
             aria-label="Additional info"
-            className="group relative flex size-[44px] items-center justify-center rounded-full border border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
+            className="group relative flex size-[44px] items-center justify-center rounded-full border-[1.167px] border-black transition-colors"
           >
-            <Image src="/dashboard/error.svg" alt="" width={24} height={24} className="size-6" />
+            <Image src="/dashboard/error.svg" alt="" width={24} height={24} className="size-5" />
             <Tip label="Info" />
           </button>
 
           {/* Patient card — compact: each column is a label with its value and a
               muted sub-line beneath (patient id / appointment date & time). */}
           <div
-            className="flex items-stretch gap-[18px] rounded-[13px] border border-[#c2c6d4] px-[18px] py-[12px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
+            className="app-toolbar flex items-stretch gap-[15px] rounded-[13px] border-[1.167px] border-black px-[15px] py-[12px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
             style={{ backgroundImage: "linear-gradient(164.8deg, #ffffff 0%, #eff4ff 100%)" }}
           >
             <div className="flex flex-col gap-[1px]">
               <span className="font-inter text-[13px] font-medium tracking-[0.6px] text-[#1e1e24]">Patient Name</span>
-              <span className="font-manrope text-[18px] font-semibold leading-[24px] text-[#1e1e24]">{patientName}</span>
+              <span className="font-manrope text-[16px] font-semibold leading-[21px] text-[#1e1e24]">{patientName}</span>
               <span className="font-inter text-[13px] leading-[18px] text-[#727783]">{patientCode}</span>
             </div>
 
@@ -170,7 +172,7 @@ export default function PatientRecordsView({
                 <span className="w-px self-stretch bg-[#c2c6d4]" />
                 <div className="flex flex-col gap-[1px]">
                   <span className="font-inter text-[13px] font-medium tracking-[0.6px] text-[#1e1e24]">Appointment ID</span>
-                  <span className="font-manrope text-[18px] font-semibold leading-[24px] text-[#1e1e24]">{appointmentCode}</span>
+                  <span className="font-manrope text-[16px] font-semibold leading-[21px] text-[#1e1e24]">{appointmentCode}</span>
                   <span className="font-inter text-[13px] leading-[18px] text-[#727783]">
                     {appointmentDate || "--"}
                     {appointmentTime && appointmentTime !== "--" ? ` · ${appointmentTime}` : ""}
@@ -308,16 +310,16 @@ function ObservationsSection({
   }
 
   return (
-    <section className={`${CARD} flex flex-col gap-[17px] p-[26px]`}>
+    <section className={`app-record-card ${CARD} flex flex-col gap-[14px] p-[22px]`}>
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-[16px]">
-          <Image src="/dashboard/note_alt.svg" alt="" width={48} height={48} className="size-[48px] shrink-0" />
+      <div className="app-toolbar app-toolbar flex items-center justify-between gap-3.5">
+        <div className="app-toolbar flex items-center gap-[13px]">
+          <Image src="/dashboard/note_alt.svg" alt="" width={48} height={48} className="size-[40px] shrink-0" />
           <div>
-            <h2 className="font-manrope text-[21px] font-semibold leading-[30px] text-[#1e1e24]">
+            <h2 className="font-manrope text-[18px] font-semibold leading-[26px] text-[#1e1e24]">
               Doctor/Clinical Observations
             </h2>
-            <p className="font-manrope text-[15px] leading-[21px] text-[#1e1e24]">
+            <p className="font-manrope text-[14px] leading-[21px] text-[#1e1e24]">
               Add your remarks based on your observations.
             </p>
           </div>
@@ -337,7 +339,7 @@ function ObservationsSection({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Enter your observation"
-          className="h-[136px] w-full resize-none rounded-[8px] border border-b-2 border-[#1e1e24] bg-white px-[18px] pb-[44px] pt-[18px] font-inter text-[15px] leading-[21px] text-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none placeholder:text-[#c2c6d4]"
+          className="h-[136px] w-full resize-none rounded-[8px] border-[1.167px] border-b-[1.167px] border-black bg-white px-[15px] pb-[37px] pt-[15px] font-inter text-[14px] leading-[21px] text-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none placeholder:text-field-placeholder"
         />
         <div className="absolute bottom-[14px] right-[14px] flex items-center gap-[8px]">
           <button
@@ -360,28 +362,28 @@ function ObservationsSection({
       </div>
 
       {/* Entries table */}
-      <div className="overflow-hidden rounded-[12px] border border-[#c2c6d4] bg-white">
-        <div className={`grid ${GRID} items-center border-b border-[#c2c6d4] px-[24px]`}>
+      <TableViewport label="Clinical records" minWidth="640px" className="rounded-[12px] border border-black bg-white">
+        <div className={`app-table-header grid ${GRID} items-center border-b border-black px-[20px]`}>
           {["SI No.", "Observation", "Date"].map((h) => (
-            <span key={h} className="py-[18px] font-inter text-[14px] font-semibold uppercase tracking-[0.7px] text-[#1e1e24]">
+            <span key={h} className="py-[15px] font-inter text-[14px] font-semibold uppercase tracking-[0.7px] text-[#1e1e24]">
               {h}
             </span>
           ))}
-          <span className="py-[18px] text-right font-inter text-[14px] font-semibold uppercase tracking-[0.7px] text-[#1e1e24]">
+          <span className="py-[15px] text-right font-inter text-[14px] font-semibold uppercase tracking-[0.7px] text-[#1e1e24]">
             Action
           </span>
         </div>
         {entries.length === 0 ? (
-          <p className="px-[24px] py-[28px] text-center font-inter text-[14px] text-[#94a3b8]">
+          <p className="px-[20px] py-[24px] text-center font-inter text-[14px] text-[#94a3b8]">
             No observations yet. Add one above.
           </p>
         ) : (
           entries.map((e, i) => {
             const editing = editingId === e.id;
             return (
-              <div key={e.id} className={`grid ${GRID} items-center border-b border-[#c2c6d4] px-[24px] last:border-b-0`}>
-                <span className="py-[20px] font-inter text-[15px] text-[#1e1e24]">{String(i + 1).padStart(3, "0")}</span>
-                <div className="py-[20px] pr-3">
+              <div key={e.id} className={`grid ${GRID} items-center border-b border-black px-[20px] last:border-b-0`}>
+                <span className="py-[17px] font-inter text-[14px] text-[#1e1e24]">{String(i + 1).padStart(3, "0")}</span>
+                <div className="py-[17px] pr-3">
                   {editing ? (
                     <input
                       value={editText}
@@ -390,14 +392,14 @@ function ObservationsSection({
                         if (ev.key === "Enter") saveEdit();
                       }}
                       autoFocus
-                      className="w-full rounded-full border border-[#1e1e24] px-[16px] py-[6px] font-inter text-[15px] text-[#1e1e24] outline-none"
+                      className="w-full rounded-full border-[1.167px] border-black px-[13px] py-[6px] font-inter text-[14px] text-[#1e1e24] outline-none"
                     />
                   ) : (
-                    <span className="font-inter text-[15px] text-[#1e1e24]">{e.text}</span>
+                    <span className="font-inter text-[14px] text-[#1e1e24]">{e.text}</span>
                   )}
                 </div>
-                <span className="py-[20px] font-inter text-[15px] text-[#1e1e24]">{e.date}</span>
-                <div className="flex items-center justify-end gap-[6px] py-[20px]">
+                <span className="py-[17px] font-inter text-[14px] text-[#1e1e24]">{e.date}</span>
+                <div className="flex items-center justify-end gap-[6px] py-[17px]">
                   {isAdmin || !e.createdById || e.createdById === currentUserId ? (
                     <>
                       {editing ? (
@@ -405,7 +407,7 @@ function ObservationsSection({
                           type="button"
                           onClick={saveEdit}
                           aria-label="Save observation"
-                          className="group relative flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
+                          className="group relative flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
                         >
                           <Image src="/dashboard/save.svg" alt="" width={22} height={22} className="size-[22px]" />
                           <Tip label="Save" />
@@ -418,7 +420,7 @@ function ObservationsSection({
                             setEditText(e.text);
                           }}
                           aria-label="Edit observation"
-                          className="group relative flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
+                          className="group relative flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
                         >
                           <Image src="/dashboard/edit_square.svg" alt="" width={22} height={22} className="size-[22px]" />
                           <Tip label="Edit" />
@@ -428,7 +430,7 @@ function ObservationsSection({
                         type="button"
                         onClick={() => setPendingDelete(e)}
                         aria-label="Delete observation"
-                        className="group relative flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#fef2f2]"
+                        className="group relative flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#fef2f2]"
                       >
                         <Image src="/dashboard/delete.svg" alt="" width={22} height={22} className="size-[22px]" />
                         <Tip label="Delete" />
@@ -442,7 +444,7 @@ function ObservationsSection({
             );
           })
         )}
-      </div>
+      </TableViewport>
 
       {pendingDelete && (
         <ConfirmDeleteDialog
@@ -512,19 +514,19 @@ function PerioChart({
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-[8px] border border-[#1e1e24] bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
+      className="relative w-full overflow-hidden rounded-[8px] border-[1.167px] border-black bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)]"
       style={{ aspectRatio: chart.aspectRatio }}
     >
       {/* Keep the primary artwork and click targets at the same width and top
           position while trimming unused space from the bottom of its frame. */}
-      <div className={`absolute ${dentition === "primary" ? "inset-x-[5%] top-[5.5%] bottom-[4.5%]" : "inset-0"}`}>
+      <div className={`app-perio-artwork absolute ${dentition === "primary" ? "inset-x-[5%] top-[5.5%] bottom-[4.5%]" : "inset-0"}`}>
       {/* Chart line-art (already FDI-numbered). */}
       <Image
         src={chart.src}
         alt={`${chart.label} perio-dental chart`}
         fill
         unoptimized
-        sizes="(max-width: 1024px) 100vw, 50vw"
+        sizes="(max-width: 1100px) 100vw, 40vw"
         className="object-contain"
       />
 
@@ -634,13 +636,13 @@ function PerioSection({
   }
 
   return (
-    <section className="flex flex-col gap-[32px]">
-      <div className="flex items-center justify-between gap-4">
+    <section className="flex flex-col gap-[27px]">
+      <div className="app-toolbar app-toolbar flex items-center justify-between gap-3.5">
         <div>
-          <h2 className="font-manrope text-[30px] font-bold leading-[38px] tracking-[-0.6px] text-[#1e1e24]">
+          <h2 className="font-manrope text-[26px] font-bold leading-[33px] tracking-[-0.6px] text-[#1e1e24]">
             Perio-dental chart
           </h2>
-          <p className="font-inter text-[16px] leading-[24px] text-[#1e1e24]">
+          <p className="font-inter text-[14px] leading-[21px] text-[#1e1e24]">
             Review the periodontal analysis and findings for each tooth below.
           </p>
         </div>
@@ -653,7 +655,7 @@ function PerioSection({
         </div>
       </div>
 
-      <div role="tablist" aria-label="Tooth chart" className="flex flex-wrap gap-2 border-b border-[#c2c6d4]">
+      <div role="tablist" aria-label="Tooth chart" className="app-dentition-tabs">
         {DENTITIONS.map((value) => (
           <button
             key={value}
@@ -672,28 +674,24 @@ function PerioSection({
               setDentition(next);
               document.getElementById(`${tabsId}-${next}`)?.focus();
             }}
-            className={`border-b-2 px-5 py-3 font-inter text-[15px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0] ${dentition === value
-              ? "border-[#0077c0] text-[#0077c0]" : "border-transparent text-[#727783] hover:text-[#0077c0]"}`}
+            className="app-dentition-tab font-inter focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0]"
           >
             {DENTAL_CHARTS[value].label}
           </button>
         ))}
       </div>
 
-      <div id={`${tabsId}-panel`} role="tabpanel" aria-labelledby={`${tabsId}-${dentition}`} className="grid grid-cols-1 items-start gap-[32px] lg:grid-cols-2">
+      <div id={`${tabsId}-panel`} role="tabpanel" aria-labelledby={`${tabsId}-${dentition}`} className="app-tooth-layout items-start gap-[27px]">
         {/* Left: interactive FDI odontogram over the reference chart image. */}
         <PerioChart key={dentition} dentition={dentition} teeth={chartTeeth} selected={tooth} onSelect={setTooth} />
 
-        {/* Right: tooth-wise remarks form + table. On lg the column is given the
-            chart's aspect ratio (same column width → same height), so the table
-            below fills the leftover space and scrolls once its rows would grow
-            past the chart's height. */}
-        <div className="flex flex-col gap-[32px] lg:min-h-0 lg:overflow-hidden lg:[aspect-ratio:var(--chart-aspect)]" style={{ "--chart-aspect": chart.aspectRatio } as React.CSSProperties}>
-          <div className={`${CARD} flex shrink-0 flex-col gap-[16px] bg-white p-[25px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]`}>
+        {/* Grow with the remarks, then scroll once the chart's height is reached. */}
+        <div className="app-tooth-details">
+          <div className={`app-record-card ${CARD} flex shrink-0 flex-col gap-[13px] bg-white p-[21px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]`}>
             <div className="flex flex-col gap-[4px]">
-              <div className="flex items-center gap-[8px]">
-                <Image src="/dashboard/note_stack.svg" alt="" width={24} height={24} className="size-6" />
-                <h3 className="font-manrope text-[20px] font-semibold leading-[28px] text-[#1e1e24]">
+              <div className="app-pagination-controls flex items-center gap-[8px]">
+                <Image src="/dashboard/note_stack.svg" alt="" width={24} height={24} className="size-5" />
+                <h3 className="font-manrope text-[18px] font-semibold leading-[25px] text-[#1e1e24]">
                   Tooth-wise Remarks
                 </h3>
               </div>
@@ -702,21 +700,21 @@ function PerioSection({
               </p>
             </div>
 
-            <div className="flex items-start gap-[16px]">
-              <div className="flex flex-1 flex-col gap-[8px]">
+            <div className="app-toolbar items-start gap-[13px]">
+              <div className="app-search-field flex flex-1 flex-col gap-[8px]">
                 <span className={LABEL}>Remarks</span>
                 <textarea
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   placeholder="Enter the tooth remarks."
-                  className="h-[80px] w-full resize-none rounded-[8px] border border-[#1e1e24] px-[13px] py-[11px] font-inter text-[14px] leading-[20px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4]"
+                  className="h-[80px] w-full resize-none rounded-[8px] border-[1.167px] border-black px-[13px] py-[11px] font-inter text-[14px] leading-[20px] text-[#1e1e24] outline-none placeholder:text-field-placeholder"
                 />
               </div>
               <div className="flex w-[129px] flex-col gap-[8px]">
                 <span className={LABEL}>Tooth Number</span>
                 <div
-                  className={`flex h-[40px] items-center justify-center rounded-[8px] border font-inter text-[16px] font-semibold ${
-                    tooth ? "border-[#0077c0] text-[#0077c0]" : "border-[#1e1e24] text-[#c2c6d4]"
+                  className={`flex h-[40px] items-center justify-center rounded-[8px] border-[1.167px] font-inter text-[14px] font-semibold ${
+                    tooth ? "border-[#0077c0] text-[#0077c0]" : "border-black text-field-placeholder"
                   }`}
                 >
                   {tooth || "Select"}
@@ -730,11 +728,11 @@ function PerioSection({
                 type="button"
                 onClick={submit}
                 disabled={!canAdd}
-                className={`flex min-w-[129px] items-center justify-center gap-[6px] whitespace-nowrap rounded-[8px] px-[16px] py-[9px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-opacity ${
+                className={`app-action-button flex min-w-[129px] items-center justify-center whitespace-nowrap rounded-[8px] py-[9px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-opacity ${
                   canAdd ? "bg-[#0077c0] hover:opacity-90" : "bg-[#0077c0] opacity-50"
                 }`}
               >
-                <Image src="/dashboard/add.svg" alt="" width={18} height={18} className="size-[18px] shrink-0" />
+                <Image src="/dashboard/add.svg" alt="" width={14} height={14} className="size-3.5 shrink-0" />
                 {editingId ? "Update" : "Add Entry"}
               </button>
             </div>
@@ -742,8 +740,8 @@ function PerioSection({
 
           {/* Table title + table, grouped tightly. The title reflects the
               current tooth filter, with a Show-all toggle when one is selected. */}
-          <div className="flex flex-col gap-[12px] lg:min-h-0 lg:flex-1">
-          <div className="flex shrink-0 items-center justify-between">
+          <div className="app-tooth-remarks flex min-h-0 flex-col gap-[12px]">
+          <div className="app-toolbar app-toolbar flex shrink-0 items-center justify-between">
             <span className="font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#727783]">
               {tooth ? `Remarks — Tooth ${tooth}` : "All tooth-wise remarks"}
             </span>
@@ -762,18 +760,17 @@ function PerioSection({
             )}
           </div>
 
-          {/* Tooth-wise table — scrolls within the column once its rows would
-              exceed the chart height (see the column's aspect-ratio above). */}
-          <div className="overflow-hidden rounded-[11px] border border-[#c2c6d4] bg-white lg:min-h-0 lg:overflow-y-auto">
-            <div className="sticky top-0 z-[1] grid grid-cols-[minmax(0,80fr)_minmax(0,200fr)_minmax(0,150fr)] items-center border-b border-[#c2c6d4] bg-white px-[16px]">
+          {/* Keep every remarks column readable in narrow layouts. */}
+          <TableViewport label="Tooth remarks" minWidth="480px" className="app-tooth-table rounded-[11px] border border-black bg-white">
+            <div className="app-table-header sticky top-0 z-[1] grid grid-cols-[minmax(0,80fr)_minmax(0,200fr)_minmax(0,150fr)] items-center border-b border-black bg-white px-[13px]">
               {["Tooth No", "Remarks", "Date"].map((h) => (
-                <span key={h} className="py-[18px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24]">
+                <span key={h} className="py-[15px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24]">
                   {h}
                 </span>
               ))}
             </div>
             {visibleTeeth.length === 0 ? (
-              <p className="px-[16px] py-[28px] text-center font-inter text-[14px] text-[#94a3b8]">
+              <p className="px-[13px] py-[24px] text-center font-inter text-[14px] text-[#94a3b8]">
                 {tooth
                   ? `No remarks for tooth ${tooth} yet. Add one above.`
                   : "No tooth-wise remarks yet. Add one above."}
@@ -782,11 +779,11 @@ function PerioSection({
               visibleTeeth.map((t) => (
                 <div
                   key={t.id}
-                  className="grid grid-cols-[minmax(0,80fr)_minmax(0,200fr)_minmax(0,150fr)] items-center border-b border-[#c2c6d4] px-[16px] last:border-b-0"
+                  className="grid grid-cols-[minmax(0,80fr)_minmax(0,200fr)_minmax(0,150fr)] items-center border-b border-black px-[13px] last:border-b-0"
                 >
-                  <span className="py-[20px] font-inter text-[14px] font-medium text-[#1e1e24]">{t.toothNo}</span>
-                  <span className="py-[20px] pr-2 font-inter text-[14px] text-[#1e1e24]">{t.remarks}</span>
-                  <div className="flex items-center justify-between gap-2 py-[20px]">
+                  <span className="py-[17px] font-inter text-[14px] font-medium text-[#1e1e24]">{t.toothNo}</span>
+                  <span className="py-[17px] pr-2 font-inter text-[14px] text-[#1e1e24]">{t.remarks}</span>
+                  <div className="app-toolbar flex items-center justify-between gap-2 py-[17px]">
                     <span className="font-inter text-[14px] font-medium text-[#1e1e24]">{t.date}</span>
                     {isAdmin || !t.createdById || t.createdById === currentUserId ? (
                       <div className="flex items-center gap-[6px]">
@@ -794,7 +791,7 @@ function PerioSection({
                           type="button"
                           onClick={() => edit(t.id)}
                           aria-label={`Edit tooth ${t.toothNo} remark`}
-                          className="group relative flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
+                          className="group relative flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
                         >
                           <Image src="/dashboard/edit_square.svg" alt="" width={22} height={22} className="size-[22px]" />
                           <Tip label="Edit" />
@@ -803,7 +800,7 @@ function PerioSection({
                           type="button"
                           onClick={() => setPendingDelete(t)}
                           aria-label={`Delete tooth ${t.toothNo} remark`}
-                          className="group relative flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#fef2f2]"
+                          className="group relative flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#fef2f2]"
                         >
                           <Image src="/dashboard/delete.svg" alt="" width={22} height={22} className="size-[22px]" />
                           <Tip label="Delete" />
@@ -816,7 +813,7 @@ function PerioSection({
                 </div>
               ))
             )}
-          </div>
+          </TableViewport>
           </div>
         </div>
       </div>
@@ -889,16 +886,16 @@ function MedicalHistorySection({
   }
 
   return (
-    <section className={`${CARD} flex flex-col gap-[17px] p-[26px]`}>
+    <section className={`app-record-card ${CARD} flex flex-col gap-[14px] p-[22px]`}>
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-[16px]">
-          <Image src="/dashboard/medical_information.svg" alt="" width={48} height={48} className="size-[48px] shrink-0" />
+      <div className="app-toolbar app-toolbar flex items-center justify-between gap-3.5">
+        <div className="app-toolbar flex items-center gap-[13px]">
+          <Image src="/dashboard/medical_information.svg" alt="" width={48} height={48} className="size-[40px] shrink-0" />
           <div>
-            <h2 className="font-manrope text-[21px] font-semibold leading-[30px] text-[#1e1e24]">
+            <h2 className="font-manrope text-[18px] font-semibold leading-[26px] text-[#1e1e24]">
               Patient Medical History
             </h2>
-            <p className="font-manrope text-[15px] leading-[21px] text-[#1e1e24]">
+            <p className="font-manrope text-[14px] leading-[21px] text-[#1e1e24]">
               Add the patient medical history below.
             </p>
           </div>
@@ -918,7 +915,7 @@ function MedicalHistorySection({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Enter the medical history here."
-          className="h-[136px] w-full resize-none rounded-[8px] border border-b-2 border-[#1e1e24] bg-white px-[18px] pb-[44px] pt-[18px] font-inter text-[15px] leading-[21px] text-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none placeholder:text-[#c2c6d4]"
+          className="h-[136px] w-full resize-none rounded-[8px] border-[1.167px] border-b-[1.167px] border-black bg-white px-[15px] pb-[37px] pt-[15px] font-inter text-[14px] leading-[21px] text-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none placeholder:text-field-placeholder"
         />
         <div className="absolute bottom-[14px] right-[14px] flex items-center gap-[8px]">
           <button
@@ -941,28 +938,28 @@ function MedicalHistorySection({
       </div>
 
       {/* Entries table */}
-      <div className="overflow-hidden rounded-[12px] border border-[#c2c6d4] bg-white">
-        <div className={`grid ${GRID} items-center border-b border-[#c2c6d4] px-[24px]`}>
+      <TableViewport label="Clinical records" minWidth="640px" className="rounded-[12px] border border-black bg-white">
+        <div className={`app-table-header grid ${GRID} items-center border-b border-black px-[20px]`}>
           {["SI No.", "Medical History", "Date"].map((h) => (
-            <span key={h} className="py-[18px] font-inter text-[14px] font-semibold uppercase tracking-[0.7px] text-[#1e1e24]">
+            <span key={h} className="py-[15px] font-inter text-[14px] font-semibold uppercase tracking-[0.7px] text-[#1e1e24]">
               {h}
             </span>
           ))}
-          <span className="py-[18px] text-right font-inter text-[14px] font-semibold uppercase tracking-[0.7px] text-[#1e1e24]">
+          <span className="py-[15px] text-right font-inter text-[14px] font-semibold uppercase tracking-[0.7px] text-[#1e1e24]">
             Action
           </span>
         </div>
         {entries.length === 0 ? (
-          <p className="px-[24px] py-[28px] text-center font-inter text-[14px] text-[#94a3b8]">
+          <p className="px-[20px] py-[24px] text-center font-inter text-[14px] text-[#94a3b8]">
             No medical history yet. Add one above.
           </p>
         ) : (
           entries.map((e, i) => {
             const editing = editingId === e.id;
             return (
-              <div key={e.id} className={`grid ${GRID} items-center border-b border-[#c2c6d4] px-[24px] last:border-b-0`}>
-                <span className="py-[20px] font-inter text-[15px] text-[#1e1e24]">{String(i + 1).padStart(3, "0")}</span>
-                <div className="py-[20px] pr-3">
+              <div key={e.id} className={`grid ${GRID} items-center border-b border-black px-[20px] last:border-b-0`}>
+                <span className="py-[17px] font-inter text-[14px] text-[#1e1e24]">{String(i + 1).padStart(3, "0")}</span>
+                <div className="py-[17px] pr-3">
                   {editing ? (
                     <input
                       value={editText}
@@ -971,14 +968,14 @@ function MedicalHistorySection({
                         if (ev.key === "Enter") saveEdit();
                       }}
                       autoFocus
-                      className="w-full rounded-full border border-[#1e1e24] px-[16px] py-[6px] font-inter text-[15px] text-[#1e1e24] outline-none"
+                      className="w-full rounded-full border-[1.167px] border-black px-[13px] py-[6px] font-inter text-[14px] text-[#1e1e24] outline-none"
                     />
                   ) : (
-                    <span className="font-inter text-[15px] text-[#1e1e24]">{e.text}</span>
+                    <span className="font-inter text-[14px] text-[#1e1e24]">{e.text}</span>
                   )}
                 </div>
-                <span className="py-[20px] font-inter text-[15px] text-[#1e1e24]">{e.date}</span>
-                <div className="flex items-center justify-end gap-[6px] py-[20px]">
+                <span className="py-[17px] font-inter text-[14px] text-[#1e1e24]">{e.date}</span>
+                <div className="flex items-center justify-end gap-[6px] py-[17px]">
                   {isAdmin || !e.createdById || e.createdById === currentUserId ? (
                     <>
                       {editing ? (
@@ -986,7 +983,7 @@ function MedicalHistorySection({
                           type="button"
                           onClick={saveEdit}
                           aria-label="Save medical history"
-                          className="group relative flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
+                          className="group relative flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
                         >
                           <Image src="/dashboard/save.svg" alt="" width={22} height={22} className="size-[22px]" />
                           <Tip label="Save" />
@@ -999,7 +996,7 @@ function MedicalHistorySection({
                             setEditText(e.text);
                           }}
                           aria-label="Edit medical history"
-                          className="group relative flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
+                          className="group relative flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
                         >
                           <Image src="/dashboard/edit_square.svg" alt="" width={22} height={22} className="size-[22px]" />
                           <Tip label="Edit" />
@@ -1009,7 +1006,7 @@ function MedicalHistorySection({
                         type="button"
                         onClick={() => setPendingDelete(e)}
                         aria-label="Delete medical history"
-                        className="group relative flex size-[34px] items-center justify-center rounded-full transition-colors hover:bg-[#fef2f2]"
+                        className="group relative flex size-[28px] items-center justify-center rounded-full transition-colors hover:bg-[#fef2f2]"
                       >
                         <Image src="/dashboard/delete.svg" alt="" width={22} height={22} className="size-[22px]" />
                         <Tip label="Delete" />
@@ -1023,7 +1020,7 @@ function MedicalHistorySection({
             );
           })
         )}
-      </div>
+      </TableViewport>
 
       {pendingDelete && (
         <ConfirmDeleteDialog
@@ -1126,12 +1123,12 @@ function DocumentUploadSection({
   }
 
   return (
-    <section className="rounded-[8px] border border-[#c2c6d4] bg-white p-[26px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+    <section className="app-record-card rounded-[8px] border-[1.167px] border-black bg-white p-[22px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-[8px]">
+      <div className="app-toolbar app-toolbar flex items-center justify-between gap-3.5">
+        <div className="app-pagination-controls flex items-center gap-[8px]">
           <Image src={icon} alt="" width={32} height={32} className="size-8 shrink-0" />
-          <h2 className="font-manrope text-[21px] font-semibold leading-[30px] text-[#1e1e24]">{title}</h2>
+          <h2 className="font-manrope text-[18px] font-semibold leading-[26px] text-[#1e1e24]">{title}</h2>
         </div>
         {isAdmin && <LogButton onClick={onOpenLog} />}
       </div>
@@ -1168,13 +1165,13 @@ function DocumentUploadSection({
           setDragOver(false);
           handleFiles(e.dataTransfer.files);
         }}
-        className={`mt-[24px] flex cursor-pointer flex-col items-center justify-center gap-[15px] rounded-[17px] border px-[35px] py-[40px] shadow-[inset_0px_2px_4px_1px_rgba(0,0,0,0.05)] transition-colors ${
-          dragOver ? "border-[#0077c0] bg-[#e6f2fb]" : "border-[#1e1e24] bg-[#f1f5f9]"
+        className={`mt-[24px] flex cursor-pointer flex-col items-center justify-center gap-[15px] rounded-[14px] border-[1.167px] px-[29px] py-[34px] shadow-[inset_0px_2px_4px_1px_rgba(0,0,0,0.05)] transition-colors ${
+          dragOver ? "border-[#0077c0] bg-[#e6f2fb]" : "border-black bg-[#f1f5f9]"
         }`}
       >
         <Image src="/dashboard/upload_file.svg" alt="" width={32} height={32} className="size-8" />
-        <p className="font-manrope text-[21px] font-semibold leading-[30px] text-[#1e1e24]">Drop Files Here</p>
-        <p className="max-w-[410px] text-center font-inter text-[15px] leading-[21px] text-[#1e1e24]">
+        <p className="font-manrope text-[18px] font-semibold leading-[26px] text-[#1e1e24]">Drop Files Here</p>
+        <p className="max-w-[410px] text-center font-inter text-[14px] leading-[21px] text-[#1e1e24]">
           Upload your documents in PDF, JPG, JPEG, or PNG format. Each file must not exceed 10 MB in size.
         </p>
         <button
@@ -1183,7 +1180,7 @@ function DocumentUploadSection({
             e.stopPropagation();
             inputRef.current?.click();
           }}
-          className="rounded-[13px] bg-[#0077c0] px-[17px] py-[6px] font-inter text-[13px] font-medium tracking-[0.6px] text-white transition-colors hover:bg-[#0069a8]"
+          className="rounded-[13px] bg-[#0077c0] px-[14px] py-[6px] font-inter text-[13px] font-medium tracking-[0.6px] text-white transition-colors hover:bg-[#0069a8]"
         >
           Upload Files
         </button>
@@ -1202,14 +1199,14 @@ function DocumentUploadSection({
       {documents.length === 0 ? (
         <p className="mt-[10px] font-inter text-[14px] text-[#94a3b8]">No documents uploaded yet.</p>
       ) : (
-        <div className="mt-[12px] grid grid-cols-1 gap-[16px] lg:grid-cols-2">
+        <div className="mt-[12px] app-details-grid gap-[13px]">
           {documents.map((d) => (
             <div
               key={d.id}
-              className="flex items-center gap-[8px] rounded-[8px] border border-[#1e1e24] px-[18px] py-[14px]"
+              className="flex items-center gap-[8px] rounded-[8px] border-[1.167px] border-black px-[15px] py-[14px]"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate font-inter text-[15px] font-bold text-[#1e1e24]">{d.name}</p>
+                <p className="truncate font-inter text-[14px] font-bold text-[#1e1e24]">{d.name}</p>
                 <p className="font-inter text-[13px] tracking-[0.6px] text-[#1e1e24]">
                   {formatSize(d.size)} • {d.dateTime}
                   {d.createdByName ? ` • ${d.createdByName}` : ""}
@@ -1221,7 +1218,7 @@ function DocumentUploadSection({
                 aria-label={`Download ${d.name}`}
                 className="group relative flex size-[40px] shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[#f1f5f9]"
               >
-                <Image src="/dashboard/download.svg" alt="" width={24} height={24} className="size-6" />
+                <Image src="/dashboard/download.svg" alt="" width={24} height={24} className="size-5" />
                 <Tip label="Download" />
               </button>
               <span className="mx-[2px] h-[22px] w-px shrink-0 bg-[#c2c6d4]" />
@@ -1231,7 +1228,7 @@ function DocumentUploadSection({
                 aria-label={`Delete ${d.name}`}
                 className="group relative flex size-[40px] shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[#fef2f2]"
               >
-                <Image src="/dashboard/delete.svg" alt="" width={24} height={24} className="size-6" />
+                <Image src="/dashboard/delete.svg" alt="" width={24} height={24} className="size-5" />
                 <Tip label="Delete" />
               </button>
             </div>
@@ -1268,7 +1265,7 @@ function ExportButton({ enabled, onClick }: { enabled: boolean; onClick?: () => 
       type="button"
       disabled={!enabled}
       onClick={onClick}
-      className={`shrink-0 rounded-[13px] bg-[#0077c0] px-[26px] py-[9px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-opacity ${
+      className={`shrink-0 rounded-[13px] bg-[#0077c0] px-[22px] py-[9px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-opacity ${
         enabled ? "hover:opacity-90" : "cursor-not-allowed opacity-50"
       }`}
     >
@@ -1316,7 +1313,7 @@ function LogButton({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="View change log"
-      className="group relative flex size-[40px] items-center justify-center rounded-full border border-[#c2c6d4] text-[#1e1e24] transition-colors hover:border-[#0077c0] hover:text-[#0077c0]"
+      className="group relative flex size-[40px] items-center justify-center rounded-full border-[1.167px] border-black text-[#1e1e24] transition-colors hover:text-[#0077c0]"
     >
       <LogIcon className="size-[22px]" />
       <Tip label="Log" />
@@ -1387,7 +1384,7 @@ function LogDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -1396,12 +1393,12 @@ function LogDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="records-log-title"
-        className="my-auto flex max-h-[86vh] w-full max-w-[880px] flex-col gap-[18px] rounded-[15px] border border-[#c2c6d4] bg-white p-[26px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+        className="app-record-card app-dialog my-auto flex max-h-[86vh] w-full max-w-[880px] flex-col gap-[15px] rounded-[13px] border-[1.167px] border-black bg-white p-[clamp(13px,3vw,22px)] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="app-toolbar flex items-start justify-between gap-3.5">
           <div>
-            <h2 id="records-log-title" className="font-manrope text-[22px] font-semibold leading-[30px] text-[#1e1e24]">
+            <h2 id="records-log-title" className="font-manrope text-[19px] font-semibold leading-[26px] text-[#1e1e24]">
               Change Log
             </h2>
             <p className="font-inter text-[14px] leading-[20px] text-[#727783]">
@@ -1422,18 +1419,18 @@ function LogDialog({
 
         {/* Body */}
         {logs === null ? (
-          <p className="py-8 text-center font-inter text-[14px] text-[#94a3b8]">Loading…</p>
+          <p className="py-7 text-center font-inter text-[14px] text-[#94a3b8]">Loading…</p>
         ) : error ? (
-          <p role="alert" className="py-8 text-center font-inter text-[14px] text-[#ba1a1a]">
+          <p role="alert" className="py-7 text-center font-inter text-[14px] text-[#ba1a1a]">
             {error}
           </p>
         ) : logs.length === 0 ? (
-          <p className="py-8 text-center font-inter text-[14px] text-[#94a3b8]">
+          <p className="py-7 text-center font-inter text-[14px] text-[#94a3b8]">
             No edits or deletions recorded yet.
           </p>
         ) : (
-          <div className="overflow-auto rounded-[12px] border border-[#c2c6d4]">
-            <div className={`grid ${grid} min-w-[680px] items-center border-b border-[#c2c6d4] bg-[#f8fafc] px-[18px]`}>
+          <TableViewport label="Record activity" minWidth="680px" className="max-h-[50dvh] rounded-[12px] border border-black">
+            <div className={`app-table-header grid ${grid} min-w-[680px] items-center border-b border-black bg-[#f8fafc] px-[15px]`}>
               {headers.map((h) => (
                 <span key={h} className="py-[14px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24]">
                   {h}
@@ -1445,7 +1442,7 @@ function LogDialog({
               return (
                 <div
                   key={l.id}
-                  className={`grid ${grid} min-w-[680px] items-start border-b border-[#c2c6d4] px-[18px] last:border-b-0`}
+                  className={`grid ${grid} min-w-[680px] items-start border-b border-black px-[15px] last:border-b-0`}
                 >
                   <span className="py-[14px] pr-2 font-inter text-[13px] leading-[18px] text-[#1e1e24]">
                     {fmtLogDateTime(l.createdAt)}
@@ -1477,7 +1474,7 @@ function LogDialog({
                 </div>
               );
             })}
-          </div>
+          </TableViewport>
         )}
       </div>
     </div>

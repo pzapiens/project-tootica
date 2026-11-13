@@ -249,15 +249,14 @@ const LEAD_SOURCES = [
 ];
 const APPOINTMENT_NOTES: Record<AppointmentStatus, string[]> = {
   COMPLETED: ['Routine check-up', 'Scaling & polishing', 'Filling', 'Follow-up review', 'Root canal — session complete'],
-  NO_SHOW: ['Patient did not attend', 'No show — did not call'],
   CANCELLED: ['Cancelled by patient', 'Rescheduled — cancelled slot'],
   CONFIRMED: ['Consultation', 'Whitening consultation'],
   SCHEDULED: ['Consultation', 'New booking — awaiting confirmation', 'Requested appointment', 'Follow-up requested'],
 };
 
-// Weighted status for PAST appointments (mostly done, some missed / cancelled).
+// Weighted status for PAST appointments (mostly done, some cancelled).
 const PAST_STATUS_WEIGHTS: Array<[AppointmentStatus, number]> = [
-  ['COMPLETED', 68], ['NO_SHOW', 14], ['CANCELLED', 14], ['CONFIRMED', 4],
+  ['COMPLETED', 68], ['CANCELLED', 28], ['CONFIRMED', 4],
 ];
 function weightedPastStatus(): AppointmentStatus {
   const total = PAST_STATUS_WEIGHTS.reduce((sum, [, w]) => sum + w, 0);

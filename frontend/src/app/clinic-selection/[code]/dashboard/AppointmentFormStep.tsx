@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import TreatmentPicker from "@/components/TreatmentPicker";
+import FloatingPanel from "@/components/FloatingPanel";
+import { MAX_APPOINTMENT_TREATMENTS } from "@/lib/treatments";
+import { appointmentTimeError, isAppointmentDateValid, timeToMinutes as toMinutes } from "@/lib/appointment-validation";
 export { CONSULTATION_TYPES } from "@/lib/treatments";
 import { useEffect, useRef, useState } from "react";
 
@@ -96,8 +99,8 @@ export const LEAD_SOURCES = [
 // (Each maps 1:1 to a backend status when the appointment is saved — see
 // STATUS_TO_BACKEND in NewAppointmentModal. "Upcoming" is the single active
 // state; there's no separate "Confirmed" — a booked appointment is "Upcoming"
-// until it's Completed / No Show / Cancelled.)
-const STATUS_OPTIONS = ["Upcoming", "On going", "Completed", "No Show", "Cancelled"];
+// until it's On going / Completed / Cancelled.)
+const STATUS_OPTIONS = ["Upcoming", "On going", "Completed", "Cancelled"];
 // Clinic working hours (for the fast client-side time-range check): 9 AM – 6 PM.
 // The backend is authoritative — it re-checks hours + real doctor conflicts.
 const OPEN_MIN = 9 * 60;
@@ -203,6 +206,12 @@ export default function AppointmentFormStep({
   const [docAvailShown, setDocAvailShown] = useState(false);
   const [checkingDoc, setCheckingDoc] = useState(false);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const availabilityVersion = useRef(0);
+  const doctorAvailabilityVersion = useRef(0);
+  const dtDateValid = isAppointmentDateValid(parseDmy(dtDate), Boolean(initial));
+  const docDateValid = isAppointmentDateValid(parseDmy(docDate), Boolean(initial));
+  const dtTimeError = appointmentTimeError(dtFrom, dtTo, nonMandatory);
+  const docTimeError = appointmentTimeError(docFrom, docTo, nonMandatory);
 
   const dtTimeFilled = Boolean(dtFrom.h && dtFrom.m && dtTo.h && dtTo.m);
   // Doctor options for the date-&-time flow. After a real availability check we
@@ -217,13 +226,13 @@ export default function AppointmentFormStep({
 
   // Consultation Type is the only shared mandatory field above the tabs; the
   // Source of Enquiry is optional.
-  const coreOk = consultation.length > 0;
+  const coreOk = consultation.length > 0 && consultation.length <= MAX_APPOINTMENT_TREATMENTS;
 
   // Select-by-Date-&-Time: core + Date + a Time Range. The doctor is OPTIONAL
   // here — an appointment can be saved unassigned. Non-mandatory drops the time
   // range → Confirm with core + just the Date.
   const datetimeOk =
-    coreOk && (nonMandatory ? Boolean(dtDate) : Boolean(dtDate && dtTimeFilled));
+    coreOk && dtDateValid && !dtTimeError;
 
   // Select-by-Doctor: core + doctor + date. When a time range is required (not
   // non-mandatory), it must have been verified free — which now happens
@@ -232,13 +241,15 @@ export default function AppointmentFormStep({
   const doctorTimeOk = nonMandatory
     ? true
     : docTimeFilled && docAvailChecked && docAvailable;
-  const doctorModeOk = coreOk && Boolean(docDate && docDoctor) && doctorTimeOk;
+  const doctorModeOk = coreOk && docDateValid && Boolean(resolveDoctorId(docDoctor)) && !docTimeError && doctorTimeOk;
 
   // View Availability activates once a doctor + date are chosen.
-  const canViewAvailability = Boolean(docDoctor && docDate);
+  const canViewAvailability = Boolean(resolveDoctorId(docDoctor)) && docDateValid;
 
   // Any change to the doctor-flow doctor/date/time invalidates a prior result.
   function resetDocAvailability() {
+    doctorAvailabilityVersion.current++;
+    setCheckingDoc(false);
     setDocAvailChecked(false);
     setDocAvailable(false);
     setDocAvailError("");
@@ -247,13 +258,20 @@ export default function AppointmentFormStep({
 
   function changeNonMandatory(value: boolean) {
     setNonMandatory(value);
+    availabilityVersion.current++;
+    setCheckingAvail(false);
     // Recheck doctor availability when checks are enabled from either tab.
     resetDocAvailability();
   }
 
   // Check the chosen doctor against the backend (real bookings + business hours).
   async function checkDoctorAvailability() {
+    const version = ++doctorAvailabilityVersion.current;
     setDocAvailShown(true);
+    if (!docDateValid) {
+      setDocAvailError("Pick a valid appointment date.");
+      return;
+    }
     const f = toMinutes(docFrom);
     const t = toMinutes(docTo);
     if (f === null || t === null || f < OPEN_MIN || t > CLOSE_MIN || f >= t) {
@@ -280,6 +298,7 @@ export default function AppointmentFormStep({
       const [shifts, blocks] = await Promise.all([fetchShifts(doctorId), fetchBlocks(doctorId)]);
       const onShift = day !== null && isSlotOnShift(shifts, day, f, t);
       const blocked = day !== null && isSlotBlocked(blocks, day, f, t);
+      if (version !== doctorAvailabilityVersion.current) return;
       const d = res.doctors[0];
       const ok = Boolean(d?.available) && onShift && !blocked;
       setDocAvailable(ok);
@@ -297,11 +316,14 @@ export default function AppointmentFormStep({
                   : "Doctor is not available in the selected time range.",
       );
     } catch {
+      if (version !== doctorAvailabilityVersion.current) return;
       setDocAvailable(false);
       setDocAvailError("Couldn't check availability. Please try again.");
     } finally {
-      setDocAvailChecked(true);
-      setCheckingDoc(false);
+      if (version === doctorAvailabilityVersion.current) {
+        setDocAvailChecked(true);
+        setCheckingDoc(false);
+      }
     }
   }
 
@@ -316,15 +338,15 @@ export default function AppointmentFormStep({
   // waits for the user to finish typing the From/To times.
   useEffect(() => {
     if (mode !== "doctor" || nonMandatory) return;
-    if (!docDoctor || !docDate || !docTimeFilled || docAvailChecked) return;
+    if (!docDoctor || !docDateValid || !docTimeFilled || docAvailChecked) return;
     const id = window.setTimeout(() => checkDoctorRef.current(), 500);
     return () => window.clearTimeout(id);
-  }, [mode, docDoctor, docDate, docTimeFilled, nonMandatory, docAvailChecked, docFrom, docTo]);
+  }, [mode, docDoctor, docDate, docDateValid, docTimeFilled, nonMandatory, docAvailChecked, docFrom, docTo]);
 
   const canConfirm = mode === "datetime" ? datetimeOk : doctorModeOk;
 
   function handleConfirm() {
-    if (!canConfirm) return;
+    if (!canConfirm || submitting) return;
     const isDoctor = mode === "doctor";
     const doctorName = isDoctor ? docDoctor : dtDoctor;
     onConfirm({
@@ -345,6 +367,8 @@ export default function AppointmentFormStep({
 
   // Any change to date/time invalidates a previous availability result.
   function resetAvailability() {
+    availabilityVersion.current++;
+    setCheckingAvail(false);
     setAvailabilityChecked(false);
     setAvailableDoctors([]);
     setDtDoctor("");
@@ -354,7 +378,12 @@ export default function AppointmentFormStep({
 
   // Ask the backend which doctors are free for the chosen date + time.
   async function findAvailableDoctors() {
+    const version = ++availabilityVersion.current;
     setAvailShown(true);
+    if (!dtDateValid) {
+      setAvailError("Pick a valid appointment date.");
+      return;
+    }
     const f = toMinutes(dtFrom);
     const t = toMinutes(dtTo);
     if (f === null || t === null || f < OPEN_MIN || t > CLOSE_MIN || f >= t) {
@@ -385,6 +414,7 @@ export default function AppointmentFormStep({
         }),
       );
       const free = checked.filter((n): n is string => n !== null);
+      if (version !== availabilityVersion.current) return;
       if (free.length === 0) {
         // If every doctor is blocked by the break, say so specifically.
         const allBreak =
@@ -404,11 +434,12 @@ export default function AppointmentFormStep({
         setDtDoctor((cur) => (free.includes(cur) ? cur : ""));
       }
     } catch {
+      if (version !== availabilityVersion.current) return;
       setAvailError("Couldn't check availability. Please try again.");
       setAvailableDoctors([]);
       setAvailabilityChecked(false);
     } finally {
-      setCheckingAvail(false);
+      if (version === availabilityVersion.current) setCheckingAvail(false);
     }
   }
 
@@ -422,21 +453,21 @@ export default function AppointmentFormStep({
   // manual "Available Doctors" click needed (debounced for typing).
   useEffect(() => {
     if (mode !== "datetime" || nonMandatory) return;
-    if (!dtDate || !dtTimeFilled || availabilityChecked) return;
+    if (!dtDateValid || !dtTimeFilled || availabilityChecked) return;
     const id = window.setTimeout(() => findAvailRef.current(), 500);
     return () => window.clearTimeout(id);
-  }, [mode, dtDate, dtTimeFilled, nonMandatory, availabilityChecked, dtFrom, dtTo]);
+  }, [mode, dtDate, dtDateValid, dtTimeFilled, nonMandatory, availabilityChecked, dtFrom, dtTo]);
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto px-[32px] py-[28px]">
+      <div className="flex min-h-0 flex-1 flex-col gap-[17px] overflow-y-auto px-[clamp(13px,3vw,27px)] py-[clamp(13px,3vw,24px)]">
         {/* Patient details — auto-filled, read-only */}
-        <div className="grid grid-cols-1 gap-x-[32px] gap-y-[20px] sm:grid-cols-2">
+        <div className="app-form-grid grid grid-cols-1 gap-x-[27px] gap-y-[17px] sm:grid-cols-2">
           <ReadonlyField label="Patient Name" value={patient.name} />
           <ReadonlyField label="Date of Birth" value={patient.dob} icon="calendar" />
           <ReadonlyField label="Gender" value={patient.gender} icon="block" />
           <ReadonlyField label="Phone" value={`+91 ${patient.phone}`} />
-          <ReadonlyField label="Email" value={patient.email || "--"} />
+          <ReadonlyField label="Email" value={patient.email || "--"} truncateValue />
           <TreatmentPicker values={consultation} onChange={setConsultation} />
           <BoxedDropdown
             label="Source of Enquiry"
@@ -462,13 +493,13 @@ export default function AppointmentFormStep({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Add any additional notes..."
-              className="w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] focus:border-[#0077c0]"
+              className="w-full border-b-[1.167px] border-black bg-transparent pb-2 pt-1 font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-[#0077c0]"
             />
           </div>
         </div>
 
         {/* Scheduling tabs */}
-        <div className="mt-[20px] flex justify-center gap-6 border-b border-[#c2c6d4]/50">
+        <div className="mt-[20px] flex justify-center gap-5 border-b-[1.167px] border-black/20">
           <Tab active={mode === "datetime"} onClick={() => setMode("datetime")}>
             Select by Date &amp; Time
           </Tab>
@@ -478,18 +509,19 @@ export default function AppointmentFormStep({
         </div>
 
         {mode === "datetime" ? (
-          <div className="flex flex-col gap-[20px]">
-            <div className="grid grid-cols-2 gap-x-[32px]">
+          <div className="flex flex-col gap-[17px]">
+            <div className="app-form-grid grid grid-cols-2 gap-x-[27px]">
               <div className="flex flex-col gap-2">
                 <span className={LABEL}>Date {REQ}</span>
                 <DateInput
                   value={dtDate}
-                  disablePast
+                  disablePast={!initial}
                   onChange={(v) => {
                     setDtDate(v);
                     resetAvailability();
                   }}
                 />
+                {dtDate.length === 10 && !dtDateValid && <ErrorLine text="Enter a valid appointment date, today or later." />}
               </div>
             </div>
             <TimeRange
@@ -514,11 +546,12 @@ export default function AppointmentFormStep({
             >
               <NonMandatory checked={nonMandatory} onChange={changeNonMandatory} />
             </TimeRange>
+            {dtTimeFilled && dtTimeError && <ErrorLine text={dtTimeError} />}
             {availShown && availError && <ErrorLine text={availError} />}
             {availShown && !availError && doctorAvailable && (
               <SuccessLine text="Doctor available in the preferred time." />
             )}
-            <div className="grid grid-cols-2 gap-x-[32px]">
+            <div className="app-form-grid grid grid-cols-2 gap-x-[27px]">
               {doctorAvailable ? (
                 <BoxedDropdown
                   label="Doctor"
@@ -531,9 +564,9 @@ export default function AppointmentFormStep({
               ) : (
                 <div className="flex flex-col gap-2">
                   <span className={LABEL}>Doctor</span>
-                  <div className="flex items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1">
+                  <div className="app-toolbar flex items-center justify-between border-b-[1.167px] border-black pb-2 pt-1">
                     {/* Inactive until availability is checked → input dimmed to 50%. */}
-                    <span className="font-inter text-[15px] text-[#1e1e24] opacity-50">Select</span>
+                    <span className="font-inter text-[14px] text-[#1e1e24] opacity-50">Select</span>
                     <BlockIcon className="size-[18px] text-[#c2c6d4]" />
                   </div>
                 </div>
@@ -541,8 +574,8 @@ export default function AppointmentFormStep({
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-[20px]">
-            <div className="grid grid-cols-2 gap-x-[32px]">
+          <div className="flex flex-col gap-[17px]">
+            <div className="app-form-grid grid grid-cols-2 gap-x-[27px]">
               <BoxedDropdown
                 label="Doctor"
                 value={docDoctor}
@@ -557,12 +590,13 @@ export default function AppointmentFormStep({
                 <span className={LABEL}>Date {REQ}</span>
                 <DateInput
                   value={docDate}
-                  disablePast
+                  disablePast={!initial}
                   onChange={(v) => {
                     setDocDate(v);
                     resetDocAvailability();
                   }}
                 />
+                {docDate.length === 10 && !docDateValid && <ErrorLine text="Enter a valid appointment date, today or later." />}
               </div>
             </div>
             <TimeRange
@@ -582,7 +616,7 @@ export default function AppointmentFormStep({
                   type="button"
                   disabled={!canViewAvailability}
                   onClick={() => setAvailabilityOpen(true)}
-                  className={`inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-full px-4 font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-white ${
+                  className={`inline-flex h-[38px] items-center justify-center whitespace-nowrap rounded-full px-3.5 font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-white ${
                     canViewAvailability ? "bg-[#0077c0]" : "cursor-not-allowed bg-[#0077c0]/40"
                   }`}
                 >
@@ -595,6 +629,7 @@ export default function AppointmentFormStep({
                 onChange={changeNonMandatory}
               />
             </TimeRange>
+            {docTimeFilled && docTimeError && <ErrorLine text={docTimeError} />}
             {!nonMandatory && checkingDoc && (
               <p className="font-inter text-[13px] text-[#1e1e24]/60">Checking availability…</p>
             )}
@@ -612,9 +647,9 @@ export default function AppointmentFormStep({
       </div>
 
       {/* Footer (fixed) */}
-      <div className="flex shrink-0 flex-col gap-3 border-t border-[#c2c6d4]/40 px-[32px] py-[20px]">
+      <div className="flex shrink-0 flex-col gap-3 border-t-[1.167px] border-black/20 px-[clamp(13px,3vw,27px)] py-[17px]">
         {error && <ErrorLine text={error} />}
-        <div className="flex items-center justify-end gap-6">
+        <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-3">
           <button
             type="button"
             onClick={onCancel}
@@ -627,7 +662,7 @@ export default function AppointmentFormStep({
             type="button"
             disabled={!canConfirm || submitting}
             onClick={handleConfirm}
-            className={`rounded-full px-[25px] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
+            className={`rounded-full px-[clamp(13px,3vw,21px)] py-[12px] font-inter text-[13px] font-normal uppercase tracking-[0.5px] text-white ${
               canConfirm && !submitting ? "bg-[#0077c0] hover:bg-[#0069a8]" : "bg-[#0077c0] opacity-50"
             }`}
           >
@@ -659,19 +694,26 @@ function ReadonlyField({
   label,
   value,
   icon,
+  truncateValue = false,
 }: {
   label: string;
   value: string;
   icon?: "calendar" | "block";
+  truncateValue?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <span className={LABEL}>
         {label} {REQ}
       </span>
-      <div className="flex items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1">
+      <div className="app-toolbar flex items-center justify-between border-b-[1.167px] border-black pb-2 pt-1">
         {/* Read-only (inactive) → value dimmed to 50% opacity app-wide. */}
-        <span className="font-inter text-[15px] text-[#1e1e24] opacity-50">{value}</span>
+        <span
+          title={truncateValue ? value : undefined}
+          className={`font-inter text-[14px] text-[#1e1e24] opacity-50 ${truncateValue ? "min-w-0 max-w-full truncate" : ""}`}
+        >
+          {value}
+        </span>
         {icon === "calendar" && (
           <Image src="/dashboard/calendar_today.svg" alt="" width={18} height={18} className="size-[18px] opacity-40" />
         )}
@@ -709,28 +751,23 @@ function StatusDropdown({
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useExclusiveDropdown();
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [setOpen]);
+  const ref = useRef<HTMLButtonElement>(null);
 
   return (
     <div className="flex flex-col gap-2">
       <span className={LABEL}>Status</span>
-      <div ref={ref} className="relative">
+      <div className="relative">
         <button
+          ref={ref}
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-2 border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          className="app-toolbar flex w-full items-center justify-between gap-2 border-b-[1.167px] border-black pb-2 pt-1 text-left focus:border-[#0077c0]"
         >
           {/* The active selection reads in plain black (like the dashboard status
               filter); only the dropdown option rows carry their status colour. */}
-          <span className="truncate font-inter text-[15px] text-[#1e1e24]">
+          <span className={`truncate font-inter text-[14px] ${value ? "text-[#1e1e24]" : "text-field-placeholder"}`}>
             {value || "Select"}
           </span>
           <Image
@@ -742,12 +779,11 @@ function StatusDropdown({
           />
         </button>
         {open && (
-          <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex w-full flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+          <FloatingPanel anchor={ref} onClose={() => setOpen(false)} role="dialog" label="Appointment status" className="flex flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] shadow-lg">
             {options.map((opt) => {
               // Pull the light-badge colours from the app's shared dropdown
               // palette (statusColors.ts) so an option reads the same colour here
-              // as its badge does in the appointments tables — including the Figma
-              // dropdown's No Show → amber deviation from the base palette.
+              // as its badge does in the appointments tables.
               const { bg, text } = statusDropdownColor(opt);
               const selected = opt === value;
               return (
@@ -758,14 +794,14 @@ function StatusDropdown({
                     onChange(opt);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center justify-between rounded-[8px] px-[16px] py-[10px] ${bg} ${text}`}
+                  className={`app-option-hover app-toolbar flex w-full items-center justify-between rounded-[8px] px-[13px] py-[10px] ${bg} ${text}`}
                 >
                   <span className="font-manrope text-[14px] font-semibold leading-[20px]">{opt}</span>
-                  {selected && <CheckSmall className="size-6" />}
+                  {selected && <CheckSmall className="size-5" />}
                 </button>
               );
             })}
-          </div>
+          </FloatingPanel>
         )}
       </div>
     </div>
@@ -797,26 +833,21 @@ function BoxedDropdown({
   format?: (v: string) => string;
 }) {
   const [open, setOpen] = useExclusiveDropdown();
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [setOpen]);
+  const ref = useRef<HTMLButtonElement>(null);
 
   return (
     <div className="flex flex-col gap-2">
       <span className={LABEL}>{label} {required && REQ}</span>
-      <div ref={ref} className="relative">
+      <div className="relative">
         <button
+          ref={ref}
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-2 border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0]"
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          className="app-toolbar flex w-full items-center justify-between gap-2 border-b-[1.167px] border-black pb-2 pt-1 text-left focus:border-[#0077c0]"
         >
-          <span className="truncate font-inter text-[15px] text-[#1e1e24]">
+          <span className={`truncate font-inter text-[14px] ${value ? "text-[#1e1e24]" : "text-field-placeholder"}`}>
             {value ? format(value) : placeholder}
           </span>
           <Image
@@ -828,7 +859,8 @@ function BoxedDropdown({
           />
         </button>
         {open && (
-          <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex max-h-[260px] w-full flex-col gap-[5px] overflow-y-auto rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+          <FloatingPanel anchor={ref} onClose={() => setOpen(false)} role="dialog" label={label} className="flex flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] shadow-lg">
+            <div className="flex max-h-[220px] min-h-0 flex-col gap-[5px] overflow-y-auto overscroll-contain">
             {options.map((opt) => {
               const selected = opt === value;
               return (
@@ -839,20 +871,21 @@ function BoxedDropdown({
                     onChange(opt);
                     setOpen(false);
                   }}
-                  className="flex w-full items-center justify-between gap-3 rounded-[8px] bg-[#f1f5f9] px-[16px] py-[10px] text-left transition-colors hover:bg-[#e9eef4]"
+                  className="flex h-[40px] w-full shrink-0 items-center justify-between gap-3 rounded-[8px] bg-[#f1f5f9] px-[13px] text-left transition-colors app-option-hover"
                 >
-                  <span className="font-inter text-[14px] text-[#1e1e24]">{format(opt)}</span>
+                  <span className="truncate font-inter text-[14px] leading-[20px] text-[#1e1e24]" title={format(opt)}>{format(opt)}</span>
                   {selected ? (
-                    <span className="flex size-3 shrink-0 items-center justify-center rounded-full border border-[#1e1e24]">
+                    <span className="flex size-3 shrink-0 items-center justify-center rounded-full border-[1.167px] border-black">
                       <span className="size-1.5 rounded-full bg-[#1e1e24]" />
                     </span>
                   ) : (
-                    <span className="size-3 shrink-0 rounded-full border border-[#1e1e24]" />
+                    <span className="size-3 shrink-0 rounded-full border-[1.167px] border-black" />
                   )}
                 </button>
               );
             })}
-          </div>
+            </div>
+          </FloatingPanel>
         )}
       </div>
     </div>
@@ -886,7 +919,7 @@ function TimeRange({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-x-[32px]">
+    <div className="app-form-grid grid grid-cols-2 gap-x-[27px]">
       {/* Left column (aligned with the Date field above) */}
       <div className="flex flex-col gap-2">
         <span className={LABEL}>Time Range {required && REQ}</span>
@@ -918,7 +951,7 @@ function TimeRange({
 }
 
 const TIME_BOX =
-  "h-[38px] w-[34px] rounded-[8px] border border-[#c2c6d4] bg-white text-center font-inter text-[13px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24] placeholder:opacity-50 focus:border-[#0077c0]";
+  "h-[38px] w-[34px] rounded-[8px] border-[1.167px] border-black bg-white text-center font-inter text-[13px] text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-[#0077c0]";
 
 function TimeGroup({ label, value, onChange }: { label: string; value: Time; onChange: (t: Time) => void }) {
   const two = (s: string, max: number) => {
@@ -960,7 +993,7 @@ function TimeGroup({ label, value, onChange }: { label: string; value: Time; onC
 function NonMandatory({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex cursor-pointer items-center gap-2">
-      <span className="relative flex size-5 items-center justify-center rounded-[4px] border border-[#1e1e24]">
+      <span className="relative flex size-5 items-center justify-center rounded-[4px] border-[1.167px] border-black">
         <input
           type="checkbox"
           checked={checked}
@@ -991,20 +1024,12 @@ function Tab({ active, onClick, children }: { active: boolean; onClick: () => vo
       type="button"
       onClick={onClick}
       className={`-mb-px border-b-2 pb-2 font-inter text-[13px] font-normal uppercase tracking-[0.5px] ${
-        active ? "border-[#0077c0] text-[#0077c0]" : "border-transparent text-[#94a3b8]"
+        active ? "border-[#0077c0] text-[#0077c0]" : "border-transparent text-[#94a3b8] app-option-hover"
       }`}
     >
       {children}
     </button>
   );
-}
-
-/** Convert a Time (12-hour) to minutes-from-midnight; null if incomplete. */
-function toMinutes(t: Time): number | null {
-  if (!t.h || !t.m) return null;
-  let h = Number(t.h) % 12;
-  if (t.p === "PM") h += 12;
-  return h * 60 + Number(t.m);
 }
 
 /** A Time back to a display string, e.g. `{ h:"9", m:"0", p:"AM" }` → "09:00 AM". */

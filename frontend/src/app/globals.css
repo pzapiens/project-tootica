@@ -1,8 +1,14 @@
 @import "tailwindcss";
+@import "./responsive.css";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --app-option-hover-fill: #e3f1ff;
+  --field-placeholder: rgb(0 0 0 / 0.5);
+  --app-content-inset: clamp(8px, 1.3vw, 20px);
+  --app-popup-inset: calc(var(--app-content-inset) + 8px);
+  --app-popup-max-height: calc(100dvh - var(--app-popup-inset) - var(--app-popup-inset));
 }
 
 @theme inline {
@@ -16,8 +22,8 @@
   /* Auth / brand design tokens (from Figma "Auth — Tootica") */
   --color-brand: #0077c0;
   --color-ink: #000000;
-  --color-field-border: #c2c6d4;
-  --color-field-placeholder: rgba(0, 0, 0, 0.4);
+  --color-field-border: #000000;
+  --color-field-placeholder: var(--field-placeholder);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -112,12 +118,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
 }
 
 /* Tailwind v4's Preflight no longer sets `cursor: pointer` on buttons, so any
    actionable element (button, link, role=button, selectable input, etc.) is
    given the hand pointer globally instead of adding `cursor-pointer` per
-   component. Disabled controls fall back to the not-allowed cursor. */
+   component. Disabled controls retain the normal arrow cursor. */
 @layer base {
   button,
   a[href],
@@ -138,11 +145,46 @@ body {
     cursor: pointer;
   }
 
-  button:disabled,
-  [role="button"][aria-disabled="true"],
-  input:disabled,
-  select:disabled,
-  a[aria-disabled="true"] {
-    cursor: not-allowed;
+}
+
+/* Keep the normal arrow on inactive controls, including utility-styled buttons. */
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+a[aria-disabled="true"] {
+  cursor: default;
+}
+
+/* Shared slim blue scrollbars, including nested tables and dropdowns. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #0077c0 transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #0077c0;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #005b94;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+    -webkit-appearance: none;
   }
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { apiFetch, ApiError, type AuthResponse, type MessageResponse } from "@/lib/api";
+import { AUTH_CARD_CLASS_NAME } from "./auth-card";
 import PasswordToggle from "@/components/PasswordToggle";
 import PhoneNumberInput from "@/components/PhoneNumberInput";
 import { phoneDigitsError, phoneWithCc } from "@/lib/validation";
@@ -191,32 +192,32 @@ export default function LoginCard() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-[460px] max-w-[460px] flex-col gap-6 overflow-hidden rounded-3xl bg-white px-10 py-8 shadow-[0_10px_40px_rgba(0,0,0,0.12)]"
+      className={AUTH_CARD_CLASS_NAME}
     >
       {/* Brand logo */}
       <div className="flex flex-col items-center">
         <Image
           src="/auth/logo.png"
           alt="Tootica"
-          width={80}
-          height={80}
+          width={64}
+          height={64}
           priority
-          className="size-20 object-contain"
+          className="size-16 object-contain"
         />
       </div>
 
       {/* Header */}
       <div className="-mt-2 flex flex-col items-center gap-2">
-        <h1 className="font-manrope text-[36px] leading-[44px] tracking-[-0.72px] text-ink">
+        <h1 className="font-manrope text-[32px] leading-[39px] tracking-[-0.72px] text-ink">
           Welcome
         </h1>
-        <p className="max-w-[280px] text-center font-inter text-[15px] leading-[24px] text-ink">
+        <p className="max-w-[280px] text-center font-inter text-[14px] leading-[21px] text-ink/60">
           Sign in to continue to your account
         </p>
       </div>
 
       {/* Sign-in method */}
-      <div role="tablist" aria-label="Sign-in method" className="-mt-2 flex border-b border-field-border/30">
+      <div role="tablist" aria-label="Sign-in method" className="-mt-2 flex border-b-[1.167px] border-black/35">
         {([
           { value: "password", label: "Email address" },
           { value: "otp", label: "Phone number" },
@@ -262,7 +263,7 @@ export default function LoginCard() {
         id={`login-${mode}-panel`}
         role="tabpanel"
         aria-labelledby={`login-${mode}-tab`}
-        className="flex flex-col gap-5"
+        className="flex flex-col gap-4"
       >
         {mode === "password" ? (
           <Field
@@ -345,7 +346,7 @@ export default function LoginCard() {
         <button
           type="submit"
           disabled={submitting}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand py-4 font-inter text-[15px] font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand py-2.5 font-inter text-[14px] font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitLabel(mode, codeSent, submitting)}
           <Image
@@ -353,7 +354,7 @@ export default function LoginCard() {
             alt=""
             width={24}
             height={24}
-            className="size-6 rotate-180"
+            className="size-5 rotate-180"
           />
         </button>
       </div>
@@ -432,11 +433,11 @@ function Field({
         {label}
       </label>
       <div
-        className={`flex items-center gap-[15px] rounded-lg border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
-          error ? "border-red-500 focus-within:border-red-500" : "border-field-border focus-within:border-brand"
+        className={`flex items-center gap-[15px] rounded-lg border-[1.167px] bg-white/60 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
+          error ? "border-red-500 focus-within:border-red-500" : "border-black focus-within:border-brand"
         }`}
       >
-        <Image src={icon} alt="" width={24} height={24} className="size-6 shrink-0" />
+        <Image src={icon} alt="" width={24} height={24} className="size-5 shrink-0" />
         {type === "tel" ? (
           <PhoneNumberInput
             id={id}
@@ -462,7 +463,7 @@ function Field({
             className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none placeholder:text-field-placeholder"
           />
         )}
-        {isPassword && <PasswordToggle visible={show} onToggle={() => setShow((s) => !s)} />}
+        {isPassword && <PasswordToggle visible={show} hasValue={value.length > 0} onToggle={() => setShow((s) => !s)} />}
       </div>
       {description && (
         <p id={`${id}-description`} className="pl-1 pt-1 font-inter text-[12px] leading-5 text-ink/60">

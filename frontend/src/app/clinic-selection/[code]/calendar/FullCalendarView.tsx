@@ -1,5 +1,7 @@
 "use client";
 
+import TableViewport from "@/components/TableViewport";
+
 import { CalendarSkeleton } from "@/components/loading/PageSkeletons";
 
 import Image from "next/image";
@@ -12,7 +14,7 @@ import BackButton from "@/components/BackButton";
 import { statusColor } from "@/lib/statusColors";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
-import { chipTime, groupByDay, type CalAppointment, type CalStatus } from "./calendar-mock";
+import { chipTime, groupByDay, previewAppointmentsForDay, type CalAppointment, type CalStatus } from "./calendar-mock";
 
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MONTHS = [
@@ -126,19 +128,19 @@ export default function FullCalendarView() {
   if (loading) return <CalendarSkeleton />;
 
   return (
-    <div className="relative flex min-h-[720px] flex-col gap-[19px]">
+    <div className="app-page relative flex flex-col gap-[16px]">
       {/* Header */}
-      <div className="flex items-end justify-between">
-        <div className="flex flex-col gap-[19px]">
+      <div className="app-toolbar items-end justify-between">
+        <div className="flex flex-col gap-[16px]">
           <div className="flex items-center gap-[15px]">
             <BackButton
               onClick={() => router.push(`/clinic-selection/${code}/dashboard`)}
               ariaLabel="Back to dashboard"
             />
-            <h1 className="font-manrope text-[28px] font-bold leading-[31px] text-[#1e1e24]">Calendar</h1>
+            <h1 className="app-page-title font-manrope text-[25px] font-bold leading-[27px] text-[#1e1e24]">Calendar</h1>
           </div>
           <div className="flex flex-col gap-[8px]">
-            <div className="flex items-center gap-[20px]">
+            <div className="flex items-center gap-[17px]">
               <MonthYearPicker
                 year={view.year}
                 month={view.month}
@@ -150,14 +152,14 @@ export default function FullCalendarView() {
               />
               <div className="flex items-center gap-[6px]">
                 <button type="button" aria-label="Previous month" onClick={() => shiftMonth(-1)}>
-                  <Image src="/dashboard/chevron_dark.svg" alt="" width={28} height={28} className="size-7" />
+                  <Image src="/dashboard/chevron_dark.svg" alt="" width={28} height={28} className="size-5" />
                 </button>
                 <button type="button" aria-label="Next month" onClick={() => shiftMonth(1)}>
-                  <Image src="/dashboard/chevron_dark.svg" alt="" width={28} height={28} className="size-7 rotate-180" />
+                  <Image src="/dashboard/chevron_dark.svg" alt="" width={28} height={28} className="size-5 rotate-180" />
                 </button>
               </div>
             </div>
-            <p className="font-inter text-[15.6px] leading-[22px] text-[#1e1e24]">
+            <p className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
               {monthCount} {monthCount === 1 ? "appointment" : "appointments"} this month
             </p>
           </div>
@@ -166,14 +168,14 @@ export default function FullCalendarView() {
       </div>
 
       {/* Month grid */}
-      <div className="flex-1 overflow-hidden rounded-[16px] border border-[#c2c6d4] bg-white shadow-[0px_1px_4px_rgba(0,0,0,0.02)]">
+      <TableViewport label="Monthly appointment calendar" minWidth="760px" className="flex-1 rounded-[13px] border border-black bg-white shadow-[0px_1px_4px_rgba(0,0,0,0.02)]">
         {/* Weekday header */}
-        <div className="grid grid-cols-7 border-b border-[#c2c6d4] bg-[#eff4ff]">
+        <div className="app-table-header grid grid-cols-7 border-b border-black bg-[#eff4ff]">
           {WEEKDAYS.map((d, i) => (
             <span
               key={d}
               className={`py-[9px] text-center font-inter text-[13px] font-semibold uppercase tracking-[0.66px] text-[#1e1e24] ${
-                i < 6 ? "border-r border-[#c2c6d4]" : ""
+                i < 6 ? "border-r-[1.167px] border-black" : ""
               }`}
             >
               {d}
@@ -187,30 +189,31 @@ export default function FullCalendarView() {
             const isToday = sameDay(cell.date, today);
             const emphasize = isSelected || (isToday && !selectedDay);
             const appts = cell.inMonth ? monthAppts[cell.date.getDate()] ?? [] : [];
+            const preview = previewAppointmentsForDay(appts, cell.date, today);
+            const hiddenCount = appts.length - preview.filter(Boolean).length;
             const lastCol = (i + 1) % 7 === 0;
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => openDay(cell.date)}
-                className={`relative flex min-h-[124px] flex-col gap-[4px] px-[9px] pb-[10px] pt-[9px] text-left ${
+                className={`relative flex h-[160px] min-h-0 flex-col gap-[4px] px-[9px] pb-[10px] pt-[9px] text-left ${
                   cell.inMonth ? "bg-white" : "bg-[#f8f9ff]"
-                } ${emphasize ? "border border-[#1e1e24]" : `border-b border-[#c2c6d4] ${lastCol ? "" : "border-r"}`}`}
+                } ${emphasize ? "border-[1.167px] border-black" : `app-option-hover border-b-[1.167px] border-black ${lastCol ? "" : "border-r-[1.167px]"}`}`}
               >
                 {emphasize && (
                   <span className="pointer-events-none absolute right-0 top-0 h-0 w-0 border-l-[16px] border-t-[16px] border-l-transparent border-t-[#1e1e24]" />
                 )}
                 <span
-                  className={`self-end font-mono text-[15px] font-medium leading-[22px] ${
+                  className={`shrink-0 self-end font-mono text-[14px] font-medium leading-[20px] ${
                     cell.inMonth ? "text-[#1e1e24]" : "text-[#727783]"
                   }`}
                 >
                   {cell.date.getDate()}
                 </span>
-                <div className="flex flex-col gap-[4px]">
-                  {/* Cap each cell at three entries; the rest roll up into a
-                      "+N more" line that opens the day's slide-over. */}
-                  {appts.slice(0, 3).map((a) => (
+                <div className="flex flex-col gap-[2px]">
+                  {/* Reserve today's middle slot for an ongoing appointment. */}
+                  {preview.map((a, slot) => a ? (
                     <ApptChip
                       key={a.id}
                       appt={a}
@@ -220,10 +223,12 @@ export default function FullCalendarView() {
                         setSelectedAppt(a);
                       }}
                     />
+                  ) : (
+                    <span key={"empty-" + slot} aria-hidden className="h-[29px] shrink-0" />
                   ))}
-                  {appts.length > 3 && (
+                  {hiddenCount > 0 && (
                     <span className="pl-[3px] font-inter text-[11px] font-medium leading-[16px] text-[#727783]">
-                      +{appts.length - 3} more
+                      +{hiddenCount} more
                     </span>
                   )}
                 </div>
@@ -231,7 +236,7 @@ export default function FullCalendarView() {
             );
           })}
         </div>
-      </div>
+      </TableViewport>
 
       {/* Slide-over panel */}
       {selectedDay && (
@@ -269,7 +274,7 @@ function ApptChip({ appt, onOpen }: { appt: CalAppointment; onOpen: (e: React.Mo
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onOpen(e as unknown as React.MouseEvent);
       }}
-      className={`flex items-center gap-[6px] overflow-hidden rounded-[5px] border p-[5px] ${c.solid ? "" : c.bg}`}
+      className={`flex items-center gap-[6px] overflow-hidden rounded-[5px] border-[1.167px] p-[5px] ${c.solid ? "" : c.bg}`}
       style={{ borderColor: c.accent, backgroundColor: c.solid ? c.accent : undefined }}
     >
       <span className="size-[6.6px] shrink-0 rounded-full" style={{ backgroundColor: fg }} />
@@ -290,7 +295,7 @@ function ApptChip({ appt, onOpen }: { appt: CalAppointment; onOpen: (e: React.Mo
 function Legend() {
   const items: CalStatus[] = ["Completed", "Ongoing", "Upcoming", "Cancelled"];
   return (
-    <div className="flex items-center gap-[18px]">
+    <div className="app-toolbar items-center gap-[15px]">
       {items.map((s) => {
         const { accent } = statusColor(s);
         return <LegendDot key={s} color={accent} text={accent} label={s} />;
@@ -303,7 +308,7 @@ function LegendDot({ color, text, label }: { color: string; text: string; label:
   return (
     <div className="flex items-center gap-[4.5px]">
       <span className="size-[9px] rounded-full" style={{ backgroundColor: color }} />
-      <span className="font-inter text-[15.6px] leading-[22px]" style={{ color: text }}>
+      <span className="font-inter text-[14px] leading-[20px]" style={{ color: text }}>
         {label}
       </span>
     </div>
@@ -332,9 +337,9 @@ function MonthYearPicker({
           setDraftYear(year);
           setOpen((v) => !v);
         }}
-        className="flex items-center gap-[8px]"
+        className="app-pagination-controls flex items-center gap-[8px]"
       >
-        <span className="font-manrope text-[22px] font-semibold leading-[31px] text-[#1e1e24]">
+        <span className="font-manrope text-[19px] font-semibold leading-[27px] text-[#1e1e24]">
           {MONTHS[month]} {year}
         </span>
         <Image
@@ -342,18 +347,18 @@ function MonthYearPicker({
           alt=""
           width={28}
           height={28}
-          className={`size-7 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          className={`size-5 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
       {open && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-[260px] rounded-[15px] border border-[#c2c6d4] bg-white p-[16px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1)]">
+        <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-[260px] rounded-[13px] border-[1.167px] border-black bg-white p-[13px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1)]">
           <div className="mb-[12px] flex items-center justify-between">
             <button type="button" aria-label="Previous year" onClick={() => setDraftYear((y) => y - 1)}>
-              <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6" />
+              <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-5" />
             </button>
-            <span className="font-manrope text-[16px] font-semibold text-[#1e1e24]">{draftYear}</span>
+            <span className="font-manrope text-[14px] font-semibold text-[#1e1e24]">{draftYear}</span>
             <button type="button" aria-label="Next year" onClick={() => setDraftYear((y) => y + 1)}>
-              <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6 rotate-180" />
+              <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-5 rotate-180" />
             </button>
           </div>
           <div className="grid grid-cols-3 gap-[6px]">
@@ -368,7 +373,7 @@ function MonthYearPicker({
                     setOpen(false);
                   }}
                   className={`rounded-[8px] py-[8px] text-center font-inter text-[13px] transition-colors ${
-                    active ? "bg-[#0077c0] font-semibold text-white" : "text-[#1e1e24] hover:bg-[#f1f5f9]"
+                    active ? "bg-[#0077c0] font-semibold text-white" : "text-[#1e1e24] app-option-hover"
                   }`}
                 >
                   {m}
@@ -404,30 +409,32 @@ function SlideOver({
   const heading = `Appointments - ${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   if (typeof document === "undefined") return null;
 
-  // Portaled and pinned to the shell's white content box (a 19px inset from the
-  // viewport) so the panel sits flush against the box on the top, right and
-  // bottom with no gap, instead of being inset by the page padding.
+  // The shell clips this drawer to its actual white frame, including its rounded
+  // corners. Anchoring here also follows sidebar changes and viewport resizing.
+  const contentFrame = document.querySelector<HTMLElement>("[data-app-content-frame]");
+  if (!contentFrame) return null;
+
   return createPortal(
-    <div className="fixed inset-y-[19px] right-[19px] z-[60] flex w-[460px] max-w-[calc(100vw-40px)] flex-col overflow-hidden rounded-r-[28px] border-l border-[#c2c6d4] bg-white shadow-[-12px_0px_36px_-12px_rgba(0,0,0,0.25)]">
+    <div role="dialog" aria-label={heading} className="absolute inset-y-0 right-0 z-[60] flex w-[460px] max-w-full flex-col overflow-hidden rounded-r-[28px] border-l-[1.167px] border-black bg-white shadow-[-12px_0px_36px_-12px_rgba(0,0,0,0.25)]">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-[#c2c6d4] px-[30px] pb-[30px] pt-[30px]">
+      <div className="app-toolbar flex shrink-0 items-center justify-between border-b-[1.167px] border-black px-[25px] pb-[25px] pt-[25px]">
         <div className="flex items-center gap-[10px]">
           {appt && (
             <BackButton onClick={onBack} ariaLabel="Back to list" />
           )}
-          <h2 className="font-manrope text-[19px] font-semibold leading-[27px] text-[#1e1e24]">{heading}</h2>
+          <h2 className="font-manrope text-[17px] font-semibold leading-[24px] text-[#1e1e24]">{heading}</h2>
         </div>
         <button type="button" aria-label="Close" onClick={onClose}>
-          <CloseIcon className="size-6 text-[#1e1e24]" />
+          <CloseIcon className="size-5 text-[#1e1e24]" />
         </button>
       </div>
 
       {appt ? (
         <ApptDetail appt={appt} date={date} onView={onView} />
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-[30px]">
+        <div className="min-h-0 flex-1 overflow-y-auto p-[25px]">
           {appts.length === 0 ? (
-            <p className="font-inter text-[15px] text-[#94a3b8]">No appointments on this day.</p>
+            <p className="font-inter text-[14px] text-[#94a3b8]">No appointments on this day.</p>
           ) : (
             <div className="flex flex-col gap-[15px]">
               {appts.map((a) => (
@@ -438,7 +445,7 @@ function SlideOver({
         </div>
       )}
     </div>,
-    document.body,
+    contentFrame,
   );
 }
 
@@ -459,7 +466,7 @@ function ApptListCard({ appt, onClick }: { appt: CalAppointment; onClick: () => 
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-[10px] border p-[15px] text-left transition-opacity hover:opacity-95 ${
+      className={`flex w-full items-center justify-between rounded-[10px] border-[1.167px] p-[15px] text-left transition-opacity hover:opacity-95 ${
         solid ? "" : c.bg
       }`}
       style={{ borderColor: c.accent, backgroundColor: solid ? c.accent : undefined }}
@@ -468,7 +475,7 @@ function ApptListCard({ appt, onClick }: { appt: CalAppointment; onClick: () => 
         <span className="font-manrope text-[13px] font-medium leading-[19px]" style={{ color: contentColor }}>
           {appt.start === "--" ? "--" : `${appt.start} - ${appt.end}`}
         </span>
-        <span className="font-manrope text-[19px] font-semibold leading-[27px]" style={{ color: contentColor }}>
+        <span className="font-manrope text-[17px] font-semibold leading-[24px]" style={{ color: contentColor }}>
           {appt.patientName}
         </span>
         <span className="font-inter text-[13px] leading-[19px]" style={{ color: contentColor }}>
@@ -476,7 +483,7 @@ function ApptListCard({ appt, onClick }: { appt: CalAppointment; onClick: () => 
         </span>
       </div>
       <span
-        className="shrink-0 rounded-[11.5px] border px-[8px] py-[2px] font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px]"
+        className="shrink-0 rounded-[11.5px] border-[1.167px] px-[8px] py-[2px] font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px]"
         style={
           solid
             ? { backgroundColor: "#ffffff", color: c.accent, borderColor: "#ffffff" }
@@ -493,10 +500,10 @@ function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; 
   const dateLabel = `${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col gap-[30px] overflow-y-auto p-[30px]">
+      <div className="flex min-h-0 flex-1 flex-col gap-[25px] overflow-y-auto p-[25px]">
         {/* Patient */}
         <div className="flex flex-col gap-[15px]">
-          <h3 className="font-manrope text-[19px] font-semibold leading-[27px] text-[#0077c0]">
+          <h3 className="font-manrope text-[17px] font-semibold leading-[24px] text-[#0077c0]">
             {appt.patientName}
           </h3>
           <InfoCard>
@@ -517,20 +524,20 @@ function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; 
             </h4>
             <StatusPill status={appt.status} />
           </div>
-          <div className="flex flex-col gap-[15px] rounded-[10px] border border-[#c2c6d4]/50 bg-white p-[16px]">
+          <div className="flex flex-col gap-[15px] rounded-[10px] border-[1.167px] border-black bg-white p-[13px]">
             <DetailRow icon="/dashboard/calendar_today.svg">
-              <span className="font-inter text-[15px] font-semibold leading-[23px] text-[#1e1e24]">{dateLabel}</span>
+              <span className="font-inter text-[14px] font-semibold leading-[20px] text-[#1e1e24]">{dateLabel}</span>
               <span className="font-manrope text-[13px] font-medium leading-[19px] text-[#1e1e24]">
                 {appt.start === "--" ? "--" : `${appt.start} - ${appt.end}`}
               </span>
             </DetailRow>
             <div className="h-px w-full bg-[#c2c6d4]/30" />
             <DetailRow icon="/dashboard/dentistry.svg" labelUp="Consultation Type">
-              <span className="font-inter text-[15px] leading-[23px] text-[#1e1e24]">{appt.consultationType}</span>
+              <span className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">{appt.consultationType}</span>
             </DetailRow>
             <div className="h-px w-full bg-[#c2c6d4]/30" />
             <DetailRow icon="/dashboard/oral_disease_dark.svg" labelUp="Assigned Doctor">
-              <span className="font-inter text-[15px] leading-[23px] text-[#1e1e24]">
+              <span className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
                 {appt.doctor === "Unassigned" ? "--" : appt.doctor}
               </span>
             </DetailRow>
@@ -542,14 +549,14 @@ function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; 
           <h4 className="font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px] text-[#1e1e24]">
             Message
           </h4>
-          <div className="rounded-[10px] border border-[#c2c6d4]/50 bg-white p-[16px]">
+          <div className="rounded-[10px] border-[1.167px] border-black bg-white p-[13px]">
             <p className="font-inter text-[13px] italic leading-[19px] text-[#1e1e24]">{appt.message}</p>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="shrink-0 border-t border-[#c2c6d4] px-[30px] pb-[30px] pt-[30px]">
+      <div className="shrink-0 border-t-[1.167px] border-black px-[25px] pb-[25px] pt-[25px]">
         <button
           type="button"
           onClick={() => onView(appt.apptId)}
@@ -564,7 +571,7 @@ function ApptDetail({ appt, date, onView }: { appt: CalAppointment; date: Date; 
 
 function InfoCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-[15px] rounded-[10px] border border-[#c2c6d4]/50 bg-white p-[16px]">
+    <div className="flex gap-[15px] rounded-[10px] border-[1.167px] border-black bg-white p-[13px]">
       {children}
     </div>
   );
@@ -590,7 +597,7 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start gap-[8px]">
-      <Image src={icon} alt="" width={24} height={24} className="size-6 shrink-0" />
+      <Image src={icon} alt="" width={24} height={24} className="size-5 shrink-0" />
       <div className="flex flex-col gap-[3px]">
         {labelUp && (
           <span className="font-inter text-[11.5px] font-semibold uppercase tracking-[0.58px] text-[#1e1e24]">

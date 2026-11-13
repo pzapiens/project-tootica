@@ -422,8 +422,7 @@ export type AppointmentStatus =
   | "CONFIRMED"
   | "ONGOING"
   | "COMPLETED"
-  | "CANCELLED"
-  | "NO_SHOW";
+  | "CANCELLED";
 
 /**
  * How a booking came in. `WEB` = created by staff in the app; `WHATSAPP` = booked

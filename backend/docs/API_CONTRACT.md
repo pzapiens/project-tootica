@@ -68,7 +68,7 @@ Validation (Zod) errors add an `issues` array:
 | `UserStatus`        | `ACTIVE`, `SUSPENDED`                                            |
 | `ClinicStatus`      | `ACTIVE`, `SUSPENDED`, `INACTIVE`                               |
 | `ClinicPlan`        | `FREE`, `BASIC`, `PRO`, `ENTERPRISE`                            |
-| `AppointmentStatus` | `SCHEDULED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`   |
+| `AppointmentStatus` | `SCHEDULED`, `CONFIRMED`, `ONGOING`, `COMPLETED`, `CANCELLED`   |
 
 ### Shared object shapes
 

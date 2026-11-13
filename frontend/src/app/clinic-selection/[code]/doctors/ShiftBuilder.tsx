@@ -1,5 +1,7 @@
 "use client";
 
+import TableViewport from "@/components/TableViewport";
+
 import Image from "next/image";
 import {
   useEffect,
@@ -416,14 +418,14 @@ export default function ShiftBuilder({
   return (
     <fieldset
       disabled={disabled}
-      className={`min-w-0 border-0 p-0 flex flex-col ${compact ? "gap-4" : "gap-8"}`}
+      className={`app-form-surface min-w-0 border-0 p-0 flex flex-col ${compact ? "gap-3.5" : "gap-7"}`}
     >
       {/* Add Shifts */}
       <div
         className={
           compact
-            ? "flex flex-col gap-5"
-            : "flex flex-col gap-[24px] rounded-[28px] border-[1.2px] border-[#c2c6d4] p-[28px]"
+            ? "flex flex-col gap-4"
+            : "flex flex-col gap-[20px] rounded-[24px] border-[1.167px] border-black p-[24px]"
         }
       >
         <div className="flex items-center gap-[10px]">
@@ -432,10 +434,10 @@ export default function ShiftBuilder({
             alt=""
             width={24}
             height={24}
-            className="size-6"
+            className="size-5"
           />
           <h2
-            className={`font-manrope font-semibold tracking-[-0.4px] text-[#1e1e24] ${compact ? "text-[18px]" : "text-[22px]"}`}
+            className={`font-manrope font-semibold tracking-[-0.4px] text-[#1e1e24] ${compact ? "text-[16px]" : "text-[19px]"}`}
           >
             Add Shifts
           </h2>
@@ -444,8 +446,8 @@ export default function ShiftBuilder({
         <div
           className={
             compact
-              ? "grid gap-6 md:grid-cols-2"
-              : "grid grid-cols-[minmax(0,460px)_1fr] gap-[40px]"
+              ? "app-shift-layout app-shift-layout-compact gap-5"
+              : "app-shift-layout gap-[34px]"
           }
         >
           {/* Calendar */}
@@ -466,7 +468,7 @@ export default function ShiftBuilder({
                   type="button"
                   onClick={() => selectDays(label, days)}
                   aria-pressed={dayPreset === label}
-                  className={`rounded-full border px-3 py-1 font-inter text-[13px] leading-[18px] ${dayPreset === label ? "border-brand bg-brand text-white" : "border-field-border text-[#1e1e24] hover:border-brand"}`}
+                  className={`rounded-full border-[1.167px] px-3 py-1 font-inter text-[13px] leading-[18px] ${dayPreset === label ? "border-brand bg-brand text-white" : "border-black text-[#1e1e24] app-option-hover"}`}
                 >
                   {label}
                 </button>
@@ -478,8 +480,8 @@ export default function ShiftBuilder({
           <div
             className={
               compact
-                ? "flex min-w-0 flex-col gap-6 md:pt-6"
-                : "flex flex-col gap-[28px]"
+                ? "flex min-w-0 flex-col gap-5 md:pt-5"
+                : "flex flex-col gap-[24px]"
             }
           >
             <Field label="Shift Recurrence" required>
@@ -500,7 +502,7 @@ export default function ShiftBuilder({
                 Time Range <span className="text-red-500">*</span>
               </span>
               <div
-                className={`flex flex-wrap items-end ${compact ? "gap-2" : "gap-[24px]"}`}
+                className={`flex flex-wrap items-end ${compact ? "gap-2" : "gap-[20px]"}`}
               >
                 <TimeField
                   label="From"
@@ -548,7 +550,7 @@ export default function ShiftBuilder({
                       setTimePreset(label);
                     }}
                     aria-pressed={timePreset === label}
-                    className={`rounded-full border px-3 py-1 font-inter text-[13px] leading-[18px] ${timePreset === label ? "border-brand bg-brand text-white" : "border-field-border text-[#1e1e24] hover:border-brand"}`}
+                    className={`rounded-full border-[1.167px] px-3 py-1 font-inter text-[13px] leading-[18px] ${timePreset === label ? "border-brand bg-brand text-white" : "border-black text-[#1e1e24] app-option-hover"}`}
                   >
                     {label}
                   </button>
@@ -556,12 +558,12 @@ export default function ShiftBuilder({
               </div>
             </div>
 
-            <div className="flex items-center gap-[16px]">
+            <div className="flex items-center gap-[13px]">
               <button
                 type="button"
                 onClick={addShift}
                 disabled={!canAdd}
-                className={`${compact ? "h-12 rounded-lg text-[14px]" : "h-[54px] rounded-[12px] text-[16px]"} flex-1 font-inter font-semibold text-white transition-colors ${
+                className={`${compact ? "h-10 rounded-lg text-[14px]" : "h-[40px] rounded-[12px] text-[14px]"} flex-1 font-inter font-semibold text-white transition-colors ${
                   canAdd
                     ? "bg-[#0077c0] hover:bg-[#0069a8]"
                     : "cursor-not-allowed bg-[#7fb9dd]"
@@ -573,7 +575,7 @@ export default function ShiftBuilder({
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="h-[54px] rounded-[12px] border-[1.2px] border-[#c2c6d4] px-[24px] font-inter text-[16px] font-semibold text-[#1e1e24] transition-colors hover:border-[#0077c0]"
+                  className="h-[40px] rounded-[12px] border-[1.167px] border-black px-[20px] font-inter text-[14px] font-semibold text-[#1e1e24] transition-colors"
                 >
                   Cancel
                 </button>
@@ -585,18 +587,14 @@ export default function ShiftBuilder({
 
       {/* Shifts table */}
       {(!compact || shifts.length > 0) && (
-        <div
-          role="region"
-          aria-label="Doctor shifts"
-          className="overflow-x-auto rounded-[18px] border border-field-border"
-        >
+        <TableViewport label="Doctor shifts" minWidth="560px" className="rounded-[15px] border border-black" bodyClassName={compact ? "max-h-28" : "max-h-[346px]"}>
           <div
-            className={`grid min-w-[560px] ${tableGrid} border-b border-field-border/50 ${compact ? "bg-white" : "bg-[#f8fafc]"}`}
+            className={`app-table-header grid min-w-[560px] ${tableGrid} border-b border-black ${compact ? "bg-white" : "bg-[#f8fafc]"}`}
           >
             {["Frequency", "Day/Date", "Shift Timing", "Action"].map((h) => (
               <span
                 key={h}
-                className={`text-left font-inter font-semibold uppercase leading-[18px] tracking-[0.6px] ${compact ? "px-5 py-2.5 text-[10px] text-[#1e1e24] last:text-right" : "px-6 py-[18px] text-[13px] text-[#727783]"}`}
+                className={`text-left font-inter font-semibold uppercase leading-[18px] tracking-[0.6px] ${compact ? "px-4 py-2.5 text-[10px] text-[#1e1e24] last:text-right" : "px-5 py-[15px] text-[13px] text-[#727783]"}`}
               >
                 {h}
               </span>
@@ -606,8 +604,8 @@ export default function ShiftBuilder({
             <p
               className={
                 compact
-                  ? "h-14"
-                  : "px-[24px] py-8 font-inter text-[15px] text-[#94a3b8]"
+                  ? "h-10"
+                  : "px-[20px] py-7 font-inter text-[14px] text-[#94a3b8]"
               }
             >
               <span className={compact ? "sr-only" : undefined}>
@@ -618,11 +616,7 @@ export default function ShiftBuilder({
           ) : (
             // The popup shows two 56px rows; additional shifts scroll below the header.
             <div
-              className={
-                compact
-                  ? "max-h-28 min-w-[560px] overflow-y-auto overscroll-contain"
-                  : "max-h-[346px] overflow-y-auto"
-              }
+              className="min-w-[560px]"
               tabIndex={shiftGroups.length > (compact ? 2 : 5) ? 0 : undefined}
               role="region"
               aria-label="Added shifts"
@@ -630,19 +624,19 @@ export default function ShiftBuilder({
               {shiftGroups.map((s) => (
                 <div
                   key={s.id}
-                  className={`grid ${tableGrid} items-center border-b border-field-border/50 last:border-b-0 ${compact ? "min-h-14 [&>span]:px-5 [&>span]:py-3 [&>span]:text-[13px]" : ""}`}
+                  className={`grid ${tableGrid} items-center border-b border-black last:border-b-0 ${compact ? "min-h-10 [&>span]:px-4 [&>span]:py-3 [&>span]:text-[13px]" : ""}`}
                 >
-                  <span className="px-[24px] py-[18px] font-inter text-[15px] text-[#1e1e24]">
+                  <span className="px-[20px] py-[15px] font-inter text-[14px] text-[#1e1e24]">
                     {s.frequency}
                   </span>
-                  <span className="px-[24px] py-[18px] font-inter text-[15px] text-[#1e1e24]">
+                  <span className="px-[20px] py-[15px] font-inter text-[14px] text-[#1e1e24]">
                     {s.dayDateLabel}
                   </span>
-                  <span className="px-[24px] py-[18px] font-inter text-[15px] text-[#1e1e24]">
+                  <span className="px-[20px] py-[15px] font-inter text-[14px] text-[#1e1e24]">
                     {s.timing}
                   </span>
                   <div
-                    className={`flex items-center ${compact ? "gap-1 px-3" : "gap-2 px-6 py-[18px]"}`}
+                    className={`flex items-center ${compact ? "gap-1 px-3" : "gap-2 px-5 py-[15px]"}`}
                   >
                     <button
                       type="button"
@@ -683,7 +677,7 @@ export default function ShiftBuilder({
               ))}
             </div>
           )}
-        </div>
+        </TableViewport>
       )}
 
       {pendingDelete && (
@@ -726,7 +720,7 @@ function DeleteShiftDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -735,18 +729,18 @@ function DeleteShiftDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-shift-title"
-        className="my-auto flex w-full max-w-[460px] flex-col gap-[20px] rounded-[20px] bg-white p-[28px] shadow-[0_10px_40px_rgba(0,0,0,0.15)]"
+        className="app-dialog my-auto flex w-full max-w-[460px] flex-col gap-[17px] rounded-[17px] bg-white p-[clamp(13px,3vw,24px)] shadow-[0_10px_40px_rgba(0,0,0,0.15)]"
       >
         <div className="flex items-center gap-[10px]">
-          <TrashIcon className="size-6 text-[#ba1a1a]" />
+          <TrashIcon className="size-5 text-[#ba1a1a]" />
           <h2
             id="delete-shift-title"
-            className="font-manrope text-[22px] font-bold tracking-[-0.4px] text-[#1e1e24]"
+            className="font-manrope text-[19px] font-bold tracking-[-0.4px] text-[#1e1e24]"
           >
             Delete Shift?
           </h2>
         </div>
-        <p className="font-inter text-[15px] leading-[23px] text-[#1e1e24]">
+        <p className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
           Are you sure you want to delete the{" "}
           <span className="font-semibold text-[#0077c0]">
             {shift.frequency}
@@ -756,18 +750,18 @@ function DeleteShiftDialog({
           {shift.timing})? This action cannot be undone.
         </p>
 
-        <div className="flex items-center justify-end gap-[16px]">
+        <div className="app-toolbar flex items-center justify-end gap-[13px]">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border-[1.2px] border-[#c2c6d4] px-[24px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:border-[#0077c0]"
+            className="rounded-full border-[1.167px] border-black px-[clamp(13px,3vw,20px)] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-full bg-[#ba1a1a] px-[24px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-opacity hover:opacity-90"
+            className="rounded-full bg-[#ba1a1a] px-[clamp(13px,3vw,20px)] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-opacity hover:opacity-90"
           >
             Delete Shift
           </button>
@@ -901,8 +895,8 @@ function MonthCalendar({
     <div
       className={
         compact
-          ? "rounded-[18px] border border-field-border p-[18px]"
-          : "rounded-[20px] border border-[#c2c6d4] p-[20px]"
+          ? "rounded-[15px] border-[1.167px] border-black p-[15px]"
+          : "rounded-[17px] border-[1.167px] border-black p-[17px]"
       }
     >
       <div className="mb-[16px] flex items-center justify-between">
@@ -973,7 +967,7 @@ function MonthCalendar({
               onClick={() => onToggle(c.key)}
               aria-pressed={selected.has(c.key) || derived.has(c.key)}
               aria-label={`${MONTHS[Number(c.key.slice(5, 7)) - 1]} ${c.day}, ${c.key.slice(0, 4)}`}
-              className={`mx-auto flex ${compact ? "size-7 text-[12px]" : "size-[36px] text-[14px]"} items-center justify-center rounded-full font-inter transition-colors ${c.outside ? "opacity-40 " : ""}${
+              className={`mx-auto flex ${compact ? "size-7 text-[12px]" : "h-[36px] w-full max-w-[36px] text-[14px]"} items-center justify-center rounded-full font-inter transition-colors ${c.outside ? "opacity-40 " : ""}${
                 selected.has(c.key) || derived.has(c.key)
                   ? `bg-[#0077c0] font-semibold text-white${
                       c.key === todayKey ? " ring-2 ring-inset ring-white" : ""
@@ -985,8 +979,8 @@ function MonthCalendar({
                           : ""
                       }`
                     : c.key === todayKey
-                      ? "border border-[#0077c0] font-semibold text-[#0077c0]"
-                      : "text-[#1e1e24] hover:bg-[#f1f5f9]"
+                      ? "border-[1.167px] border-[#0077c0] font-semibold text-[#0077c0] app-option-hover"
+                      : "text-[#1e1e24] app-option-hover"
               }`}
             >
               {c.day}
@@ -996,7 +990,7 @@ function MonthCalendar({
       </div>
 
       {/* Legend — distinguishes the working selection from committed shifts. */}
-      <div className="mt-[16px] flex items-center gap-[18px]">
+      <div className="app-toolbar mt-[16px] flex items-center gap-[15px]">
         <span className="flex items-center gap-[7px]">
           <span className="size-[12px] rounded-full bg-[#0077c0]" />
           <span className="font-inter text-[12px] text-[#727783]">
@@ -1055,7 +1049,7 @@ function CalendarSelect<T extends number>({
         className="flex items-center gap-[6px] rounded-[8px] px-[8px] py-[4px] transition-colors hover:bg-[#f1f5f9]"
       >
         <span
-          className={`font-manrope font-semibold text-[#1e1e24] ${compact ? "text-[14px]" : "text-[18px]"}`}
+          className={`font-manrope font-semibold text-[#1e1e24] ${compact ? "text-[14px]" : "text-[16px]"}`}
         >
           {current?.label ?? value}
         </span>
@@ -1070,7 +1064,7 @@ function CalendarSelect<T extends number>({
         )}
       </button>
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex max-h-[240px] w-[150px] flex-col gap-[5px] overflow-y-auto rounded-[15px] border border-[#c2c6d4] bg-white p-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex max-h-[240px] w-[150px] flex-col gap-[5px] overflow-y-auto rounded-[13px] border-[1.167px] border-black bg-white p-[12px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
           {options.map((opt) => (
             <button
               key={opt.value}
@@ -1079,12 +1073,12 @@ function CalendarSelect<T extends number>({
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[14px] py-[8px] transition-colors hover:bg-[#e9eef4]"
+              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[14px] py-[8px] transition-colors app-option-hover"
             >
               <span className="font-inter text-[14px] text-[#1e1e24]">
                 {opt.label}
               </span>
-              <span className="flex size-3 items-center justify-center rounded-full border border-[#1e1e24]">
+              <span className="flex size-3 items-center justify-center rounded-full border-[1.167px] border-black">
                 {opt.value === value && (
                   <span className="size-1.5 rounded-full bg-[#1e1e24]" />
                 )}
@@ -1110,7 +1104,7 @@ function TimeField({
   onChange: (v: TimeParts) => void;
   compact?: boolean;
 }) {
-  const box = `${compact ? "w-10 rounded-[4px] py-[7px] text-[12px]" : "w-[46px] rounded-[8px] py-[8px] text-[15px]"} border border-field-border text-center font-inter text-[#1e1e24] outline-none placeholder:text-field-border focus:border-brand`;
+  const box = `${compact ? "h-[38px] w-[34px] shrink-0 rounded-[8px] bg-white text-[13px]" : "w-[46px] rounded-[8px] py-[8px] text-[15px]"} border-[1.167px] border-black text-center font-inter text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-brand`;
   return (
     <div className="flex flex-col gap-[6px]">
       <span className="font-inter text-[11px] uppercase tracking-[0.5px] text-[#94a3b8]">
@@ -1130,7 +1124,7 @@ function TimeField({
           inputMode="numeric"
           className={box}
         />
-        <span className="font-inter text-[15px] text-[#1e1e24]">:</span>
+        <span className="font-inter text-[14px] text-[#1e1e24]">:</span>
         <input
           aria-label={`${label} minute`}
           value={value.mm}
@@ -1150,7 +1144,7 @@ function TimeField({
           onClick={() =>
             onChange({ ...value, period: value.period === "AM" ? "PM" : "AM" })
           }
-          className={`border border-field-border bg-field-border font-inter font-medium text-[#1e1e24] ${compact ? "rounded-[4px] px-[10px] py-[7px] text-[12px]" : "rounded-[8px] px-3 py-2 text-[13px]"}`}
+          className="h-[38px] w-[38px] shrink-0 rounded-[8px] bg-[#cbd5e1] font-inter text-[12px] text-[#1e1e24]"
         >
           {value.period}
         </button>
@@ -1196,9 +1190,9 @@ export function Dropdown({
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        className="flex w-full items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1 text-left focus:border-[#0077c0] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center justify-between border-b-[1.167px] border-black pb-2 pt-1 text-left focus:border-[#0077c0] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <span className="font-inter text-[15px] text-[#1e1e24]">
+        <span className={`font-inter text-[14px] ${value ? "text-[#1e1e24]" : "text-field-placeholder"}`}>
           {value || placeholder}
         </span>
         {disabled ? (
@@ -1214,7 +1208,7 @@ export function Dropdown({
         )}
       </button>
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex w-full flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-30 flex w-full flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
           {options.map((opt) => (
             <button
               key={opt}
@@ -1223,12 +1217,12 @@ export function Dropdown({
                 onChange(opt);
                 setOpen(false);
               }}
-              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[16px] py-[10px] transition-colors hover:bg-[#e9eef4]"
+              className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] px-[13px] py-[10px] transition-colors app-option-hover"
             >
               <span className="font-inter text-[14px] text-[#1e1e24]">
                 {opt}
               </span>
-              <span className="flex size-3 items-center justify-center rounded-full border border-[#1e1e24]">
+              <span className="flex size-3 items-center justify-center rounded-full border-[1.167px] border-black">
                 {value === opt && (
                   <span className="size-1.5 rounded-full bg-[#1e1e24]" />
                 )}

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import FloatingPanel from "@/components/FloatingPanel";
+import { useRef, useState } from "react";
 
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
 
@@ -46,22 +47,6 @@ export default function TimeFilter({
   const [to, setTo] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocMouseDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocMouseDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, setOpen]);
-
   // Seed the draft date fields from the active value when the panel opens.
   function toggle() {
     setOpen((wasOpen) => {
@@ -88,7 +73,7 @@ export default function TimeFilter({
         onClick={toggle}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex h-[54px] items-center gap-2 rounded-full border-[1.167px] border-field-border px-4 font-inter text-[16.333px] font-medium leading-[23.333px] text-ink"
+        className="clinic-field-border flex h-[40px] items-center gap-2 rounded-full border-[1.167px] border-black px-3.5 font-inter text-[14px] font-medium leading-[21px] text-ink"
       >
         <span className="whitespace-nowrap">{timeFrameLabel(value)}</span>
         <Image
@@ -96,31 +81,28 @@ export default function TimeFilter({
           alt=""
           width={24}
           height={24}
-          className={`size-6 shrink-0 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          className={`size-5 shrink-0 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
 
       {open && (
-        <div
-          role="dialog"
-          aria-label="Filter by time frame"
-          className="absolute right-0 top-full z-20 mt-2 flex w-[288px] max-w-[calc(100vw-2rem)] flex-col gap-4 rounded-[15px] border border-field-border bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
-        >
+        <FloatingPanel anchor={ref} align="start" width={288} gap={12} onClose={() => setOpen(false)} role="dialog" label="Filter by time frame" className="flex flex-col gap-3.5 rounded-[13px] border-[1.167px] border-black bg-white p-[14px] shadow-lg">
           <QuickOption label="All time" selected={value.kind === "all"} onClick={() => select({ kind: "all" })} />
           <QuickOption label="Today" selected={value.kind === "today"} onClick={() => select({ kind: "today" })} />
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3.5">
             <DateField label="FROM" value={from} max={to || undefined} onChange={setFrom} />
             <DateField label="TO" value={to} min={from || undefined} onChange={setTo} />
 
-            <div className="flex items-center justify-between pt-2">
+            <div className="app-toolbar flex items-center justify-between pt-2">
               <button
                 type="button"
+                disabled={!from && !to}
                 onClick={() => {
                   setFrom("");
                   setTo("");
                 }}
-                className="w-[122px] rounded-[4px] px-[17px] py-[9px] font-inter text-[12px] font-semibold tracking-[0.6px] text-[#424752]"
+                className="w-[122px] rounded-full border-[1.167px] border-brand bg-transparent px-[14px] py-[9px] font-inter text-[12px] font-semibold tracking-[0.6px] text-brand transition-colors enabled:hover:bg-brand/5 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 CLEAR
               </button>
@@ -128,13 +110,13 @@ export default function TimeFilter({
                 type="button"
                 disabled={!rangeValid}
                 onClick={() => rangeValid && select({ kind: "range", from, to })}
-                className="w-[120px] rounded-full bg-brand px-4 py-2 font-inter text-[12px] font-semibold tracking-[0.6px] text-white drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-opacity disabled:opacity-50"
+                className="w-[120px] rounded-full bg-brand px-3.5 py-2 font-inter text-[12px] font-semibold tracking-[0.6px] text-white drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-opacity disabled:opacity-50"
               >
                 APPLY
               </button>
             </div>
           </div>
-        </div>
+        </FloatingPanel>
       )}
     </div>
   );
@@ -154,8 +136,8 @@ function QuickOption({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`flex w-full items-center justify-between rounded-[8px] py-[10px] pl-4 pr-4 text-left transition-colors ${
-        selected ? "bg-[rgba(0,94,184,0.1)]" : "bg-[#f1f5f9] hover:bg-[#e7edf4]"
+      className={`flex w-full items-center justify-between rounded-[8px] border-[1.167px] py-[10px] pl-3.5 pr-3.5 text-left transition-colors ${
+        selected ? "border-[#e5eff8] bg-[#e5eff8]" : "border-[#f1f5f9] bg-[#f1f5f9] app-option-hover"
       }`}
     >
       <span
@@ -165,7 +147,7 @@ function QuickOption({
       >
         {label}
       </span>
-      {selected && <Image src="/clinic/check.svg" alt="" width={24} height={24} className="size-6" />}
+      {selected && <Image src="/clinic/check.svg" alt="" width={24} height={24} className="size-5" />}
     </button>
   );
 }
@@ -194,7 +176,7 @@ function DateField({
         min={min}
         max={max}
         onChange={(e) => onChange(e.target.value)}
-        className="border-b-[0.894px] border-field-border/60 bg-transparent pb-[8px] pt-[7px] font-inter text-[14.31px] text-ink outline-none focus:border-brand"
+        className="border-b-[1.167px] border-black bg-transparent pb-[8px] pt-[7px] font-inter text-[14.31px] text-ink outline-none focus:border-black"
       />
     </label>
   );

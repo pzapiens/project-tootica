@@ -13,14 +13,14 @@ export const analyticsService = {
       ]);
 
     // Roll the five appointment statuses up into the four dashboard buckets:
-    // completed, pending (not yet happened), cancelled (incl. no-shows).
+    // completed, pending (not yet happened), cancelled.
     const by = (status: string) =>
       statusGroups.find((g) => g.status === status)?._count._all ?? 0;
     const byStatus = {
       total: appointments,
       completed: by('COMPLETED'),
       pending: by('SCHEDULED') + by('CONFIRMED'),
-      cancelled: by('CANCELLED') + by('NO_SHOW'),
+      cancelled: by('CANCELLED'),
     };
 
     return { patients, doctors, appointments, upcomingAppointments, byStatus };

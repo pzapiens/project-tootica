@@ -71,9 +71,9 @@ export default function ClinicSelectionClient() {
   if (!me) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-white">
-        <div role="alert" className="flex flex-col items-center gap-4 text-ink">
+        <div role="alert" className="flex flex-col items-center gap-3.5 text-ink">
           <p>Couldn’t load your account. Please try again.</p>
-          <button type="button" onClick={() => window.location.reload()} className="rounded-full bg-brand px-6 py-3 text-white">Try again</button>
+          <button type="button" onClick={() => window.location.reload()} className="rounded-full bg-brand px-5 py-3 text-white">Try again</button>
         </div>
       </div>
     );

@@ -1,0 +1,156 @@
+.shell {
+  display: flex;
+  height: 100dvh;
+  min-width: 0;
+  overflow: hidden;
+  background: #1e1e24;
+}
+.sidebarSlot {
+  display: flex;
+  flex-direction: column;
+  width: 210px;
+  min-height: 0;
+  flex-shrink: 0;
+  transition: width 200ms ease;
+}
+.sidebarSlot[data-collapsed="true"] {
+  width: 64px;
+}
+.sidebar {
+  height: 100%;
+  width: 100%;
+  padding: 24px 12px;
+}
+.sidebarSlot[data-collapsed="false"] .sidebar {
+  padding-right: 0;
+}
+.logo {
+  padding-bottom: clamp(20px, 5dvh, 48px);
+}
+.nav {
+  gap: clamp(10px, calc(1dvh + 4px), 14px);
+  padding-bottom: 16px;
+}
+.main {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  padding: var(--app-content-inset);
+}
+.scrollPanel {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  padding: clamp(20px, 2.5vw, 42px);
+}
+.scrollPanel.paginatedScrollPanel {
+  padding-bottom: 20px;
+}
+.scrollPanel:has([data-patient-records]) {
+  padding-bottom: clamp(20px, 2.5vw, 42px);
+}
+.scrollPanel.dashboardScrollPanel {
+  --dashboard-page-inset: clamp(20px, 2.5vw, 42px);
+  position: relative;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+  padding: var(--dashboard-page-inset);
+}
+.dashboardScrollPanel .content {
+  position: absolute;
+  inset: var(--dashboard-page-inset);
+  height: auto;
+  min-height: 0;
+  overflow: auto;
+}
+.dashboardScrollPanel .content > div {
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+.dashboardScrollPanel .content > div > div {
+  min-height: 0;
+}
+.content {
+  display: flex;
+  min-height: 100%;
+  min-width: 0;
+  flex-direction: column;
+}
+.toggle {
+  left: 0;
+  top: 32px;
+}
+.backdrop,
+.mobileClose {
+  display: none;
+}
+@media (max-width: 639px) {
+  .sidebarSlot,
+  .sidebarSlot[data-collapsed="true"] {
+    width: 56px;
+  }
+  .sidebar {
+    padding: 20px 8px;
+  }
+  .scrollPanel {
+    padding: 52px 16px 24px;
+  }
+  .scrollPanel:has([data-patient-records]) {
+    padding-bottom: 16px;
+  }
+  .toggle {
+    top: 22px;
+  }
+  .sidebarSlot[data-collapsed="false"] .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(226px, 85vw);
+    padding: 24px 0 24px 12px;
+    background: #1e1e24;
+    box-shadow: 12px 0 32px #0004;
+  }
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: block;
+    background: #0006;
+  }
+  .mobileClose {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: white;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebarSlot {
+    transition: none;
+  }
+}
+.sidebarSlot > div,
+.sidebarSlot > div > div {
+  height: 100%;
+  min-height: 0;
+}
+@media (max-width: 1279px) {
+  .placeholderSlot {
+    width: 64px;
+  }
+  .placeholderSlot .placeholderLabel {
+    display: none;
+  }
+}
+@media (max-width: 639px) {
+  .placeholderSlot {
+    width: 56px;
+  }
+}

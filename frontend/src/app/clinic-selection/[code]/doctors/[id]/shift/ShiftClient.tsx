@@ -148,17 +148,17 @@ export default function ShiftClient() {
   if (loadingDoctor || loadingShifts) return <ShiftSkeleton />;
 
   return (
-    <div className="flex flex-col gap-[32px] pb-[24px]">
+    <div className="app-page flex flex-col gap-[27px] pb-[20px]">
       {/* Header */}
-      <div className="flex items-center gap-[16px]">
+      <div className="app-toolbar flex items-center gap-[13px]">
         <BackButton onClick={() => router.back()} ariaLabel="Back to doctors" />
-        <h1 className="font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
+        <h1 className="app-page-title font-manrope text-[31px] font-bold leading-[39px] tracking-[-0.7px] text-[#1e1e24]">
           Edit Doctor Shift
         </h1>
       </div>
 
       {/* Doctor details — frozen for employed doctors, editable for guests. */}
-      <div className="grid grid-cols-2 gap-x-[64px] gap-y-[28px]">
+      <div className="app-form-grid grid grid-cols-2 gap-x-[54px] gap-y-[24px]">
         <TextField
           label="Doctor Name"
           value={name}
@@ -191,12 +191,12 @@ export default function ShiftClient() {
       </div>
 
       {isGuest && (
-        <div className="flex items-center gap-[16px]">
+        <div className="app-toolbar flex items-center gap-[13px]">
           <button
             type="button"
             onClick={saveDetails}
             disabled={savingDetails || name.trim() === ""}
-            className="rounded-full bg-[#0077c0] px-[24px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-colors hover:bg-[#0069a8] disabled:opacity-50"
+            className="rounded-full bg-[#0077c0] px-[20px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.6px] text-white transition-colors hover:bg-[#0069a8] disabled:opacity-50"
           >
             {savingDetails ? "Saving…" : "Update Details"}
           </button>
@@ -244,7 +244,7 @@ function TextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={`w-full border-b border-[#c2c6d4] bg-transparent pb-2 pt-1 font-inter text-[15px] outline-none focus:border-[#0077c0] ${
+        className={`w-full border-b-[1.167px] border-black bg-transparent pb-2 pt-1 font-inter text-[14px] outline-none focus:border-[#0077c0] ${
           disabled ? "cursor-not-allowed text-[#1e1e24]/50" : "text-[#1e1e24]"
         }`}
       />
@@ -263,12 +263,12 @@ function PhoneField({
 }) {
   return (
     <Field label="Phone" required>
-      <div className="flex items-center gap-2 border-b border-[#c2c6d4] pb-2 pt-1 focus-within:border-[#0077c0]">
+      <div className="flex items-center gap-2 border-b-[1.167px] border-black pb-2 pt-1 focus-within:border-[#0077c0]">
         <PhoneNumberInput
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className={`min-w-0 flex-1 bg-transparent font-inter text-[15px] outline-none ${
+          className={`min-w-0 flex-1 bg-transparent font-inter text-[14px] outline-none ${
             disabled ? "cursor-not-allowed text-[#1e1e24]/50" : "text-[#1e1e24]"
           }`}
         />
@@ -281,8 +281,8 @@ function PhoneField({
 function LockedField({ label, value }: { label: string; value: string }) {
   return (
     <Field label={label}>
-      <div className="flex items-center justify-between border-b border-[#c2c6d4] pb-2 pt-1">
-        <span className="font-inter text-[15px] text-[#1e1e24]/50">
+      <div className="flex items-center justify-between border-b-[1.167px] border-black pb-2 pt-1">
+        <span className="font-inter text-[14px] text-[#1e1e24]/50">
           {value}
         </span>
         <NoEditIcon className="size-5 text-[#94a3b8]" />

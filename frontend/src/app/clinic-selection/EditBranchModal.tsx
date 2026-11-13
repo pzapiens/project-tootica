@@ -53,10 +53,10 @@ export default function EditBranchModal({
 
   return (
     <Overlay onClose={onClose} labelledBy="edit-branch-title">
-      <h2 id="edit-branch-title" className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink">
+      <h2 id="edit-branch-title" className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink">
         Edit Clinic
       </h2>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <LabeledInput
           id="edit-branch-name"
           label="Clinic Name"

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { searchTreatments } from "@/lib/treatments";
 
 /**
  * Apply Filter panel (Figma "Appts4 - Filter"): a full-content panel that
  * replaces the appointments list while open. Two sorting cards (ID + Date &
- * Time), an Attending Doctor picker (search + checkboxes), Consultation Type and
+ * Time), an Attending Doctor picker (search + checkboxes), Reason for visit / Treatment and
  * Source checkbox lists, and a Status chip group. Selections are STAGED — they
  * only take effect when "Apply Filters" is clicked (Clear Filters clears both the
  * draft and any already-applied filters).
@@ -64,7 +65,6 @@ export const STATUS_CHIPS = [
   "On going",
   "Completed",
   "Cancelled",
-  "No Show",
 ] as const;
 
 export interface FilterOption {
@@ -75,7 +75,6 @@ export interface FilterOption {
 export default function AppointmentFilterPanel({
   applied,
   doctorOptions,
-  consultationOptions,
   channelOptions,
   sourceOptions,
   onApply,
@@ -83,7 +82,6 @@ export default function AppointmentFilterPanel({
 }: {
   applied: AppointmentFilters;
   doctorOptions: FilterOption[];
-  consultationOptions: FilterOption[];
   channelOptions: FilterOption[];
   sourceOptions: FilterOption[];
   onApply: (filters: AppointmentFilters) => void;
@@ -91,6 +89,15 @@ export default function AppointmentFilterPanel({
 }) {
   const [draft, setDraft] = useState<AppointmentFilters>(applied);
   const [doctorQuery, setDoctorQuery] = useState("");
+  const [treatmentQuery, setTreatmentQuery] = useState("");
+  const [sourceQuery, setSourceQuery] = useState("");
+  const visibleTreatments = useMemo(() => searchTreatments(treatmentQuery), [treatmentQuery]);
+  const visibleSources = useMemo(() => {
+    const query = sourceQuery.trim().toLowerCase();
+    return query
+      ? sourceOptions.filter((source) => source.label.toLowerCase().includes(query) || source.value.toLowerCase().includes(query))
+      : sourceOptions;
+  }, [sourceOptions, sourceQuery]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -130,13 +137,13 @@ export default function AppointmentFilterPanel({
   const canApply = count > 0;
 
   return (
-    <div className="flex h-[calc((100dvh-76px)/0.9)] flex-col md:h-[calc((100dvh-112px)/0.9)]">
+    <div className="app-filter-page">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-[14px] border-b border-[rgba(30,30,36,0.5)] pb-[18px]">
+      <div className="app-toolbar flex shrink-0 items-center gap-[14px] border-b-[1.167px] border-black pb-[15px]">
         <button type="button" aria-label="Close filter" onClick={onClose}>
           <CloseIcon className="size-9 text-[#1e1e24]" />
         </button>
-        <h1 className="font-manrope text-[27px] font-semibold tracking-[-0.5px] text-[#1e1e24]">
+        <h1 className="font-manrope text-[24px] font-semibold tracking-[-0.5px] text-[#1e1e24]">
           Apply Filter
         </h1>
       </div>
@@ -145,14 +152,14 @@ export default function AppointmentFilterPanel({
           short card sits flush against the next card in its column — a grid
           would stretch each row to its tallest card, leaving a gap under the
           shorter one (e.g. Attending Doctor → Source). */}
-      <div className="min-h-0 flex-1 overflow-y-auto py-[32px]">
-        <div className="flex items-stretch gap-[24px]">
+      <div className="min-h-0 flex-1 overflow-y-auto py-[27px]">
+        <div className="app-filter-grid gap-[20px]">
           {/* Left column — spreads so its last card (Source of Enquiry) ends level
               with the right column's last card (Booking Channel). */}
-          <div className="flex flex-1 flex-col justify-between gap-[24px]">
+          <div className="flex flex-1 flex-col justify-between gap-[20px]">
             {/* ID Sorting */}
-            <Card title="ID Sorting" icon={<SortIcon className="size-6 text-[#1e1e24]" />}>
-              <div className="grid grid-cols-2 gap-[16px] pt-[6px]">
+            <Card title="ID Sorting" icon={<SortIcon className="size-5 text-[#1e1e24]" />}>
+              <div className="app-choice-grid gap-[13px] pt-[6px]">
                 <CheckOption
                   label="Ascending"
                   arrow="up"
@@ -169,8 +176,8 @@ export default function AppointmentFilterPanel({
             </Card>
 
             {/* Alphabetic Order (patient name) */}
-            <Card title="Alphabetic Order" icon={<SortIcon className="size-6 text-[#1e1e24]" />}>
-              <div className="grid grid-cols-2 gap-[16px] pt-[6px]">
+            <Card title="Alphabetic Order" icon={<SortIcon className="size-5 text-[#1e1e24]" />}>
+              <div className="app-choice-grid gap-[13px] pt-[6px]">
                 <CheckOption
                   label="A to Z"
                   arrow="down"
@@ -187,16 +194,16 @@ export default function AppointmentFilterPanel({
             </Card>
 
             {/* Attending Doctor */}
-            <Card title="Attending Doctor" icon={<DoctorIcon className="size-6 text-[#1e1e24]" />}>
+            <Card title="Attending Doctor" icon={<DoctorIcon className="size-5 text-[#1e1e24]" />}>
               <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-[16px] top-1/2 size-5 -translate-y-1/2 text-[#94a3b8]" />
+                <SearchIcon className="pointer-events-none absolute left-[16px] top-1/2 size-5 -translate-y-1/2 text-[#1e1e24]" />
                 <input
                   type="search"
                   value={doctorQuery}
                   onChange={(e) => setDoctorQuery(e.target.value)}
                   placeholder="Search here..."
                   aria-label="Search doctors"
-                  className="h-[44px] w-full rounded-[10px] border border-[#c2c6d4] pl-[44px] pr-[14px] font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
+                  className="app-search-input h-[44px] w-full rounded-full border-[1.167px] border-black pl-[42px] pr-[14px] font-inter text-[14px] text-[#1e1e24] outline-none"
                 />
               </div>
               <div className="flex max-h-[160px] flex-col gap-[12px] overflow-y-auto pt-[6px]">
@@ -216,12 +223,25 @@ export default function AppointmentFilterPanel({
             </Card>
 
             {/* Source of Enquiry */}
-            <Card title="Source of Enquiry" icon={<EnquiryIcon className="size-6 text-[#1e1e24]" />}>
+            <Card title="Source of Enquiry" icon={<EnquiryIcon className="size-5 text-[#1e1e24]" />}>
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute left-[16px] top-1/2 size-5 -translate-y-1/2 text-[#1e1e24]" />
+                <input
+                  type="search"
+                  value={sourceQuery}
+                  onChange={(e) => setSourceQuery(e.target.value)}
+                  placeholder="Search sources..."
+                  aria-label="Search sources of enquiry"
+                  className="app-search-input h-[44px] w-full rounded-full border-[1.167px] border-black pl-[42px] pr-[14px] font-inter text-[14px] text-[#1e1e24] outline-none"
+                />
+              </div>
               <div className="flex max-h-[220px] flex-col gap-[12px] overflow-y-auto pt-[6px]">
-                {sourceOptions.length === 0 ? (
-                  <span className="font-inter text-[13px] text-[#94a3b8]">No sources.</span>
+                {visibleSources.length === 0 ? (
+                  <span role="status" className="font-inter text-[13px] text-[#94a3b8]">
+                    {sourceQuery.trim() ? "No sources match your search." : "No sources."}
+                  </span>
                 ) : (
-                  sourceOptions.map((s) => (
+                  visibleSources.map((s) => (
                     <BoxedCheckboxRow
                       key={s.value}
                       label={s.label}
@@ -235,10 +255,10 @@ export default function AppointmentFilterPanel({
           </div>
 
           {/* Right column */}
-          <div className="flex flex-1 flex-col gap-[24px]">
+          <div className="flex flex-1 flex-col justify-between gap-[20px]">
             {/* Date & Time Sorting */}
-            <Card title="Date & Time Sorting" icon={<SortIcon className="size-6 text-[#1e1e24]" />}>
-              <div className="grid grid-cols-2 gap-[16px] pt-[6px]">
+            <Card title="Date & Time Sorting" icon={<SortIcon className="size-5 text-[#1e1e24]" />}>
+              <div className="app-choice-grid gap-[13px] pt-[6px]">
                 <CheckOption
                   label="Newest to Oldest"
                   arrow="up"
@@ -254,13 +274,24 @@ export default function AppointmentFilterPanel({
               </div>
             </Card>
 
-            {/* Consultation Type */}
-            <Card title="Consultation Type" icon={<ToothIcon className="size-6 text-[#1e1e24]" />}>
+            {/* Same treatment catalogue and search aliases as Create Appointment. */}
+            <Card title="Reason for visit / Treatment" icon={<ToothIcon className="size-5 text-[#1e1e24]" />}>
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute left-[16px] top-1/2 size-5 -translate-y-1/2 text-[#1e1e24]" />
+                <input
+                  type="search"
+                  value={treatmentQuery}
+                  onChange={(e) => setTreatmentQuery(e.target.value)}
+                  placeholder="Search treatments, e.g. RCT..."
+                  aria-label="Search reasons for visit or treatments"
+                  className="app-search-input h-[44px] w-full rounded-full border-[1.167px] border-black pl-[42px] pr-[14px] font-inter text-[14px] text-[#1e1e24] outline-none"
+                />
+              </div>
               <div className="flex max-h-[220px] flex-col gap-[12px] overflow-y-auto pt-[6px]">
-                {consultationOptions.length === 0 ? (
-                  <span className="font-inter text-[13px] text-[#94a3b8]">No consultation types.</span>
+                {visibleTreatments.length === 0 ? (
+                  <span role="status" className="font-inter text-[13px] text-[#94a3b8]">No treatments found. Try a broader term.</span>
                 ) : (
-                  consultationOptions.map((c) => (
+                  visibleTreatments.map((c) => (
                     <BoxedCheckboxRow
                       key={c.value}
                       label={c.label}
@@ -273,7 +304,7 @@ export default function AppointmentFilterPanel({
             </Card>
 
             {/* Status */}
-            <Card title="Status" icon={<StatusIcon className="size-6 text-[#1e1e24]" />}>
+            <Card title="Status" icon={<StatusIcon className="size-5 text-[#1e1e24]" />}>
               <div className="flex flex-wrap gap-[12px] pt-[6px]">
                 {STATUS_CHIPS.map((s) => {
                   const selected = draft.statuses.includes(s);
@@ -282,10 +313,10 @@ export default function AppointmentFilterPanel({
                       key={s}
                       type="button"
                       onClick={() => toggleIn("statuses", s)}
-                      className={`rounded-[10px] border px-[18px] py-[10px] font-inter text-[14px] transition-colors ${
+                      className={`rounded-[10px] border-[1.167px] px-[15px] py-[10px] font-inter text-[14px] transition-colors ${
                         selected
                           ? "border-[#0077c0] bg-[#0077c0] text-white"
-                          : "border-[#c2c6d4] text-[#1e1e24] hover:border-[#0077c0]"
+                          : "border-black text-[#1e1e24] app-option-hover"
                       }`}
                     >
                       {s}
@@ -296,7 +327,7 @@ export default function AppointmentFilterPanel({
             </Card>
 
             {/* Booking Channel */}
-            <Card title="Booking Channel" icon={<SourceIcon className="size-6 text-[#1e1e24]" />}>
+            <Card title="Booking Channel" icon={<SourceIcon className="size-5 text-[#1e1e24]" />}>
               <div className="flex flex-col gap-[12px] pt-[6px]">
                 {channelOptions.length === 0 ? (
                   <span className="font-inter text-[13px] text-[#94a3b8]">No channels.</span>
@@ -317,7 +348,7 @@ export default function AppointmentFilterPanel({
       </div>
 
       {/* Footer */}
-      <div className="flex shrink-0 items-center justify-end gap-[12px] border-t border-[rgba(30,30,36,0.5)] pt-[18px]">
+      <div className="app-toolbar flex shrink-0 items-center justify-end gap-[12px] border-t-[1.167px] border-black pt-[15px]">
         <button
           type="button"
           onClick={() => {
@@ -336,7 +367,7 @@ export default function AppointmentFilterPanel({
             onApply(draft);
             onClose();
           }}
-          className={`rounded-[50px] px-[22px] py-[10px] font-inter text-[14px] text-white transition-colors ${
+          className={`rounded-[50px] px-[18px] py-[10px] font-inter text-[14px] text-white transition-colors ${
             canApply ? "bg-[#0077c0] hover:bg-[#0069a8]" : "cursor-not-allowed bg-[#0077c0] opacity-50"
           }`}
         >
@@ -358,10 +389,10 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-[16px] rounded-[28px] border border-[#1e1e24] p-[24px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
+    <div className="flex flex-col gap-[13px] rounded-[24px] border-[1.167px] border-black p-[20px] shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
       <div className="flex items-center gap-[8px]">
         {icon}
-        <h2 className="font-manrope text-[18px] font-semibold text-[#1e1e24]">{title}</h2>
+        <h2 className="font-manrope text-[16px] font-semibold text-[#1e1e24]">{title}</h2>
       </div>
       {children}
     </div>
@@ -384,8 +415,8 @@ function CheckOption({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center justify-center gap-[8px] rounded-[8px] border p-[15px] transition-colors ${
-        selected ? "border-[#0077c0] bg-[#0077c0]/5" : "border-[#1e1e24] hover:border-[#0077c0]"
+      className={`flex items-center justify-center gap-[8px] rounded-[8px] border-[1.167px] p-[15px] transition-colors ${
+        selected ? "border-[#0077c0] bg-[#0077c0]/5" : "border-black"
       }`}
     >
       <CheckBox selected={selected} />
@@ -427,8 +458,8 @@ function BoxedCheckboxRow({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center justify-between gap-[12px] rounded-[10px] border px-[16px] py-[13px] text-left transition-colors ${
-        selected ? "border-[#0077c0] bg-[#0077c0]/5" : "border-[#c2c6d4] hover:border-[#0077c0]"
+      className={`flex items-center justify-between gap-[12px] rounded-[10px] border-[1.167px] px-[13px] py-[13px] text-left transition-colors ${
+        selected ? "border-[#0077c0] bg-[#0077c0]/5" : "border-black"
       }`}
     >
       <span className="font-inter text-[14px] text-[#1e1e24]">{label}</span>
@@ -440,8 +471,8 @@ function BoxedCheckboxRow({
 function CheckBox({ selected }: { selected: boolean }) {
   return (
     <span
-      className={`flex size-[16px] shrink-0 items-center justify-center rounded-[3px] border ${
-        selected ? "border-[#0077c0] bg-[#0077c0]" : "border-[#1e1e24] bg-white"
+      className={`flex size-[16px] shrink-0 items-center justify-center rounded-[3px] border-[1.167px] ${
+        selected ? "border-[#0077c0] bg-[#0077c0]" : "border-black bg-white"
       }`}
     >
       {selected && (

@@ -1,5 +1,7 @@
 "use client";
 
+import TablePagination from "@/components/TablePagination";
+
 import { RevenueSkeleton } from "@/components/loading/PageSkeletons";
 
 import Image from "next/image";
@@ -13,15 +15,14 @@ import { Tip } from "@/components/HoverTip";
 import DonutChart, { type DonutDatum } from "@/components/DonutChart";
 
 import TimeframeFilter from "../dashboard/TimeframeFilter";
-import { CONSULTATION_TYPES } from "../dashboard/AppointmentFormStep";
 import { type Timeframe } from "../dashboard/mock";
 import RevenueFilterPanel, {
   EMPTY_REVENUE_FILTERS,
   revenueFilterCount,
-  type FilterOption,
   type RevenueFilters,
 } from "./RevenueFilterPanel";
 import RevenueTrendChart from "./RevenueTrendChart";
+import styles from "./revenue.module.css";
 
 const inr = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -72,9 +73,14 @@ function splitTypes(s: string | null): string[] {
   return (s ?? "").split(",").map((c) => c.trim().toUpperCase()).filter(Boolean);
 }
 
-// Header + every row share this grid template.
-const COLS =
-  "grid-cols-[minmax(0,150fr)_minmax(0,150fr)_minmax(0,165fr)_minmax(0,110fr)_minmax(0,120fr)_minmax(0,130fr)]";
+const TRANSACTION_COLUMNS = [
+  { label: "Transaction ID", width: "15%" },
+  { label: "Patient Name", width: "16%" },
+  { label: "Consultation Type", width: "28%" },
+  { label: "Amount", width: "11%" },
+  { label: "Payment Status", width: "14%" },
+  { label: "Date", width: "16%" },
+];
 
 export default function RevenueClient() {
   const rev = useAppointmentsRevision();
@@ -85,6 +91,8 @@ export default function RevenueClient() {
   const [cardsTf, setCardsTf] = useState<Timeframe>({ kind: "all" });
   const [txTf, setTxTf] = useState<Timeframe>({ kind: "all" });
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [filters, setFilters] = useState<RevenueFilters>(EMPTY_REVENUE_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   // Payment-status filter driven by clicking the breakdown pie ("Received" /
@@ -139,13 +147,6 @@ export default function RevenueClient() {
     [summary],
   );
 
-  // The filter offers the app's full canonical consultation-type list (not just
-  // the types present in the revenue data), matching the appointments filter.
-  const consultationOptions = useMemo<FilterOption[]>(
-    () => CONSULTATION_TYPES.map((c) => ({ value: c, label: titleCase(c) })),
-    [],
-  );
-
   // Transactions table — timeframe + search + facet filters, then sort.
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -172,6 +173,10 @@ export default function RevenueClient() {
 
     return out;
   }, [items, query, txTf, filters, pieStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   function exportCsv() {
     const header = ["Transaction ID", "Patient Name", "Consultation Type", "Amount", "Payment Status", "Date"];
@@ -203,44 +208,43 @@ export default function RevenueClient() {
     return (
       <RevenueFilterPanel
         applied={filters}
-        consultationOptions={consultationOptions}
-        onApply={setFilters}
+        onApply={(next) => { setFilters(next); setPage(1); }}
         onClose={() => setFilterOpen(false)}
       />
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-[40px]">
+    <div className="app-page flex flex-1 flex-col gap-[34px]">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-[16px]">
-        <h1 className="flex-1 font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
+      <div className="app-toolbar flex shrink-0 items-center gap-[13px]">
+        <h1 className="app-page-title flex-1 font-manrope text-[31px] font-bold leading-[39px] tracking-[-0.7px] text-[#1e1e24]">
           Revenue Summary
         </h1>
         <IconButton label="Export revenue to CSV" tip="Export" onClick={exportCsv} icon="/dashboard/download.svg" />
       </div>
 
-      <div className="grid shrink-0 grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="app-chart-grid grid shrink-0 grid-cols-1 gap-5 xl:grid-cols-2">
         <RevenueTrendChart transactions={items} loading={loading} />
-        <section aria-label="Revenue breakdown" className="flex h-[420px] min-h-0 min-w-0 flex-col overflow-hidden rounded-[24px] border-[1.2px] border-[#c2c6d4] bg-white p-5 sm:p-6">
+        <section aria-label="Revenue breakdown" className="app-chart-card flex h-[420px] min-h-0 min-w-0 flex-col overflow-hidden rounded-[20px] border-[1.167px] border-black bg-white p-4 sm:p-5">
           <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-inter text-[16px] font-bold text-[#1e1e24]">
+              <h2 className="font-inter text-[14px] font-bold text-[#1e1e24]">
                 Revenue Breakdown
               </h2>
               <p className="mt-1 font-inter text-[12px] leading-5 text-[#727783]">
                 Received and pending revenue
               </p>
             </div>
-            <TimeframeFilter timeframe={cardsTf} onChange={setCardsTf} />
+            <TimeframeFilter align="end" timeframe={cardsTf} onChange={setCardsTf} />
           </div>
           <div className="flex min-h-0 flex-1 flex-col justify-start pt-3">
             {loading ? (
-              <p className="py-6 font-inter text-[15px] text-[#94a3b8]">Loading…</p>
+              <p className="py-5 font-inter text-[14px] text-[#94a3b8]">Loading…</p>
             ) : (
               <DonutChart
                 data={revenuePie}
-                onSelect={(key) => setPieStatus((s) => (s === key ? null : key))}
+                onSelect={(key) => { setPieStatus((s) => (s === key ? null : key)); setPage(1); }}
                 formatValue={(n) => inr.format(n)}
                 formatCenter={inrCompact}
                 totalLabel="Total Revenue"
@@ -254,12 +258,12 @@ export default function RevenueClient() {
       </div>
 
       {/* Recent Transactions */}
-      <div className="flex min-h-0 flex-1 flex-col gap-[24px]">
-        <div className="flex items-center gap-[16px]">
-          <h2 className="flex-1 font-manrope text-[26px] font-bold leading-[34px] tracking-[-0.5px] text-[#1e1e24]">
+      <div className="flex min-w-0 shrink-0 flex-col gap-[20px]">
+        <div className="app-toolbar flex items-center gap-[13px]">
+          <h2 className="flex-1 font-manrope text-[23px] font-bold leading-[30px] tracking-[-0.5px] text-[#1e1e24]">
             Recent Transactions
           </h2>
-          <TimeframeFilter timeframe={txTf} onChange={setTxTf} />
+          <TimeframeFilter align="end" timeframe={txTf} onChange={(next) => { setTxTf(next); setPage(1); }} />
           <IconButton
             label="Filter transactions"
             tip="Filter"
@@ -276,27 +280,27 @@ export default function RevenueClient() {
             alt=""
             width={24}
             height={24}
-            className="pointer-events-none absolute left-[22px] top-1/2 size-6 -translate-y-1/2"
+            className="pointer-events-none absolute left-[22px] top-1/2 size-5 -translate-y-1/2"
           />
           <input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder="Search here..."
             aria-label="Search transactions"
-            className="h-[54px] w-full rounded-[27px] border-[1.2px] border-[#c2c6d4] pl-[58px] pr-[20px] font-inter text-[16px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
+            className="app-search-input h-[40px] w-full rounded-[23px] border-[1.167px] border-black pl-[49px] pr-[17px] font-inter text-[14px] text-[#1e1e24] outline-none "
           />
         </div>
 
         {/* Active pie filter banner (from clicking a Revenue Breakdown segment). */}
         {pieStatus && (
-          <div className="flex w-fit shrink-0 items-center gap-[10px] rounded-full bg-[#e6f2fb] py-[8px] pl-[16px] pr-[10px]">
+          <div className="app-tabs flex w-fit shrink-0 items-center gap-[10px] rounded-full bg-[#e6f2fb] py-[8px] pl-[13px] pr-[10px]">
             <span className="font-inter text-[14px] text-[#0077c0]">
               Filtered by payment status: <span className="font-semibold">{pieStatus}</span>
             </span>
             <button
               type="button"
-              onClick={() => setPieStatus(null)}
+              onClick={() => { setPieStatus(null); setPage(1); }}
               aria-label="Clear payment status filter"
               className="flex size-[24px] items-center justify-center rounded-full text-[#0077c0] transition-colors hover:bg-[#0077c0]/10"
             >
@@ -307,58 +311,60 @@ export default function RevenueClient() {
           </div>
         )}
 
-        {/* Table */}
-        <div className="flex flex-col overflow-hidden rounded-[20px] border-[1.2px] border-[#c2c6d4] bg-white">
-          {/* Header + body share ONE scroll container so their columns line up —
-              a body-only scrollbar would shift the rows relative to the header.
-              The header is sticky so it stays put while the body scrolls. */}
-          <div className="max-h-[547px] overflow-y-auto">
-          <div className={`sticky top-0 z-10 grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] bg-white`}>
-            {["Transaction ID", "Patient Name", "Consultation Type", "Amount", "Payment Status", "Date"].map((h) => (
-              <span
-                key={h}
-                className="px-[20px] py-[20px] font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.4px] text-[#727783]"
-              >
-                {h}
-              </span>
-            ))}
+        {/* Pagination follows the naturally sized table, without an inner scroller. */}
+        <div className={styles.tableAndPagination}>
+          <div className={styles.tableFrame}>
+            <table aria-label="Revenue transactions" className={styles.table}>
+              <colgroup>
+                {TRANSACTION_COLUMNS.map(column => <col key={column.label} style={{ width: column.width }} />)}
+              </colgroup>
+              <thead className="app-table-header">
+                <tr>
+                  {TRANSACTION_COLUMNS.map(column => (
+                    <th key={column.label} scope="col" className={`${column.label === "Date" ? styles.dateColumn : ""} font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.4px]`}>
+                      {column.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={TRANSACTION_COLUMNS.length} className="font-inter text-[14px] text-[#94a3b8]">
+                      {query.trim() || revenueFilterCount(filters) > 0 || pieStatus
+                        ? "No transactions match your search."
+                        : "No transactions yet."}
+                    </td>
+                  </tr>
+                ) : pageRows.map(transaction => {
+                  const status = transaction.paid ? "Received" : "Pending";
+                  return (
+                    <tr key={transaction.id}>
+                      <td data-label="Transaction ID" className="font-inter text-[14px] font-medium text-[#1e1e24]">{transaction.code}</td>
+                      <td data-label="Patient Name" className="font-inter text-[14px] font-medium text-[#1e1e24]">{transaction.patientName}</td>
+                      <td data-label="Consultation Type" className="font-inter text-[14px] text-[#1e1e24]">
+                        {transaction.consultationType ? titleCase(transaction.consultationType) : "--"}
+                      </td>
+                      <td data-label="Amount" className="font-inter text-[14px] font-medium text-[#1e1e24]">{inr.format(transaction.amount)}</td>
+                      <td data-label="Payment Status">
+                        <span className={`inline-block max-w-full rounded-full px-[clamp(2px,1vw,12px)] py-[4px] font-inter text-[13px] font-medium leading-[18px] ${statusBadgeClass(status)}`}>
+                          {status}
+                        </span>
+                      </td>
+                      <td data-label="Date" className={`${styles.dateColumn} font-inter text-[13px] text-[#727783]`}>{fmtDate(transaction.date)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-
-          {loading ? (
-            <p className="px-[20px] py-10 font-inter text-[16px] text-[#94a3b8]">Loading transactions…</p>
-          ) : rows.length === 0 ? (
-            <p className="px-[20px] py-10 font-inter text-[16px] text-[#94a3b8]">
-              {query.trim() || revenueFilterCount(filters) > 0 || pieStatus
-                ? "No transactions match your search."
-                : "No transactions yet."}
-            </p>
-          ) : (
-            rows.map((t) => {
-              const status = t.paid ? "Received" : "Pending";
-              return (
-                <div
-                  key={t.id}
-                  className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0`}
-                >
-                  <span className="px-[20px] py-[22px] font-inter text-[15px] font-medium text-[#1e1e24]">{t.code}</span>
-                  <span className="px-[20px] py-[22px] font-inter text-[15px] font-medium text-[#1e1e24]">{t.patientName}</span>
-                  <span className="px-[20px] py-[22px] font-inter text-[14px] text-[#1e1e24]">
-                    {t.consultationType ? titleCase(t.consultationType) : "--"}
-                  </span>
-                  <span className="px-[20px] py-[22px] font-inter text-[15px] font-medium text-[#1e1e24]">{inr.format(t.amount)}</span>
-                  <div className="px-[20px] py-[22px]">
-                    <span
-                      className={`inline-flex rounded-full px-[12px] py-[4px] font-inter text-[13px] font-medium leading-[18px] ${statusBadgeClass(status)}`}
-                    >
-                      {status}
-                    </span>
-                  </div>
-                  <span className="px-[20px] py-[22px] font-inter text-[13px] text-[#727783]">{fmtDate(t.date)}</span>
-                </div>
-              );
-            })
-          )}
-          </div>
+          <TablePagination
+            totalRecords={rows.length}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+          />
         </div>
       </div>
     </div>
@@ -384,9 +390,9 @@ function IconButton({
       type="button"
       aria-label={badge > 0 ? `${label} (${badge} active)` : label}
       onClick={onClick}
-      className="group relative flex size-[54px] shrink-0 items-center justify-center rounded-full border-[1.4px] border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
+      className="group relative flex size-[40px] shrink-0 items-center justify-center rounded-full border-[1.167px] border-black transition-colors"
     >
-      <Image src={icon} alt="" width={28} height={28} className="size-7" />
+      <Image src={icon} alt="" width={28} height={28} className="size-5" />
       {badge > 0 && (
         <span className="absolute -right-[2px] -top-[2px] flex size-[22px] items-center justify-center rounded-full border-2 border-white bg-[#0077c0] font-inter text-[12px] font-semibold leading-none text-white">
           {badge}

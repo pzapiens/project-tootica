@@ -32,7 +32,7 @@ export default function AppointmentCallDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -41,7 +41,7 @@ export default function AppointmentCallDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="appt-call-title"
-        className="my-auto flex w-full max-w-[448px] flex-col gap-[16px] rounded-[15px] border border-[#c2c6d4] bg-white p-[24px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+        className="app-dialog my-auto flex w-full max-w-[448px] flex-col gap-[13px] rounded-[13px] border-[1.167px] border-black bg-white p-[clamp(13px,3vw,20px)] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
       >
         {/* Header */}
         <div className="flex items-center gap-[12px]">
@@ -50,9 +50,9 @@ export default function AppointmentCallDialog({
             alt=""
             width={24}
             height={24}
-            className="size-6 shrink-0"
+            className="size-5 shrink-0"
           />
-          <h2 id="appt-call-title" className="font-manrope text-[20px] font-semibold leading-[28px] text-[#1e1e24]">
+          <h2 id="appt-call-title" className="font-manrope text-[18px] font-semibold leading-[25px] text-[#1e1e24]">
             Proceed to Call?
           </h2>
         </div>
@@ -66,7 +66,7 @@ export default function AppointmentCallDialog({
             </span>{" "}
             below.
           </p>
-          <div className="h-px w-full bg-[#c2c6d4]" />
+          <div className="h-px w-full bg-black" />
           {digits ? (
             <a
               href={`tel:${digits}`}
@@ -83,11 +83,11 @@ export default function AppointmentCallDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end">
+        <div className="app-toolbar flex items-center justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-[#1e1e24] px-[21px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:border-[#0077c0] hover:text-[#0077c0]"
+            className="rounded-full border-[1.167px] border-black px-[18px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:text-[#0077c0]"
           >
             Cancel
           </button>

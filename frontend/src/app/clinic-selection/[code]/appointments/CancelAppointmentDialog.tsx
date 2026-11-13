@@ -62,7 +62,7 @@ export default function CancelAppointmentDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !busy) onClose();
       }}
@@ -71,7 +71,7 @@ export default function CancelAppointmentDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="appt-cancel-title"
-        className="my-auto flex w-full max-w-[448px] flex-col gap-[16px] rounded-[15px] border border-[#c2c6d4] bg-white p-[24px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
+        className="app-dialog my-auto flex w-full max-w-[448px] flex-col gap-[13px] rounded-[13px] border-[1.167px] border-black bg-white p-[clamp(13px,3vw,20px)] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
       >
         {/* Header */}
         <div className="flex items-center gap-[12px]">
@@ -80,9 +80,9 @@ export default function CancelAppointmentDialog({
             alt=""
             width={24}
             height={24}
-            className="size-6 shrink-0"
+            className="size-5 shrink-0"
           />
-          <h2 id="appt-cancel-title" className="font-manrope text-[20px] font-semibold leading-[28px] text-[#1e1e24]">
+          <h2 id="appt-cancel-title" className="font-manrope text-[18px] font-semibold leading-[25px] text-[#1e1e24]">
             Cancel Appointment?
           </h2>
         </div>
@@ -97,7 +97,7 @@ export default function CancelAppointmentDialog({
         </p>
 
         {/* Reason */}
-        <div className="flex flex-col gap-[16px]">
+        <div className="flex flex-col gap-[13px]">
           <label htmlFor="cancel-reason" className="font-manrope text-[14px] leading-[21px] text-[#1e1e24]">
             Reason for cancellation <span className="text-[#ff0000]">*</span>
           </label>
@@ -107,7 +107,7 @@ export default function CancelAppointmentDialog({
             onChange={(e) => setReason(e.target.value)}
             placeholder="Please input the reason"
             rows={5}
-            className="min-h-[136px] w-full resize-none rounded-[9px] border border-[#c2c6d4] border-b-2 px-[18px] py-[18px] font-inter text-[14px] leading-[21px] text-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none placeholder:text-[#c2c6d4] focus:border-[#0077c0]"
+            className="min-h-[136px] w-full resize-none rounded-[9px] border-[1.167px] border-black border-b-[1.167px] px-[15px] py-[15px] font-inter text-[14px] leading-[21px] text-[#1e1e24] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none placeholder:text-field-placeholder focus:border-[#0077c0]"
           />
         </div>
 
@@ -118,12 +118,12 @@ export default function CancelAppointmentDialog({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-[12px] pt-[16px]">
+        <div className="app-toolbar flex items-center justify-end gap-[12px] pt-[13px]">
           <button
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="rounded-full border border-[#1e1e24] px-[21px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:border-[#0077c0] hover:text-[#0077c0] disabled:opacity-50"
+            className="rounded-full border-[1.167px] border-black px-[18px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24] transition-colors hover:text-[#0077c0] disabled:opacity-50"
           >
             Cancel
           </button>
@@ -131,7 +131,7 @@ export default function CancelAppointmentDialog({
             type="button"
             onClick={cancel}
             disabled={busy || !canCancel}
-            className={`rounded-full bg-[#0077c0] px-[20px] py-[10px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#0069a8] ${
+            className={`rounded-full bg-[#0077c0] px-[17px] py-[10px] font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#0069a8] ${
               busy || !canCancel ? "cursor-not-allowed opacity-50 hover:bg-[#0077c0]" : ""
             }`}
           >

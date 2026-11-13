@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { type AppointmentListItem } from "@/lib/api";
+import styles from "./dashboard.module.css";
 
 /**
  * Mini month calendar (Figma "Mini Calendar"). Renders the real current month
@@ -103,29 +104,29 @@ export default function MiniCalendar({
   }
 
   return (
-    <div className="flex w-[340px] shrink-0 flex-col gap-[20px] rounded-[24px] border-[1.167px] border-[#c2c6d4] bg-white p-[24px] drop-shadow-[0px_1.167px_1.167px_rgba(0,0,0,0.05)]">
-      <div className="flex flex-col gap-[20px]">
+    <div className={`${styles.calendar} flex flex-col gap-[16px] rounded-[20px] border-[1.167px] border-black bg-white drop-shadow-[0px_1.167px_1.167px_rgba(0,0,0,0.05)]`}>
+      <div className={`${styles.calendarMain} flex flex-col`}>
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h3 className="font-inter text-[18px] font-bold leading-[28px] text-[#1e1e24]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-inter text-[15px] sm:text-[16px] font-bold leading-[24px] text-[#1e1e24]">
             {MONTHS[view.month]} {view.year}
           </h3>
           <div className="flex items-center">
-            <button type="button" aria-label="Previous month" onClick={() => shiftMonth(-1)}>
-              <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6" />
+            <button type="button" className="flex size-8 items-center justify-center" aria-label="Previous month" onClick={() => shiftMonth(-1)}>
+              <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-5" />
             </button>
-            <button type="button" aria-label="Next month" onClick={() => shiftMonth(1)}>
-              <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6 rotate-180" />
+            <button type="button" className="flex size-8 items-center justify-center" aria-label="Next month" onClick={() => shiftMonth(1)}>
+              <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-5 rotate-180" />
             </button>
           </div>
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-7 gap-y-[12px]">
+        <div className={`${styles.calendarGrid} grid grid-cols-7`}>
           {WEEKDAYS.map((d) => (
             <span
               key={d}
-              className="text-center font-inter text-[14px] font-semibold leading-[18.667px] text-[#1e1e24]"
+              className="text-center font-inter text-[12px] font-semibold leading-[18px] text-[#1e1e24]"
             >
               {d}
             </span>
@@ -144,8 +145,8 @@ export default function MiniCalendar({
             // Today is highlighted; otherwise the default/greyed style. Every
             // day is clickable and opens the full calendar on that date.
             const cellClass = isToday
-              ? "flex size-[34px] items-center justify-center rounded-full bg-[#f1f5f9] font-inter text-[14px] font-bold leading-[21px] text-[#1e1e24] transition-colors group-hover:bg-[#e2e8f0]"
-              : `flex size-[34px] items-center justify-center rounded-full font-inter text-[14px] leading-[21px] transition-colors group-hover:bg-[#f1f5f9] ${textClass}`;
+              ? "flex h-[32px] w-full max-w-[32px] items-center justify-center rounded-full bg-[#0077c0] font-inter text-[13px] font-bold leading-[21px] text-white transition-colors group-hover:bg-[#0069a8]"
+              : `flex h-[32px] w-full max-w-[32px] items-center justify-center rounded-full font-inter text-[13px] leading-[21px] transition-colors group-hover:bg-[var(--app-option-hover-fill)] ${textClass}`;
 
             return (
               <button
@@ -158,15 +159,15 @@ export default function MiniCalendar({
                     `/clinic-selection/${params.code}/calendar?date=${dateParam(cell.date)}`,
                   )
                 }
-                className="group flex cursor-pointer flex-col items-center justify-center gap-px"
+                className="group flex min-w-0 cursor-pointer flex-col items-center justify-center gap-px"
               >
                 <span className={cellClass}>{cell.date.getDate()}</span>
-                {/* Appointment indicator: an underline under days that have
-                    appointments — brand blue normally, black on today — kept at
-                    the same weight/thickness the dot used. */}
+                {/* Appointment indicator: a dot under days that have
+                    appointments — brand blue normally, black on today — with
+                    a uniform four-pixel size. */}
                 <span
                   aria-hidden
-                  className={`h-[2px] w-[18px] rounded-full transition-colors ${
+                  className={`size-[4px] shrink-0 rounded-full transition-colors ${
                     hasAppts ? (isToday ? "bg-[#1e1e24]" : "bg-[#0077c0]") : "bg-transparent"
                   }`}
                 />
@@ -179,7 +180,7 @@ export default function MiniCalendar({
       <button
         type="button"
         onClick={() => router.push(`/clinic-selection/${params.code}/calendar`)}
-        className="w-full rounded-[50px] bg-[#0077c0] py-[12px] text-center font-inter text-[14px] font-semibold leading-[21px] text-white transition-colors hover:bg-[#0069a8]"
+        className="w-full rounded-[50px] bg-[#0077c0] py-[10px] text-center font-inter text-[12px] sm:text-[13px] font-semibold leading-[21px] text-white transition-colors hover:bg-[#0069a8]"
       >
         View Full Calendar
       </button>

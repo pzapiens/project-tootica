@@ -47,6 +47,9 @@ export default function AccountMenu({
   const avatarUrl = me.user.avatarUrl;
 
   const label = me.user.firstName?.trim() || displayName(me.user).split(" ")[0];
+  const accountRole = me.user.role === "CLIENT_ADMIN"
+    ? "Clinic Admin"
+    : me.user.role.toLowerCase().replaceAll("_", " ");
 
   useEffect(() => {
     if (!open) return;
@@ -82,40 +85,45 @@ export default function AccountMenu({
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="menu"
           aria-expanded={open}
-          className="flex h-[55px] items-center gap-[10px] rounded-full border-[1.5px] border-[#c2c6d4] bg-white pl-[8px] pr-[18px] transition-colors hover:border-[#0077c0]"
+          className="flex h-[40px] min-w-[160px] max-w-full text-left items-center gap-2 rounded-full border-[1.167px] border-black bg-white p-[3px] transition-colors hover:bg-black/[.02]"
         >
-          <span className="flex size-[39px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
+          <span className="flex size-[32px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="" className="size-full object-cover" />
             ) : (
-              <Image src={roleAvatar(me.user.role)} alt="" width={24} height={24} className="size-6" />
+              <Image src={roleAvatar(me.user.role)} alt="" width={24} height={24} className="size-5" />
             )}
           </span>
-          <span className="max-w-[160px] truncate font-inter text-[16px] font-semibold text-[#1e1e24]">
+          <span className="min-w-0 flex-1 truncate text-left font-inter text-[14px] font-semibold text-[#1e1e24]">
             {label}
           </span>
-          <ChevronDown className={`size-5 text-[#727783] transition-transform ${open ? "rotate-180" : ""}`} />
+          <ChevronDown className={`ml-2 mr-2 size-4 shrink-0 text-black transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
 
         {open && (
           <div
             role="menu"
-            className="absolute right-0 top-[calc(100%+8px)] z-40 flex w-[216px] flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
+            className="absolute right-0 top-[calc(100%+8px)] z-40 flex w-[216px] flex-col gap-2 rounded-[13px] border-[1.167px] border-black bg-white p-[14px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]"
           >
-            {/* Identity header — avatar + name with a divider underneath */}
-            <div className="flex items-center gap-[10px] border-b border-[rgba(0,0,0,0.2)] px-[16px] py-[10px]">
-              <span className="flex size-[30px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
+            {/* Account identity stays distinct from the menu actions. */}
+            <div className="-mx-[14px] mb-1 flex min-w-0 items-center gap-3 px-[14px] pb-3.5">
+              <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand ring-2 ring-[#e3f1ff]">
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarUrl} alt="" className="size-full object-cover" />
                 ) : (
-                  <Image src={roleAvatar(me.user.role)} alt="" width={18} height={18} className="size-[18px]" />
+                  <Image src={roleAvatar(me.user.role)} alt="" width={22} height={22} className="size-[22px]" />
                 )}
               </span>
-              <span className="truncate font-manrope text-[14px] font-medium leading-[20px] text-[#1e1e24]">
-                {displayName(me.user)}
-              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-1 text-left">
+                <p className="break-words font-manrope text-[15px] font-bold leading-5 tracking-[-0.2px] text-black">
+                  {displayName(me.user)}
+                </p>
+                <p className="font-inter text-[11px] font-medium capitalize leading-4 text-black/70">
+                  {accountRole}
+                </p>
+              </div>
             </div>
 
             <MenuItem
@@ -180,7 +188,7 @@ function ProfilePage({ onBack, children }: { onBack: () => void; children: React
 
   return (
     <div className="fixed inset-0 z-[120] overflow-y-auto bg-white">
-      <div className="mx-auto flex w-full max-w-[1402px] flex-col p-6 md:p-7">{children}</div>
+      <div className="app-page mx-auto flex w-full max-w-[1402px] flex-col p-5 md:p-6">{children}</div>
     </div>
   );
 }
@@ -192,7 +200,7 @@ function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
       type="button"
       role="menuitem"
       onClick={onClick}
-      className="w-full rounded-[8px] bg-[#f1f5f9] px-[16px] py-[10px] text-left font-manrope text-[14px] font-semibold leading-[20px] text-[#1e1e24] transition-colors hover:bg-[#e6ebf1]"
+      className="clinic-field-border w-full rounded-lg border-[1.167px] border-black bg-transparent px-3.5 py-2.5 text-left font-manrope text-[14px] font-semibold leading-5 text-black transition-colors duration-150 app-option-hover focus-visible:bg-[#e3f1ff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
     >
       {label}
     </button>
@@ -219,19 +227,19 @@ function PagePopup({ onClose, children }: { onClose: () => void; children: React
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/40 p-4 md:p-8"
+      className="app-dialog-backdrop fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/40 p-3.5 md:p-7"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative my-auto w-full max-w-[1120px] rounded-[28px] bg-white p-[28px] shadow-[0px_30px_60px_-15px_rgba(0,0,0,0.25)] md:p-[42px]">
+      <div className="app-dialog relative my-auto w-full max-w-[1120px] rounded-[24px] bg-white p-[24px] shadow-[0px_30px_60px_-15px_rgba(0,0,0,0.25)] md:p-[35px]">
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
           className="absolute right-[20px] top-[20px] z-10 flex size-[40px] items-center justify-center rounded-full text-[#1e1e24] transition-colors hover:bg-[#f1f5f9]"
         >
-          <CloseIcon className="size-6" />
+          <CloseIcon className="size-5" />
         </button>
         {children}
       </div>
@@ -241,7 +249,7 @@ function PagePopup({ onClose, children }: { onClose: () => void; children: React
 
 function ChevronDown({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
       <path d="m6 9 6 6 6-6" />
     </svg>
   );

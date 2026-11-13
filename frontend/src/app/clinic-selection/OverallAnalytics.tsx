@@ -60,7 +60,6 @@ const DOCTOR_STATUS_SLICES: { label: string; match: AppointmentListItem["status"
   { label: "Pending", match: "CONFIRMED" },
   { label: "On going", match: "ONGOING" },
   { label: "Completed", match: "COMPLETED" },
-  { label: "No Show", match: "NO_SHOW" },
   { label: "Cancelled", match: "CANCELLED" },
 ];
 
@@ -170,13 +169,13 @@ export default function OverallAnalytics({ branches }: { branches: Branch[] }) {
   if (loading) return <OverallAnalyticsSkeleton />;
 
   return (
-    <section className="mt-4 flex shrink-0 flex-col gap-[24px] md:mt-8">
-      <h2 className="font-inter text-[23.333px] font-semibold leading-[32.667px] text-ink">
+    <section className="mt-4 flex shrink-0 flex-col gap-[20px] md:mt-8">
+      <h2 className="font-inter text-[21px] font-semibold leading-[29px] text-ink">
         Overall Analytics
       </h2>
 
       {/* Tabs */}
-      <div className="flex w-fit max-w-full items-center gap-[6px] overflow-x-auto rounded-full border-[1.2px] border-field-border p-[5px]">
+      <div className="app-tabs flex w-fit max-w-full items-center gap-[6px] overflow-x-auto rounded-full border-[1.167px] border-black p-[5px]">
         <TabButton label="Appointments" active={tab === "doctor"} onClick={() => setTab("doctor")} />
         <TabButton label="Revenue" active={tab === "revenue"} onClick={() => setTab("revenue")} />
       </div>
@@ -188,7 +187,7 @@ export default function OverallAnalytics({ branches }: { branches: Branch[] }) {
       </div>
 
       {tab === "doctor" && (
-        <div className="grid grid-cols-1 gap-[28px] xl:grid-cols-2">
+        <div className="app-chart-grid grid grid-cols-1 gap-[24px] xl:grid-cols-2">
           <ChartCard
             title="Appointments :"
             subtitle="Appointments by status across the clinic."
@@ -199,7 +198,7 @@ export default function OverallAnalytics({ branches }: { branches: Branch[] }) {
       )}
 
       {tab === "revenue" && (
-        <div className="grid grid-cols-1 gap-[28px] xl:grid-cols-2">
+        <div className="app-chart-grid grid grid-cols-1 gap-[24px] xl:grid-cols-2">
           <ChartCard
             title="Revenue :"
             subtitle="Breakdown of received and pending revenue"
@@ -223,8 +222,8 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`whitespace-nowrap rounded-full px-[20px] py-[9px] font-inter text-[14px] font-semibold transition-colors ${
-        active ? "bg-brand text-white" : "text-[#727783] hover:text-ink"
+      className={`whitespace-nowrap rounded-full px-[17px] py-[9px] font-inter text-[14px] font-normal transition-colors ${
+        active ? "bg-brand text-white" : "text-ink app-option-hover"
       }`}
     >
       {label}
@@ -255,15 +254,15 @@ function ChartCard({
   emptyLabel?: string;
 }) {
   return (
-    <div className="flex h-[420px] min-h-0 min-w-0 flex-col gap-[24px] overflow-hidden rounded-[28px] border-[1.2px] border-field-border bg-white p-5 sm:p-6">
+    <div className="app-chart-card flex h-[420px] min-h-0 min-w-0 flex-col gap-[20px] overflow-hidden rounded-[24px] border-[1.167px] border-black bg-white p-4 sm:p-5">
       <div className="shrink-0">
-        <h3 className="font-inter text-[18px] font-bold uppercase leading-[24px] tracking-[0.4px] text-ink">
+        <h3 className="font-inter text-[16px] font-bold uppercase leading-[21px] tracking-[0.4px] text-ink">
           {title}
         </h3>
-        <p className="mt-[3px] font-inter text-[14px] leading-[20px] text-[#727783]">{subtitle}</p>
+        <p className="mt-[3px] font-inter text-[14px] leading-[20px] text-[#4b5563]">{subtitle}</p>
       </div>
       {loading ? (
-        <p className="py-6 font-inter text-[15px] text-[#94a3b8]">Loading…</p>
+        <p className="py-5 font-inter text-[14px] text-[#64748b]">Loading…</p>
       ) : (
         <DonutChart
           data={data}

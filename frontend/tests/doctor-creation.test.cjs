@@ -19,7 +19,7 @@ function load(relative, mocks = {}) {
   }).outputText;
   const module = { exports: {} };
   new Function("require", "module", "exports", code)(
-    (name) => (Object.hasOwn(mocks, name) ? mocks[name] : require(name)),
+    (name) => name === "@/components/TableViewport" ? load("components/TableViewport.tsx") : (Object.hasOwn(mocks, name) ? mocks[name] : require(name)),
     module,
     module.exports,
   );
@@ -321,7 +321,7 @@ test("the popup table appears after adding shifts and disappears after removing 
   const h = shiftHarness();
   const table = () =>
     nodes(h.render()).find(
-      (node) => node.props?.["aria-label"] === "Doctor shifts",
+      (node) => node.props?.label === "Doctor shifts",
     );
   assert.equal(table(), undefined);
   button(h.render(), "Mon to Sat").onClick();
@@ -349,26 +349,24 @@ test("added shifts scroll inside the popup without shrinking it and page scrolli
   const h = doctorHarness();
   const dialog = () =>
     nodes(h.render()).find((node) => node.props?.role === "dialog");
-  const popup = { offsetWidth: 880, offsetHeight: 900 };
-  dialog().props.ref.current = popup;
   const previous = {
     window: global.window,
     document: global.document,
   };
-  let onResize;
   global.window = {
     innerWidth: 1024,
     innerHeight: 768,
     addEventListener(event, callback) {
-      if (event === "resize") onResize = callback;
+
     },
     removeEventListener() {},
   };
   global.document = { body: { style: { overflow: "auto" } } };
   try {
     const cleanup = h.layoutEffects.at(-1)();
-    assert.equal(dialog().props.style.transform, "scale(0.9)");
-    assert.equal(dialog().props.style.maxHeight, 736 / 0.9);
+    assert.equal(dialog().props.style?.transform, undefined, "text keeps its natural size");
+    assert.ok(dialog().props.className.includes("app-dialog"));
+    assert.ok(dialog().props.className.includes("w-full"));
     assert.equal(document.body.style.overflow, "hidden");
     const content = dialog().props.children[1];
     assert.ok(content.props.className.includes("overflow-y-auto"));
@@ -380,17 +378,7 @@ test("added shifts scroll inside the popup without shrinking it and page scrolli
       shift,
       { ...shift, id: "second-shift", groupId: "second-group" },
     ]);
-    popup.offsetHeight = 1100;
-    onResize();
-    assert.equal(dialog().props.style.transform, "scale(0.9)");
-    global.window.innerHeight = 600;
-    onResize();
-    assert.equal(dialog().props.style.transform, "scale(0.9)");
-    assert.equal(dialog().props.style.maxHeight, 568 / 0.9);
-    window.innerWidth = 600;
-    onResize();
-    assert.equal(dialog().props.style.transform, `scale(${568 / 880})`);
-    assert.equal(dialog().props.style.maxHeight, 568 / (568 / 880));
+    assert.equal(dialog().props.style?.transform, undefined, "adding rows does not shrink the dialog");
     cleanup();
     assert.equal(document.body.style.overflow, "auto");
   } finally {

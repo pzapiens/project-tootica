@@ -8,16 +8,17 @@ import { apiFetch, apiUpload, ApiError, displayName, greetingLabel, roleAvatar, 
 import WhatsAppSettingsPanel from "./WhatsAppSettingsPanel";
 import BackButton from "@/components/BackButton";
 import PhoneNumberInput from "@/components/PhoneNumberInput";
+import PasswordToggle from "@/components/PasswordToggle";
 import { phoneDigitsError, phoneLocalPart, phoneWithCc } from "@/lib/validation";
 
 import { useMe, useUpdateMe } from "../session";
 import { SPECIALIZATIONS } from "../doctors/constants";
 import ConfirmDeleteDialog from "../appointments/ConfirmDeleteDialog";
 
-const LABEL = "font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#727783]";
-const CARD = "rounded-[16px] border border-[#c2c6d4] bg-white p-[26px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]";
+const LABEL = "font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-black";
+const CARD = "rounded-[13px] border-[1.167px] border-black bg-white p-[22px] shadow-[0px_1px_1px_rgba(0,0,0,0.05)]";
 const FIELD =
-  "h-[48px] w-full rounded-[8px] border border-[#c2c6d4] px-[16px] font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4] focus:border-[#0077c0]";
+  "h-[40px] w-full rounded-[8px] border-[1.167px] border-black px-[13px] font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-[#0077c0]";
 
 export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) {
   const router = useRouter();
@@ -168,24 +169,24 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-[32px]">
-      <div className="flex items-center gap-[14px]">
+    <div className="app-page flex flex-1 flex-col gap-[27px]">
+      <div className="app-toolbar flex items-center gap-[14px]">
         {onBack && <BackButton onClick={onBack} ariaLabel="Go back" />}
-        <h1 className="font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
+        <h1 className="app-page-title font-manrope text-[31px] font-bold leading-[39px] tracking-[-0.7px] text-[#1e1e24]">
           Profile Settings
         </h1>
       </div>
 
       {/* Avatar + Personal Information */}
-      <div className="grid grid-cols-1 items-stretch gap-[28px] lg:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="app-profile-grid items-stretch gap-[24px]">
         {/* Avatar card */}
-        <div className={`${CARD} flex h-full flex-col items-center justify-center gap-[22px]`}>
-          <span className="flex size-[128px] items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
+        <div className={`app-form-surface app-record-card ${CARD} flex self-stretch flex-col items-center justify-center gap-[18px]`}>
+          <span className="flex size-[96px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
             {avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatar} alt="" className="size-full object-cover" />
             ) : (
-              <Image src={roleAvatar(me.user.role)} alt="" width={84} height={84} className="size-[84px]" />
+              <Image src={roleAvatar(me.user.role)} alt="" width={64} height={64} className="size-[64px]" />
             )}
           </span>
           <div className="flex w-full max-w-[240px] flex-col gap-[12px]">
@@ -193,17 +194,17 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={savingAvatar}
-              className="flex items-center justify-center gap-[8px] whitespace-nowrap rounded-[10px] border border-[#0077c0] px-[16px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.5px] text-[#0077c0] transition-colors hover:bg-[#e6f2fb]"
+              className="app-action-button flex items-center justify-center whitespace-nowrap rounded-[10px] border-[1.167px] border-[#0077c0] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.5px] text-[#0077c0] transition-colors hover:bg-[#e6f2fb]"
             >
-              <UploadIcon className="size-5" /> {savingAvatar ? "Saving..." : "Upload Image"}
+              <UploadIcon className="size-4" /> {savingAvatar ? "Saving..." : "Upload Image"}
             </button>
             <button
               type="button"
               onClick={() => void removeImage()}
               disabled={savingAvatar || !avatar}
-              className="flex items-center justify-center gap-[8px] whitespace-nowrap rounded-[10px] border border-[#ab2222] px-[16px] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.5px] text-[#ab2222] transition-colors hover:bg-[#f9f1f1]"
+              className="app-action-button flex items-center justify-center whitespace-nowrap rounded-[10px] border-[1.167px] border-[#ab2222] py-[11px] font-inter text-[13px] font-semibold uppercase tracking-[0.5px] text-[#ab2222] transition-colors hover:bg-[#f9f1f1]"
             >
-              <TrashIcon className="size-5" /> Remove Image
+              <TrashIcon className="h-[18px] w-4" /> Remove Image
             </button>
             <input
               ref={fileRef}
@@ -220,11 +221,11 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
           <p className="text-center font-inter text-[12px] text-[#64748b]">JPG, PNG or WebP. Maximum 2 MB.</p>
           {avatarMsg && <p role={avatarMsg.ok ? "status" : "alert"} className={`text-center font-inter text-[13px] ${avatarMsg.ok ? "text-[#166534]" : "text-[#ba1a1a]"}`}>{avatarMsg.text}</p>}
           <div className="flex flex-col items-center gap-[4px] pt-[4px]">
-            <div className="flex items-center gap-[8px]">
+            <div className="app-pagination-controls flex items-center gap-[8px]">
               <span className="flex size-[22px] items-center justify-center rounded-full bg-[#0077c0]">
                 <Image src={roleAvatar(me.user.role)} alt="" width={14} height={14} className="size-[14px]" />
               </span>
-              <span className="font-manrope text-[19px] font-semibold leading-[26px] text-[#1e1e24]">
+              <span className="font-manrope text-[17px] font-semibold leading-[23px] text-[#1e1e24]">
                 {savedName}
               </span>
             </div>
@@ -235,11 +236,11 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
         </div>
 
         {/* Personal Information card */}
-        <div className={`${CARD} flex flex-col justify-center`}>
-          <h2 className="border-b border-[#c2c6d4] pb-[14px] font-manrope text-[21px] font-semibold leading-[30px] text-[#1e1e24]">
+        <div className={`app-form-surface app-record-card ${CARD} flex self-stretch flex-col justify-center`}>
+          <h2 className="border-b-[1.167px] border-black pb-[14px] font-manrope text-[18px] font-semibold leading-[26px] text-[#1e1e24]">
             Personal Information
           </h2>
-          <div className="grid grid-cols-1 gap-x-[24px] gap-y-[18px] pt-[20px] sm:grid-cols-2">
+          <div className="app-form-grid grid grid-cols-1 gap-x-[20px] gap-y-[15px] pt-[17px] sm:grid-cols-2">
             <Labeled label="Full Name">
               <input className={FIELD} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
             </Labeled>
@@ -247,13 +248,14 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
               <div className="relative">
                 <select
                   value={specialization}
+                  style={isDoctor && !specialization ? { color: "var(--field-placeholder)" } : undefined}
                   onChange={(e) => setSpecialization(e.target.value)}
                   disabled={!isDoctor}
-                  className={`${FIELD} appearance-none pr-[40px] ${!isDoctor ? "cursor-not-allowed bg-[#f6f7f9] text-[#94a3b8]" : ""}`}
+                  className={`${FIELD} appearance-none pr-[34px] ${!isDoctor ? "cursor-not-allowed bg-[#f6f7f9] text-[#94a3b8]" : ""}`}
                 >
                   <option value="">{isDoctor ? "Select" : "Not applicable"}</option>
                   {SPECIALIZATIONS.map((s) => (
-                    <option key={s} value={s}>
+                    <option key={s} value={s} className="text-ink">
                       {s}
                     </option>
                   ))}
@@ -262,7 +264,7 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
               </div>
             </Labeled>
             <Labeled label="Phone Number">
-              <div className="flex h-[48px] items-center gap-3 rounded-lg border border-field-border px-4 focus-within:border-brand">
+              <div className="flex h-[40px] items-center gap-3 rounded-lg border-[1.167px] border-black px-3.5 focus-within:border-brand">
                 <PhoneIcon className="pointer-events-none size-5 shrink-0 text-[#727783]" />
                 <PhoneNumberInput value={phone} onChange={setPhone} />
               </div>
@@ -270,11 +272,11 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
             <Labeled label="Email Address">
               <div className="relative">
                 <MailIcon className="pointer-events-none absolute left-[16px] top-1/2 size-5 -translate-y-1/2 text-[#727783]" />
-                <input className={`${FIELD} pl-[46px]`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email address" />
+                <input className={`${FIELD} pl-[39px]`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email address" />
               </div>
             </Labeled>
           </div>
-          <div className="flex items-center justify-end gap-[14px] pt-[18px]">
+          <div className="app-toolbar flex items-center justify-end gap-[14px] pt-[15px]">
             {profileMsg && (
               <span className={`flex-1 text-left font-inter text-[13px] leading-[18px] ${profileMsg.ok ? "text-[#15803d]" : "text-[#ba1a1a]"}`}>
                 {profileMsg.text}
@@ -284,7 +286,7 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
               type="button"
               onClick={saveProfile}
               disabled={savingProfile}
-              className="shrink-0 rounded-[10px] bg-[#0077c0] px-[24px] py-[11px] font-inter text-[14px] font-semibold text-white transition-colors hover:bg-[#0069a8] disabled:opacity-50"
+              className="shrink-0 rounded-[10px] bg-[#0077c0] px-[20px] py-[11px] font-inter text-[14px] font-semibold text-white transition-colors hover:bg-[#0069a8] disabled:opacity-50"
             >
               {savingProfile ? "Saving…" : "Save Changes"}
             </button>
@@ -295,21 +297,21 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
       {(me.user.role === "CLIENT_ADMIN" || (me.user.role === "SUPER_ADMIN" && !onBack)) && <WhatsAppSettingsPanel />}
 
       {/* Reset Your Password */}
-      <div className={CARD}>
-        <h2 className="border-b border-[#c2c6d4] pb-[14px] font-manrope text-[21px] font-semibold leading-[30px] text-[#1e1e24]">
+      <div className={"app-form-surface app-record-card " + (CARD)}>
+        <h2 className="border-b-[1.167px] border-black pb-[14px] font-manrope text-[18px] font-semibold leading-[26px] text-[#1e1e24]">
           Reset Your Password
         </h2>
-        <div className="grid grid-cols-1 gap-x-[24px] gap-y-[18px] pt-[20px] sm:grid-cols-2">
+        <div className="app-form-grid grid grid-cols-1 gap-x-[20px] gap-y-[15px] pt-[17px] sm:grid-cols-2">
           <Labeled label="Old Password" required>
-            <input className={FIELD} type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="Enter old password" />
+            <ProfilePasswordField value={oldPassword} onChange={setOldPassword} placeholder="Enter old password" autoComplete="current-password" />
           </Labeled>
           <Labeled label="New Password" required>
-            <input className={FIELD} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" />
+            <ProfilePasswordField value={newPassword} onChange={setNewPassword} placeholder="Enter new password" autoComplete="new-password" />
           </Labeled>
           <Labeled label="Confirm New Password" required>
-            <input className={FIELD} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" />
+            <ProfilePasswordField value={confirmPassword} onChange={setConfirmPassword} placeholder="Re-enter new password" autoComplete="new-password" />
           </Labeled>
-          <div className="flex items-end justify-end gap-[14px]">
+          <div className="app-toolbar flex items-end justify-end gap-[14px]">
             {passwordMsg && (
               <span className={`font-inter text-[13px] ${passwordMsg.ok ? "text-[#15803d]" : "text-[#ba1a1a]"}`}>
                 {passwordMsg.text}
@@ -319,7 +321,7 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
               type="button"
               onClick={resetPassword}
               disabled={savingPassword || !canResetPassword}
-              className="h-[48px] shrink-0 rounded-[10px] bg-[#0077c0] px-[24px] font-inter text-[14px] font-semibold text-white transition-colors hover:bg-[#0069a8] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-[40px] shrink-0 rounded-[10px] bg-[#0077c0] px-[20px] font-inter text-[14px] font-semibold text-white transition-colors hover:bg-[#0069a8] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {savingPassword ? "Saving…" : "Reset Password"}
             </button>
@@ -328,21 +330,21 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
       </div>
 
       {/* Delete + Log Out */}
-      <div className="grid grid-cols-1 gap-[28px] lg:grid-cols-2">
-        <div className={CARD}>
-          <h2 className="border-b border-[#c2c6d4] pb-[14px] font-manrope text-[21px] font-semibold leading-[30px] text-[#ab2222]">
+      <div className="app-form-grid app-details-grid gap-[24px]">
+        <div className={"app-form-surface app-record-card " + (CARD)}>
+          <h2 className="border-b-[1.167px] border-black pb-[14px] font-manrope text-[18px] font-semibold leading-[26px] text-[#ab2222]">
             Delete
           </h2>
-          <div className="pt-[18px]">
+          <div className="pt-[15px]">
             <button
               type="button"
               onClick={() => setConfirmingDelete(true)}
               disabled={busy === "delete"}
-              className="flex items-center gap-[8px] rounded-[8px] bg-[#c0202b] px-[18px] py-[11px] font-inter text-[14px] font-semibold text-white transition-colors hover:bg-[#a81b25] disabled:opacity-50"
+              className="app-action-button flex items-center rounded-[8px] bg-[#c0202b] py-[11px] font-inter text-[14px] font-semibold text-white transition-colors hover:bg-[#a81b25] disabled:opacity-50"
             >
-              <TrashIcon className="size-5" /> Delete Account
+              <TrashIcon className="h-[18px] w-4" /> Delete Account
             </button>
-            <p className="pt-[14px] font-inter text-[14px] leading-[20px] text-[#727783]">
+            <p className="pt-[14px] font-inter text-[14px] leading-[20px] text-black">
               This action cannot be undone. Your account and all associated data will be permanently
               deleted.
             </p>
@@ -350,20 +352,20 @@ export default function ProfileClient({ onBack }: { onBack?: () => void } = {}) 
           </div>
         </div>
 
-        <div className={CARD}>
-          <h2 className="border-b border-[#c2c6d4] pb-[14px] font-manrope text-[21px] font-semibold leading-[30px] text-[#0077c0]">
+        <div className={"app-form-surface app-record-card " + (CARD)}>
+          <h2 className="border-b-[1.167px] border-black pb-[14px] font-manrope text-[18px] font-semibold leading-[26px] text-[#0077c0]">
             Log Out
           </h2>
-          <div className="pt-[18px]">
+          <div className="pt-[15px]">
             <button
               type="button"
               onClick={logout}
               disabled={busy === "logout"}
-              className="flex items-center gap-[8px] rounded-[8px] bg-[#0077c0] px-[18px] py-[11px] font-inter text-[14px] font-semibold text-white transition-colors hover:bg-[#0069a8] disabled:opacity-50"
+              className="app-action-button flex items-center rounded-[8px] bg-[#0077c0] py-[11px] font-inter text-[14px] font-semibold text-white transition-colors hover:bg-[#0069a8] disabled:opacity-50"
             >
-              <LogoutIcon className="size-5" /> Log Out Account
+              <LogoutIcon className="size-4" /> Log Out Account
             </button>
-            <p className="pt-[14px] font-inter text-[14px] leading-[20px] text-[#727783]">
+            <p className="pt-[14px] font-inter text-[14px] leading-[20px] text-black">
               Are you sure you want to log out? Your session will be securely ended, and you&apos;ll need
               to sign in again.
             </p>
@@ -418,7 +420,7 @@ function Labeled({
 // /dashboard/delete.svg, drawn with currentColor so buttons control the tint.
 function TrashIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+    <svg viewBox="4 3 16 18" fill="currentColor" className={className} aria-hidden>
       <path d="M7 21C6.45 21 5.97917 20.8042 5.5875 20.4125C5.19583 20.0208 5 19.55 5 19V6H4V4H9V3H15V4H20V6H19V19C19 19.55 18.8042 20.0208 18.4125 20.4125C18.0208 20.8042 17.55 21 17 21H7ZM17 6H7V19H17V6ZM9 17H11V8H9V17ZM13 17H15V8H13V17Z" />
     </svg>
   );
@@ -427,7 +429,7 @@ function TrashIcon({ className }: { className?: string }) {
 // Filled Material "file_upload" glyph (currentColor).
 function UploadIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+    <svg viewBox="4 4 16 16" fill="currentColor" className={className} aria-hidden>
       <path d="M11 16V7.85l-2.6 2.6L7 9l5-5 5 5-1.4 1.45-2.6-2.6V16h-2Zm-5 4q-.825 0-1.412-.587Q4 18.825 4 18v-3h2v3h12v-3h2v3q0 .825-.587 1.413Q18.825 20 18 20H6Z" />
     </svg>
   );
@@ -436,7 +438,7 @@ function UploadIcon({ className }: { className?: string }) {
 // Filled Material "logout" glyph (currentColor).
 function LogoutIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+    <svg viewBox="3 3 18 18" fill="currentColor" className={className} aria-hidden>
       <path d="M5 21q-.825 0-1.412-.587Q3 19.825 3 19V5q0-.825.588-1.413Q4.175 3 5 3h7v2H5v14h7v2H5Zm11-4-1.375-1.45 2.55-2.55H9v-2h8.175l-2.55-2.55L16 7l5 5-5 5Z" />
     </svg>
   );
@@ -465,5 +467,33 @@ function ChevronDown({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
       <path d="m6 9 6 6 6-6" />
     </svg>
+  );
+}
+
+function ProfilePasswordField({
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  autoComplete: "current-password" | "new-password";
+}) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="flex h-[40px] items-center gap-3 rounded-[8px] border-[1.167px] border-black px-[13px] focus-within:border-[#0077c0]">
+      <input
+        className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder"
+        type={visible ? "text" : "password"}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+      />
+      <PasswordToggle visible={visible} hasValue={value.length > 0} onToggle={() => setVisible((current) => !current)} />
+    </div>
   );
 }

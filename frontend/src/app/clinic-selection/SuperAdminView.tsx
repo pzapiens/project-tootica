@@ -177,18 +177,18 @@ export default function SuperAdminView({
 
   return (
     <div className="flex min-h-dvh flex-col bg-white lg:h-dvh lg:overflow-hidden">
-      <div className="mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-6 p-6 md:gap-7 md:p-7 lg:min-h-0">
-        <header className="flex shrink-0 flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="font-inter text-[26px] font-semibold leading-tight text-ink md:text-[35px] md:leading-[42px]">
+      <div className="app-page mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-5 p-5 md:gap-6 md:p-6 lg:min-h-0">
+        <header className="app-toolbar flex shrink-0 flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="font-inter text-[23px] font-semibold leading-tight text-ink md:text-[31px] md:leading-[37px]">
             Hi, {greetingName}
           </h1>
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => setAddOpen(true)}
-              className="flex h-[55px] items-center gap-[9.333px] self-start rounded-full border-[1.5px] border-brand px-[25px] font-inter text-[16.333px] font-semibold leading-[23.333px] tracking-[0.408px] text-brand transition-colors hover:bg-brand/[.06] sm:self-auto"
+              className="app-action-button flex h-[40px] items-center self-start rounded-full border-[1.167px] border-brand bg-brand font-inter text-[14px] font-semibold leading-[21px] tracking-[0.408px] text-white transition-colors hover:bg-[#0069a8] sm:self-auto"
             >
-              <span className="text-[22px] leading-none">+</span>
+              <svg viewBox="5 5 14 14" fill="currentColor" className="size-3.5 shrink-0" aria-hidden="true"><path d="M11 13H5V11H11V5H13V11H19V13H13V19H11V13Z" /></svg>
               Add Clinic &amp; Account
             </button>
             {/* Super admins manage accounts per-clinic (row Manage), so no Accounts option. */}
@@ -220,15 +220,15 @@ export default function SuperAdminView({
             }}
           />
         ) : (
-          <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
-            <div className="flex shrink-0 items-center justify-between gap-3">
+          <div className="flex flex-col gap-3.5 lg:min-h-0 lg:flex-1">
+            <div className="app-toolbar flex shrink-0 items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => {
                   clearActiveClinicId();
                   setSelectedClinicId(null);
                 }}
-                className="flex items-center gap-2 self-start font-inter text-[15px] font-medium text-brand transition-colors hover:text-brand/80"
+                className="flex items-center gap-2 self-start font-inter text-[14px] font-medium text-black transition-colors hover:text-black/80"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-5" aria-hidden>
                   <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -238,9 +238,9 @@ export default function SuperAdminView({
               <button
                 type="button"
                 onClick={() => setAddBranchOpen(true)}
-                className="flex items-center gap-1.5 rounded-full border-[1.5px] border-brand px-[18px] py-[9px] font-inter text-[14px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
+                className="app-action-button flex items-center rounded-full border-[1.167px] border-black py-[9px] font-inter text-[14px] font-semibold text-black transition-colors hover:bg-brand/[.06]"
               >
-                <span className="text-[18px] leading-none">+</span>
+                <svg viewBox="5 5 14 14" fill="currentColor" className="size-3.5 shrink-0" aria-hidden="true"><path d="M11 13H5V11H11V5H13V11H19V13H13V19H11V13Z" /></svg>
                 Add Branch
               </button>
             </div>
@@ -332,7 +332,7 @@ export default function SuperAdminView({
             <>
               This permanently removes the branch{" "}
               <span className="font-semibold">{deleting.name}</span>{" "}
-              <span className="font-mono text-ink/60">({deleting.code})</span>. This
+              <span className="font-mono text-ink/80">({deleting.code})</span>. This
               can&apos;t be undone.
             </>
           }
@@ -359,7 +359,7 @@ export default function SuperAdminView({
               {deletingClinic.code && (
                 <>
                   {" "}
-                  <span className="font-mono text-ink/60">({deletingClinic.code})</span>
+                  <span className="font-mono text-ink/80">({deletingClinic.code})</span>
                 </>
               )}{" "}
               and all of its branches, accounts and data. This can&apos;t be undone.

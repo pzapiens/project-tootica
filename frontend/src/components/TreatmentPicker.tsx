@@ -1,10 +1,12 @@
 "use client";
 
+import FloatingPanel from "./FloatingPanel";
+
 import { useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
-import { searchTreatments, treatmentLabel, TREATMENT_CATEGORIES, UNDECIDED_TREATMENT } from "@/lib/treatments";
+import { searchTreatments, treatmentLabel, TREATMENT_CATEGORIES, UNDECIDED_TREATMENT, MAX_APPOINTMENT_TREATMENTS } from "@/lib/treatments";
 
 type Preferences = { favourites: string[]; canManage: boolean; clinicCode: string };
 
@@ -20,7 +22,6 @@ export default function TreatmentPicker({ values, onChange }: {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [retry, setRetry] = useState(0);
-  const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const panelId = useId();
@@ -37,23 +38,11 @@ export default function TreatmentPicker({ values, onChange }: {
   }, [clinicCode, retry]);
 
   useEffect(() => {
-    if (!open) return;
-    searchRef.current?.focus();
-    function onOutside(event: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
-    }
-    document.addEventListener("mousedown", onOutside);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onOutside);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, setOpen]);
+    if (open) searchRef.current?.focus();
+  }, [open]);
 
   function toggle(value: string) {
+    if (!values.includes(value) && values.length >= MAX_APPOINTMENT_TREATMENTS) return;
     onChange(values.includes(value) ? values.filter(item => item !== value) : [...values, value]);
   }
 
@@ -75,12 +64,13 @@ export default function TreatmentPicker({ values, onChange }: {
 
   function row(value: string, category?: string) {
     const selected = values.includes(value);
+    const disabled = !selected && values.length >= MAX_APPOINTMENT_TREATMENTS;
     const pinned = favourites.includes(value);
     const label = treatmentLabel(value);
     return (
-      <div key={value} className="flex items-center gap-1 rounded-lg hover:bg-[#f0f7fc]">
-        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px] text-[#1e1e24]">
-          <input type="checkbox" checked={selected} onChange={() => toggle(value)} className="size-3.5 shrink-0 accent-[#0077c0]" />
+      <div key={value} className="flex items-center gap-1 rounded-lg">
+        <label className={`flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-[12px] text-[#1e1e24] ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+          <input type="checkbox" checked={selected} disabled={disabled} onChange={() => toggle(value)} className="size-3.5 shrink-0 accent-[#0077c0]" />
           <span className="min-w-0">
             <span className="block">{label}</span>
             {category && <span className="mt-0.5 block text-[11px] text-[#64748b]">{category}</span>}
@@ -90,7 +80,7 @@ export default function TreatmentPicker({ values, onChange }: {
           <button type="button" disabled={saving} onClick={() => void toggleFavourite(value)}
             aria-label={(pinned ? "Unpin " : "Pin ") + label + " as a clinic favourite"}
             aria-pressed={pinned} title={pinned ? "Unpin clinic favourite" : "Pin clinic favourite"}
-            className="shrink-0 rounded-md px-2 py-1.5 text-[16px] text-[#0077c0] hover:bg-[#e0edf8] focus-visible:outline-2 focus-visible:outline-[#0077c0] disabled:opacity-40">
+            className="shrink-0 rounded-md px-2 py-1.5 text-[14px] text-[#0077c0] hover:bg-[#e0edf8] focus-visible:outline-2 focus-visible:outline-[#0077c0] disabled:opacity-40">
             {pinned ? <span aria-hidden>&#9733;</span> : <span aria-hidden>&#9734;</span>}
           </button>
         )}
@@ -99,14 +89,14 @@ export default function TreatmentPicker({ values, onChange }: {
   }
 
   return (
-    <div ref={rootRef} className="relative flex min-w-0 flex-col gap-2 self-start font-inter">
+    <div className="relative flex min-w-0 flex-col gap-2 self-start font-inter">
       <label htmlFor={panelId + "-trigger"} className="text-[11px] uppercase tracking-[0.5px] text-[#1e1e24]">
         Reason for visit / Treatment <span className="text-red-500">*</span>
       </label>
       <button ref={triggerRef} id={panelId + "-trigger"} type="button" aria-expanded={open} aria-controls={panelId}
         onClick={() => setOpen(value => !value)}
-        className="flex w-full items-center justify-between gap-2 border-b border-[#c2c6d4] pb-2 pt-1 text-left text-[15px] text-[#1e1e24] focus-visible:outline-2 focus-visible:outline-[#0077c0]">
-        <span>{values.length ? values.length + (values.length === 1 ? " treatment selected" : " treatments selected") : "Choose treatments"}</span>
+        className="flex w-full items-center justify-between gap-2 border-b-[1.167px] border-black pb-2 pt-1 text-left text-[14px] text-[#1e1e24] focus-visible:outline-2 focus-visible:outline-[#0077c0]">
+        <span className={values.length ? undefined : "text-field-placeholder"}>{values.length ? values.length + (values.length === 1 ? " treatment selected" : " treatments selected") : "Choose treatments"}</span>
         <span aria-hidden className="text-[#0077c0]">{open ? "Hide" : "Choose"}</span>
       </button>
       {values.length > 0 && (
@@ -120,18 +110,20 @@ export default function TreatmentPicker({ values, onChange }: {
         </div>
       )}
       {open && (
-        <section id={panelId} aria-label="Choose treatments" className="absolute right-0 top-[calc(100%+8px)] z-40 w-[min(360px,calc(100vw_-_112px))] rounded-lg border border-[#c2c6d4] bg-white shadow-lg">
-          <div className="border-b border-[#e2e8f0] p-2.5">
+        <FloatingPanel id={panelId} anchor={triggerRef} width={360} onClose={() => setOpen(false)} role="dialog" label="Choose treatments" className=" rounded-lg border-[1.167px] border-black bg-white shadow-lg">
+          <div className="border-b-[1.167px] border-black p-2.5">
             <label htmlFor={panelId + "-search"} className="sr-only">Search all treatments</label>
             <div className="flex items-center gap-2">
               <input ref={searchRef} id={panelId + "-search"} type="search" value={query} onChange={event => setQuery(event.target.value)}
                 placeholder="Search treatments, e.g. RCT..." autoComplete="off"
-                className="min-w-0 flex-1 rounded-lg border border-[#c2c6d4] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#1e1e24] caret-[#0077c0] placeholder:font-normal placeholder:text-[#64748b] focus:border-[#0077c0] focus:outline-none" />
+                className="app-search-input min-w-0 flex-1 rounded-lg border-[1.167px] border-black bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#1e1e24] caret-black placeholder:font-normal focus:outline-none" />
               <button type="button" onClick={() => { setOpen(false); triggerRef.current?.focus(); }} className="rounded-md bg-[#0077c0] px-2.5 py-1.5 text-[12px] text-white">Done</button>
             </div>
-            <p className="mt-2 text-[11px] text-[#64748b]">Select one or more. Unsure? Choose treatment to be decided.</p>
+            <p role="status" aria-live="polite" className="mt-2 text-[11px] text-[#64748b]">
+              {values.length}/{MAX_APPOINTMENT_TREATMENTS} selected. {values.length >= MAX_APPOINTMENT_TREATMENTS ? "Remove a selection to choose another treatment." : "Select up to 5 treatments. Unsure? Choose treatment to be decided."}
+            </p>
           </div>
-          {error && <div role="alert" className="border-b border-[#e2e8f0] px-3 py-2 text-[12px] text-[#ba1a1a]">
+          {error && <div role="alert" className="border-b-[1.167px] border-black px-3 py-2 text-[12px] text-[#ba1a1a]">
             {error} {!current && <button type="button" onClick={() => setRetry(value => value + 1)} className="ml-2 underline">Retry</button>}
           </div>}
           <div className="max-h-[260px] overflow-y-auto overscroll-contain p-1.5">
@@ -156,7 +148,7 @@ export default function TreatmentPicker({ values, onChange }: {
                 {!favourites.includes(UNDECIDED_TREATMENT) && row(UNDECIDED_TREATMENT)}
                 <h3 className="px-2 py-2 text-[12px] font-semibold text-[#1e1e24]">Browse all categories</h3>
                 {TREATMENT_CATEGORIES.map(category => (
-                  <details key={category.id} className="border-t border-[#e2e8f0]">
+                  <details key={category.id} className="border-t-[1.167px] border-black">
                     <summary className="cursor-pointer rounded-lg px-2 py-2 text-[12px] font-medium text-[#1e1e24] hover:bg-[#f0f7fc]">
                       {category.name} <span className="ml-1 text-[11px] font-normal text-[#64748b]">({category.treatments.length})</span>
                     </summary>
@@ -166,7 +158,7 @@ export default function TreatmentPicker({ values, onChange }: {
               </>
             )}
           </div>
-        </section>
+        </FloatingPanel>
       )}
     </div>
   );

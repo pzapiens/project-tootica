@@ -1,0 +1,79 @@
+.tableAndPagination {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+.tableFrame {
+  container: transactions / inline-size;
+  min-width: 0;
+  overflow: clip;
+  border: 1px solid #000;
+  border-radius: 16px;
+  background: #fff;
+}
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.table :is(th, td) {
+  padding: 17px 12px;
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.table :is(th, td):first-child {
+  padding-left: 20px;
+}
+.table :is(th, td):last-child {
+  padding-right: 20px;
+}
+.table .dateColumn {
+  text-align: left;
+}
+.table thead tr,
+.table tbody tr:not(:last-child) {
+  border-bottom: 1px solid #000;
+}
+/* Small screens show the same fields as labeled rows without a table scroller. */
+@container transactions (max-width: 640px) {
+  .table {
+    display: block;
+  }
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .table colgroup {
+    display: none;
+  }
+  .table tbody {
+    display: block;
+  }
+  .table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    padding: 16px 20px;
+  }
+  .table tbody td {
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+  }
+  .table tbody td[data-label]::before {
+    display: block;
+    margin-bottom: 5px;
+    color: #000;
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .table tbody td[colspan] {
+    grid-column: 1 / -1;
+  }
+}

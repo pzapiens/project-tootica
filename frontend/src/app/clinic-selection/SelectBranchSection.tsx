@@ -54,19 +54,19 @@ export default function SelectBranchSection({
   }, [branches, query]);
 
   return (
-    <section className={`flex flex-col gap-5${fill ? " lg:min-h-0 lg:flex-1" : ""}`}>
+    <section className={`flex flex-col gap-4${fill ? " lg:min-h-0 lg:flex-1" : ""}`}>
       {/* Toolbar: heading + search */}
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-inter text-[23.333px] font-semibold leading-[32.667px] text-ink">
+      <div className="app-toolbar items-center justify-between gap-3.5">
+        <h2 className="font-inter text-[21px] font-semibold leading-[29px] text-ink">
           {heading}
         </h2>
-        <div className="relative w-full sm:w-[340px]">
+        <div className="relative w-full max-w-[340px]">
           <Image
             src="/clinic/search.svg"
             alt=""
             width={24}
             height={24}
-            className="pointer-events-none absolute left-4 top-1/2 size-6 -translate-y-1/2"
+            className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2"
           />
           <input
             type="search"
@@ -74,14 +74,14 @@ export default function SelectBranchSection({
             onChange={(e) => setQuery(e.target.value)}
             placeholder={searchPlaceholder}
             aria-label={`Search ${itemNoun}`}
-            className="h-[54px] w-full rounded-full border-[1.167px] border-field-border bg-white pl-[52px] pr-4 font-inter text-[16px] text-ink outline-none placeholder:text-field-placeholder focus:border-brand"
+            className="clinic-field-border app-search-input h-[40px] w-full rounded-full border-[1.167px] border-black bg-white pl-[44px] pr-3.5 font-inter text-[14px] text-ink outline-none "
           />
         </div>
       </div>
 
       {/* Column headers — desktop table only */}
       {showHeader && (
-        <div className="hidden shrink-0 px-7 lg:grid lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)] lg:gap-x-6">
+        <div className="app-branch-header hidden shrink-0 rounded-lg px-6 py-3 lg:grid lg:grid-cols-[minmax(0,451fr)_minmax(0,326fr)_minmax(0,283fr)_minmax(0,208fr)] lg:gap-x-5">
           <HeaderCell>{firstColumnLabel}</HeaderCell>
           <HeaderCell>Person in charge</HeaderCell>
           <HeaderCell>Contact number</HeaderCell>
@@ -92,7 +92,7 @@ export default function SelectBranchSection({
       {/* Scroll region: only this scrolls when branches overflow (fill mode). */}
       <div className={fill ? "lg:-mr-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2" : ""}>
         {filtered.length === 0 ? (
-          <p className="px-2 py-6 font-inter text-[16px] text-ink/60">
+          <p className="px-2 py-5 font-inter text-[14px] text-ink/80">
             No {itemNoun} match “{query}”.
           </p>
         ) : (

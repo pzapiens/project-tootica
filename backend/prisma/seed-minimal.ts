@@ -116,7 +116,7 @@ const APPT_PLAN: Array<[number, number, number, AppointmentStatus]> = [
   [0, 11, 60, 'ONGOING'],
   [0, 15, 30, 'CONFIRMED'],
   [-3, 10, 30, 'COMPLETED'],
-  [-10, 14, 60, 'NO_SHOW'],
+  [-10, 14, 60, 'CANCELLED'],
   [-20, 9, 30, 'CANCELLED'],
   [2, 10, 60, 'CONFIRMED'],
   [5, 16, 30, 'CONFIRMED'],

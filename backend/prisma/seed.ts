@@ -289,7 +289,7 @@ async function main(): Promise<void> {
     const plan: Array<{ p: number; d: number; day: number; hour: number; status: AppointmentStatus }> = [
       { p: 0, d: 0, day: -14, hour: 9, status: 'COMPLETED' },
       { p: 1, d: 1, day: -7, hour: 10, status: 'COMPLETED' },
-      { p: 2, d: 0, day: -3, hour: 11, status: 'NO_SHOW' },
+      { p: 2, d: 0, day: -3, hour: 11, status: 'CANCELLED' },
       { p: 3, d: 2, day: -1, hour: 14, status: 'CANCELLED' },
       { p: 0, d: 1, day: 2, hour: 9, status: 'SCHEDULED' },
       { p: 4, d: 2, day: 5, hour: 15, status: 'CONFIRMED' },
@@ -306,7 +306,7 @@ async function main(): Promise<void> {
           startTime: start,
           endTime: addMinutes(start, 30),
           status: a.status,
-          notes: a.status === 'NO_SHOW' ? 'Patient did not attend' : 'Routine visit',
+          notes: a.status === 'CANCELLED' ? 'Cancelled by patient' : 'Routine visit',
         },
       });
     }

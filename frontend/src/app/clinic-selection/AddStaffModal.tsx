@@ -100,16 +100,16 @@ export default function AddStaffModal({
       <Overlay onClose={onClose} labelledBy="add-staff-done-title">
         <h2
           id="add-staff-done-title"
-          className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink"
+          className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink"
         >
           Account created
         </h2>
-        <p className="font-inter text-[15px] leading-[24px] text-ink">
+        <p className="font-inter text-[14px] leading-[21px] text-ink">
           The account for <span className="font-semibold">{email}</span> was created at{" "}
           <span className="font-semibold">{branchName}</span>.
         </p>
         <div
-          className={`flex items-start gap-2 rounded-lg px-4 py-3 font-inter text-[13px] leading-5 ${
+          className={`flex items-start gap-2 rounded-lg px-3.5 py-3 font-inter text-[13px] leading-5 ${
             created.emailSent ? "bg-[#f0fdf4] text-green-700" : "bg-amber-50 text-amber-700"
           }`}
         >
@@ -129,21 +129,21 @@ export default function AddStaffModal({
   }
 
   return (
-    <Overlay onClose={onClose} labelledBy="add-staff-title" className="[zoom:0.95]">
+    <Overlay onClose={onClose} labelledBy="add-staff-title" className="">
       <div className="flex flex-col gap-1">
         <h2
           id="add-staff-title"
-          className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink"
+          className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink"
         >
           Add Account
         </h2>
-        <p className="font-inter text-[14px] leading-5 text-ink/60">
+        <p className="font-inter text-[14px] leading-5 text-ink/80">
           New doctor or receptionist at{" "}
           <span className="font-semibold text-ink">{branchName}</span>.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* Account type */}
         <div className="flex flex-col gap-1.5">
           <span className={LABEL_CLASS}>Account Type</span>
@@ -167,7 +167,7 @@ export default function AddStaffModal({
           )}
         </div>
 
-        <div className="flex flex-col gap-5 sm:flex-row">
+        <div className="flex flex-col gap-4 sm:flex-row">
           <div className="flex-1">
             <LabeledInput
               id="staff-first-name"
@@ -264,10 +264,10 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-4 py-2 font-inter text-[14px] font-semibold transition-colors ${
+      className={`rounded-full border-[1.167px] px-3.5 py-2 font-inter text-[14px] font-semibold transition-colors ${
         active
           ? "border-brand bg-brand text-white"
-          : "border-field-border text-ink hover:border-brand hover:text-brand"
+          : "border-black text-ink app-option-hover"
       }`}
     >
       {label}
@@ -294,21 +294,21 @@ function TemporaryPasswordBox({ password }: { password: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-field-border bg-[#f1f5f9] p-4">
+    <div className="flex flex-col gap-2 rounded-lg border-[1.167px] border-black bg-[#f1f5f9] p-3.5">
       <span className={LABEL_CLASS}>Temporary Password</span>
       <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 truncate font-mono text-[16px] font-semibold tracking-wide text-ink">
+        <code className="min-w-0 flex-1 truncate font-mono text-[14px] font-semibold tracking-wide text-ink">
           {password}
         </code>
         <button
           type="button"
           onClick={copy}
-          className="shrink-0 rounded-[8px] border border-brand px-3 py-1.5 font-inter text-[13px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
+          className="shrink-0 rounded-[8px] border-[1.167px] border-brand px-3 py-1.5 font-inter text-[13px] font-semibold text-brand transition-colors hover:bg-brand/[.06]"
         >
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <p className="font-inter text-[12px] leading-4 text-ink/60">
+      <p className="font-inter text-[12px] leading-4 text-ink/80">
         Share this with the user — they’ll be asked to set a new password and accept the
         Terms &amp; Conditions on first login. It won’t be shown again.
       </p>

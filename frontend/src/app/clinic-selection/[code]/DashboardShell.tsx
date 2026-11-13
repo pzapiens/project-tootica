@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -16,6 +16,7 @@ import {
   type Role,
 } from "@/lib/api";
 import { useExclusiveDropdown } from "@/lib/useExclusiveDropdown";
+import { popupVerticalInset } from "@/lib/floating-panel";
 import { Tip } from "@/components/HoverTip";
 import RouteSkeleton from "@/components/loading/RouteSkeleton";
 import PageTransition from "@/components/loading/PageTransition";
@@ -23,6 +24,16 @@ import { SidebarSkeleton } from "@/components/loading/PageSkeletons";
 
 import ResetPasswordPopup from "../ResetPasswordPopup";
 import { DashboardSessionProvider } from "./session";
+import styles from "./shell.module.css";
+
+const COMPACT_NAVIGATION = "(max-width: 1279px)";
+function subscribeNavigation(onChange: () => void) {
+  const query = window.matchMedia(COMPACT_NAVIGATION);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+const compactSnapshot = () => window.matchMedia(COMPACT_NAVIGATION).matches;
+const serverCompactSnapshot = () => false;
 
 /**
  * The app shell for the per-clinic dashboard (Figma "Sidebar" + white content
@@ -31,8 +42,8 @@ import { DashboardSessionProvider } from "./session";
  * white rounded content card.
  *
  * The white panel is a fixed-height frame: only the content INSIDE it scrolls,
- * the panel and sidebar stay put. The content is scaled to 90% so the dense
- * 1440-wide Figma layout fits comfortably.
+ * the panel and sidebar stay put. Navigation compacts on smaller viewports;
+ * nested content reflows at its natural size and respects browser zoom.
  *
  * The session (role) is loaded once here from `GET /auth/me`; nested pages don't
  * refetch it. A 401 bounces back to /login.
@@ -99,13 +110,26 @@ export default function DashboardShell({
   const [loading, setLoading] = useState(true);
   const [branchLoading, setBranchLoading] = useState(true);
   const [showReset, setShowReset] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const compactNavigation = useSyncExternalStore(subscribeNavigation, compactSnapshot, serverCompactSnapshot);
+  const [sidebarPreference, setSidebarPreference] = useState<boolean | null>(null);
+  const sidebarCollapsed = sidebarPreference ?? compactNavigation;
+  const closeNavigation = () => setSidebarPreference(true);
+
+  useEffect(() => {
+    if (sidebarCollapsed) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSidebarPreference(true);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [sidebarCollapsed]);
 
   // Loaded from the backend session so the photo survives browser and device changes.
   const avatarUrl = me?.user.avatarUrl ?? null;
 
   function scrollDashboardToTop() {
     contentScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    contentScrollRef.current?.firstElementChild?.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }
 
   // The shell stays mounted between pages; reset its own scroll panel after
@@ -174,21 +198,22 @@ export default function DashboardShell({
   const items = me ? NAV.filter((item) => canSee(item, me.user.role)) : [];
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#1e1e24]">
+    <div className={styles.shell}>
       {/* This transition mounts with the shell and stays mounted across page
           changes, so navigation gets a smooth wireframe only on its first load. */}
       <div
-        className="shrink-0 transition-[width] duration-300 ease-in-out motion-reduce:transition-none"
-        style={{ width: sidebarCollapsed ? 72 : 243.9 }}
+        className={styles.sidebarSlot}
+        data-collapsed={sidebarCollapsed}
       >
         <PageTransition
           loading={loading || branchLoading}
           fallback={<SidebarSkeleton itemCount={me ? items.length : 6} collapsed={sidebarCollapsed} />}
         >
-          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} collapsed={sidebarCollapsed} onDashboardNavigate={scrollDashboardToTop} />}
+          {me && <Sidebar code={code} items={items} pathname={pathname} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} collapsed={sidebarCollapsed} onClose={closeNavigation} onNavigate={() => { if (compactNavigation) setSidebarPreference(null); }} onDashboardNavigate={scrollDashboardToTop} />}
         </PageTransition>
       </div>
-      <main className="relative min-w-0 flex-1 p-[19px]">
+      {!sidebarCollapsed && <button type="button" aria-label="Close navigation" className={styles.backdrop} onClick={closeNavigation} />}
+      <main className={styles.main}>
         {/* Float in the existing gutter, outside navigation and content flow. */}
         <button
           type="button"
@@ -196,8 +221,8 @@ export default function DashboardShell({
           title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!sidebarCollapsed}
           aria-controls="clinic-sidebar"
-          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-          className="absolute left-[3px] top-[38px] z-20 flex size-8 items-center justify-center rounded-full border border-[#0077c0] bg-[#0077c0] text-white shadow-[0_2px_8px_rgba(16,24,40,0.12)] transition-[color,background-color,border-color,box-shadow,transform] duration-200 hover:border-[#0069a8] hover:bg-[#0069a8] hover:shadow-[0_3px_12px_rgba(16,24,40,0.16)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0] active:scale-95 motion-reduce:transition-none"
+          onClick={() => setSidebarPreference(!sidebarCollapsed)}
+          className={`${styles.toggle} absolute z-20 flex size-8 items-center justify-center rounded-full border-[1.167px] border-[#0077c0] bg-[#0077c0] text-white shadow-[0_2px_8px_rgba(16,24,40,0.12)] transition-[color,background-color,border-color,box-shadow,transform] duration-200 hover:bg-[#0069a8] hover:shadow-[0_3px_12px_rgba(16,24,40,0.16)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077c0] active:scale-95 motion-reduce:transition-none`}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
             <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -206,15 +231,15 @@ export default function DashboardShell({
           </svg>
         </button>
         {/* Fixed white panel; only the inner region scrolls. */}
-        <div className="flex h-full flex-col overflow-hidden rounded-[28px] bg-white">
-          <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto px-[24px] py-[24px] md:px-[42px] md:py-[32px]">
+        <div data-app-content-frame className="relative flex h-full flex-col overflow-hidden rounded-[28px] bg-white">
+          <div ref={contentScrollRef} className={`${styles.scrollPanel} ${pathname === `/clinic-selection/${code}/dashboard` ? styles.dashboardScrollPanel : ["appointments", "patients", "doctors", "accounts"].some((page) => pathname === `/clinic-selection/${code}/${page}`) ? styles.paginatedScrollPanel : ""}`}>
             {/* min-h-full fills the scroll viewport so pages can push a footer
                 to the page bottom via mt-auto (flex-col lets a page's root
                 stretch to this height). It's capped at 100% — never taller than
                 the visible area — so it can't introduce a scrollbar when the
                 content fits; the page only scrolls when the rows genuinely
                 overflow. */}
-            <div className="flex min-h-full origin-top flex-col [zoom:0.9]">
+            <div className={styles.content}>
               {me ? (
                 <DashboardSessionProvider me={me} setMe={setMe}>
                   <PageTransition key={pathname} fallback={<RouteSkeleton />}>
@@ -249,6 +274,8 @@ function Sidebar({
   branchName,
   clinicName,
   collapsed,
+  onClose,
+  onNavigate,
   onDashboardNavigate,
 }: {
   code: string;
@@ -259,35 +286,36 @@ function Sidebar({
   branchName: string | null;
   clinicName: string | null;
   collapsed: boolean;
+  onClose: () => void;
+  onNavigate: () => void;
   onDashboardNavigate: () => void;
 }) {
-  // zoom 0.9 shrinks the sidebar width + all contents by 10%; the height is
-  // pre-divided by 0.9 so it still fills the viewport after the zoom.
   return (
-    <aside id="clinic-sidebar" aria-label="Clinic navigation" className={`flex h-[calc(100dvh/0.9)] shrink-0 flex-col justify-between overflow-x-hidden overflow-y-auto px-[16px] py-[32px] transition-[width] duration-300 ease-in-out motion-reduce:transition-none [zoom:0.9] ${collapsed ? "w-[80px]" : "w-[271px]"}`}>
+    <aside id="clinic-sidebar" aria-label="Clinic navigation" className={`${styles.sidebar} flex shrink-0 flex-col justify-between overflow-x-hidden overflow-y-auto`}>
+      {!collapsed && <button type="button" aria-label="Close navigation" onClick={onClose} className={styles.mobileClose}>×</button>}
       {/* Logo links back to the dashboard from anywhere. */}
       <Link
         href={`/clinic-selection/${code}/dashboard`}
         aria-label="Go to dashboard"
         scroll={false}
-        onNavigate={onDashboardNavigate}
-        className={`flex shrink-0 items-center gap-[8px] pb-[48px] transition-opacity hover:opacity-80 ${collapsed ? "justify-center" : "pl-[15px]"}`}
+        onNavigate={() => { onDashboardNavigate(); onNavigate(); }}
+        className={`${styles.logo} flex shrink-0 items-center gap-[8px] transition-opacity hover:opacity-80 ${collapsed ? "justify-center" : "pl-[12px]"}`}
       >
         <Image
           src="/auth/logo.png"
           alt="Tootica"
-          width={40}
-          height={40}
+          width={32}
+          height={32}
           priority
-          className="size-[40px] shrink-0"
+          className="size-[32px] shrink-0"
         />
-        <span className={`${collapsed ? "sr-only" : ""} font-inter text-[28px] font-bold leading-none tracking-[-0.5px] text-[#0077c0]`}>
+        <span className={`${collapsed ? "sr-only" : ""} font-inter text-[24px] font-bold leading-none tracking-[-0.5px] text-[#0077c0]`}>
           Tootica
         </span>
       </Link>
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-[24px]">
+      <nav aria-label="Main navigation" className={`${styles.nav} flex flex-1 flex-col`}>
         {items.map((item) => {
           const href = `/clinic-selection/${code}/${item.segment}`;
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -295,14 +323,15 @@ function Sidebar({
             <Link
               key={item.key}
               href={href}
+              onNavigate={onNavigate}
               aria-current={active ? "page" : undefined}
               aria-label={item.label}
               title={collapsed ? item.label : undefined}
               className={[
-                `flex items-center py-[12px] transition-colors focus-visible:outline-2 focus-visible:outline-white ${collapsed ? "justify-center px-3" : "px-[16px]"}`,
+                `flex items-center py-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-white ${collapsed ? "justify-center px-2" : "px-[12px]"}`,
                 active
                   ? "rounded-[50px] bg-white/5"
-                  : "rounded-[12px] hover:bg-white/5",
+                  : "rounded-[50px] hover:bg-white/5",
               ].join(" ")}
             >
               {/* The nav SVGs have baked-in fills (some white, some grey), so we
@@ -310,7 +339,7 @@ function Sidebar({
                   the muted grey — keeping every icon consistent with its label. */}
               <span
                 aria-hidden
-                className={`size-6 shrink-0 ${active ? "bg-white" : "bg-[#94a3b8]"}`}
+                className={`size-5 shrink-0 ${active ? "bg-white" : "bg-[#94a3b8]"}`}
                 style={{
                   maskImage: `url(${item.icon})`,
                   WebkitMaskImage: `url(${item.icon})`,
@@ -323,7 +352,7 @@ function Sidebar({
                 }}
               />
               <span
-                className={`${collapsed ? "sr-only" : "pl-[16px]"} font-inter text-[16px] font-medium leading-[24px] ${
+                className={`${collapsed ? "sr-only" : "pl-[12px]"} font-inter text-[14px] font-medium leading-[20px] ${
                   active ? "text-white" : "text-[#94a3b8]"
                 }`}
               >
@@ -336,8 +365,8 @@ function Sidebar({
 
       {/* User chip + footer */}
       <UserChip code={code} me={me} avatarUrl={avatarUrl} branchName={branchName} clinicName={clinicName} collapsed={collapsed} />
-      <div className={collapsed ? "sr-only" : "pt-[16px]"}>
-        <p className="font-inter whitespace-nowrap text-[12px] font-medium leading-[18px] text-[#94a3b8]">
+      <div className={collapsed ? "sr-only" : "pt-[12px]"}>
+        <p className="whitespace-nowrap font-inter text-[11px] font-medium leading-[16px] text-[#94a3b8]">
           © 2026 Tootica. All Rights Reserved.
         </p>
       </div>
@@ -362,11 +391,14 @@ function UserChip({
 }) {
   const router = useRouter();
   const [open, setOpen] = useExclusiveDropdown();
-  const [active, setActive] = useState<"profile" | "accounts" | "switch" | null>(null);
+  const pathname = usePathname();
+  const active = pathname.startsWith(`/clinic-selection/${code}/profile`)
+    ? "profile"
+    : pathname.startsWith(`/clinic-selection/${code}/accounts`) ? "accounts" : null;
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [menuPosition, setMenuPosition] = useState({ left: 0, bottom: 0, width: 236 });
+  const [menuPosition, setMenuPosition] = useState({ left: 0, bottom: 0, width: 198, maxHeight: 0 });
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -402,11 +434,14 @@ function UserChip({
   function toggleMenu() {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
-      const width = Math.min(236, window.innerWidth - 24);
+      const width = Math.min(collapsed ? 198 : rect.width, window.innerWidth - 24);
+      const inset = popupVerticalInset(window.innerWidth);
+      const bottom = Math.max(inset, window.innerHeight - (collapsed ? rect.bottom : rect.top) + (collapsed ? 0 : 8));
       setMenuPosition({
         left: Math.max(12, Math.min(collapsed ? rect.right + 8 : rect.left, window.innerWidth - width - 12)),
-        bottom: Math.max(12, window.innerHeight - (collapsed ? rect.bottom : rect.top) + (collapsed ? 0 : 8)),
+        bottom,
         width,
+        maxHeight: Math.max(0, window.innerHeight - bottom - inset),
       });
     }
     setOpen((value) => !value);
@@ -445,7 +480,6 @@ function UserChip({
   ];
 
   function onMenu(key: "profile" | "accounts" | "switch") {
-    setActive(key);
     setOpen(false);
     if (key === "switch") {
       router.push("/clinic-selection");
@@ -459,7 +493,7 @@ function UserChip({
   return (
     <div ref={ref} className={`relative shrink-0 ${collapsed ? "flex justify-center" : ""}`}>
       {open && createPortal(
-        <div ref={menuRef} id="sidebar-account-menu" aria-label="Account menu" style={menuPosition} className="fixed z-50 flex max-h-[calc(100dvh-24px)] flex-col gap-[10px] overflow-y-auto rounded-[15px] border border-[rgba(194,198,212,0.5)] bg-[#2b2b31] p-[17px] shadow-lg">
+        <div ref={menuRef} id="sidebar-account-menu" aria-label="Account menu" style={menuPosition} className="fixed z-50 flex max-h-[calc(100dvh-24px)] flex-col gap-[8px] overflow-y-auto rounded-[15px] border-[1.167px] border-black bg-[#2b2b31] p-[12px] shadow-lg">
           <div className="flex flex-col gap-[4px]">
             {menuItems.map((item) => {
               const selected = active === item.key;
@@ -468,14 +502,13 @@ function UserChip({
                   key={item.key}
                   type="button"
                   onClick={() => onMenu(item.key)}
-                  className={`flex h-[41px] items-center justify-between rounded-[8px] px-[10px] transition-colors ${
-                    selected ? "bg-[#d4ebfb]" : "bg-white/[0.06] hover:bg-white/[0.14]"
+                  aria-current={selected ? "page" : undefined}
+                  className={`flex h-[36px] items-center justify-between rounded-[8px] border-[1.167px] border-white px-[10px] text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                    selected ? "bg-[#0077c0]" : "bg-transparent hover:bg-[#1e1e24]"
                   }`}
                 >
                   <span
-                    className={`font-manrope text-[14px] font-semibold leading-[20px] ${
-                      selected ? "text-[#0077c0]" : "text-white"
-                    }`}
+                    className="font-manrope text-[13px] font-semibold leading-[20px]"
                   >
                     {item.label}
                   </span>
@@ -488,10 +521,10 @@ function UserChip({
           <button
             type="button"
             onClick={logout}
-            className="flex items-center justify-center gap-[7px] rounded-[8px] py-[8px] transition-colors hover:bg-white/[0.14]"
+            className="flex items-center justify-center gap-[7px] rounded-[8px] bg-transparent py-[8px] text-white transition-colors hover:bg-[#1e1e24]"
           >
-            <Image src="/clinic/logout.svg" alt="" width={24} height={24} className="size-6" />
-            <span className="font-manrope text-[14px] font-medium leading-[20px] text-white">Log Out</span>
+            <Image src="/clinic/logout.svg" alt="" width={24} height={24} className="size-5" />
+            <span className="font-manrope text-[13px] font-medium leading-[20px] text-current">Log Out</span>
           </button>
         </div>,
         document.body,
@@ -504,18 +537,18 @@ function UserChip({
         aria-expanded={open}
         aria-controls={open ? "sidebar-account-menu" : undefined}
         onClick={toggleMenu}
-        className={`flex shrink-0 items-center bg-white/10 text-left transition-colors hover:bg-white/[0.14] focus-visible:outline-2 focus-visible:outline-white ${collapsed ? "size-[56px] justify-center rounded-full p-0" : "w-full rounded-[50px] py-[12px] pl-[12px] pr-[16px]"}`}
+        className={`flex shrink-0 items-center bg-white/10 text-left transition-colors hover:bg-white/[0.14] focus-visible:outline-2 focus-visible:outline-white ${collapsed ? "size-[40px] justify-center rounded-full p-0" : "w-full rounded-[50px] p-2"}`}
       >
-        <span className="relative flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
+        <span className="relative flex size-[32px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0077c0]">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarUrl} alt="" className="size-full object-cover" />
           ) : (
-            <Image src={roleAvatar(me.user.role)} alt="" width={24} height={24} className="size-6" />
+            <Image src={roleAvatar(me.user.role)} alt="" width={24} height={24} className="size-5" />
           )}
           <Tip label={roleLabel(me.user.role)} />
         </span>
-        <span className={`${collapsed ? "sr-only" : "ml-[10px] min-w-0 flex-1 truncate"} font-inter text-[16px] font-medium leading-[16px] text-white`}>
+        <span className={`${collapsed ? "sr-only" : "ml-[8px] min-w-0 flex-1 truncate"} font-inter text-[14px] font-medium leading-[20px] text-white`}>
           {label}
         </span>
         <Image
@@ -523,12 +556,12 @@ function UserChip({
           alt=""
           width={24}
           height={24}
-          className={`${collapsed ? "hidden" : "size-6"} transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          className={`${collapsed ? "hidden" : "mr-[4px] size-5 shrink-0"} transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
-      {/* Full clinic + branch shown under the account box so long names wrap. */}
+      {/* Keep the clinic and branch on one line; expose long names in full on hover. */}
       {subLabel && (
-        <p className={`${collapsed ? "sr-only" : "mt-[8px] px-[16px]"} font-inter text-[11px] font-normal leading-[14px] text-white/50`}>
+        <p title={subLabel} className={`${collapsed ? "sr-only" : "mt-[6px] truncate px-[4px]"} font-inter text-[11px] font-normal leading-[16px] tracking-[-0.1px] text-white/50`}>
           {subLabel}
         </p>
       )}
@@ -539,7 +572,7 @@ function UserChip({
 /** Blue check-circle shown on the selected settings-dropup row. */
 function CheckCircle({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#0077c0" strokeWidth="2" className={className} aria-hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} aria-hidden>
       <circle cx="12" cy="12" r="9" />
       <path d="M8.5 12.5l2.5 2.5 4.5-5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>

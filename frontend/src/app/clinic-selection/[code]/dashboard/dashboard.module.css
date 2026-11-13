@@ -1,0 +1,180 @@
+/* Queries measure usable panel width, including manual sidebar changes. */
+.dashboard {
+  container: dashboard / inline-size;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: clamp(18px, 1.8vw, 26px);
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(12px, 1.3vw, 20px);
+}
+.statCard {
+  min-width: 0;
+  min-height: 160px;
+  padding: clamp(16px, 1.3vw, 20px);
+}
+.lower {
+  display: grid;
+  min-height: 0;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  flex-shrink: 0;
+  gap: 20px;
+}
+.tableSection {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+}
+.tableLoading {
+  overflow: hidden;
+}
+.calendarSlot {
+  width: 100%;
+  max-width: 350px;
+  min-width: 0;
+  min-height: 0;
+}
+.calendar {
+  width: 100%;
+  min-width: 0;
+  gap: 12px;
+  padding: clamp(12px, 1vw, 16px);
+  justify-content: center;
+}
+.calendarMain {
+  gap: 12px;
+}
+.calendarGrid {
+  row-gap: 6px;
+}
+.calendar > button {
+  flex-shrink: 0;
+}
+.headerActions,
+.tableFilters {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.search {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 180px;
+}
+.tableScroll {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  max-height: min(480px, 65dvh);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain auto;
+}
+.tableContent {
+  display: flex;
+  min-height: 0;
+  min-width: 750px;
+  flex: 1;
+  flex-direction: column;
+}
+.tableBody {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain auto;
+  scrollbar-gutter: stable;
+}
+.tableScroll,
+.tableBody {
+  scrollbar-width: thin;
+  scrollbar-color: #0077c0 transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  .tableScroll,
+  .tableBody {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  .tableScroll::-webkit-scrollbar,
+  .tableBody::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+}
+.tableRow {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.4fr) minmax(120px, 1.2fr) minmax(145px, 1fr) 130px 60px;
+  align-items: center;
+  column-gap: 16px;
+  padding-inline: 16px;
+}
+.tableRow > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tableHeader {
+  flex-shrink: 0;
+  background: #e3f1ff;
+}
+@container dashboard (min-width:960px) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@container dashboard (min-width:960px) {
+  .lower {
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 320px);
+    align-items: stretch;
+    flex: 1 1 0;
+    min-height: min-content;
+    grid-template-rows: minmax(min-content, 1fr);
+    gap: 24px;
+  }
+  .calendarSlot {
+    display: flex;
+    flex-direction: column;
+  }
+  .calendar {
+    flex: 1;
+    min-height: max-content;
+  }
+  /* Keep the panels aligned; short viewports scroll the page instead of the calendar. */
+  .tableSection {
+    height: 100%;
+    contain: size;
+  }
+  .tableScroll {
+    max-height: none;
+  }
+}
+@container dashboard (max-width:420px) {
+  .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .statCard {
+    min-height: 144px;
+  }
+  .headerActions,
+  .tableFilters {
+    width: 100%;
+  }
+  .calendar {
+    padding: 12px;
+  }
+}
+.statsFrame {
+  container: dashboard / inline-size;
+}
+

@@ -172,15 +172,15 @@ export default function ManageAccountsModal({
   return (
     <>
       <Overlay onClose={onClose} labelledBy="manage-accounts-title" className="max-w-[640px]">
-        <div className="flex items-start justify-between gap-3">
+        <div className="app-toolbar flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
             <h2
               id="manage-accounts-title"
-              className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink"
+              className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink"
             >
               {branchId ? "Manage Accounts" : "Clinic Admins"}
             </h2>
-            <p className="font-inter text-[14px] leading-5 text-ink/60">
+            <p className="font-inter text-[14px] leading-5 text-ink/80">
               {branchId ? (
                 <>
                   Doctors &amp; receptionists at{" "}
@@ -198,7 +198,7 @@ export default function ManageAccountsModal({
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="shrink-0 rounded-full bg-brand px-4 py-2 font-inter text-[13px] font-semibold text-white transition-colors hover:bg-[#0069a8]"
+              className="shrink-0 rounded-full bg-brand px-3.5 py-2 font-inter text-[13px] font-semibold text-white transition-colors hover:bg-[#0069a8]"
             >
               + Add
             </button>
@@ -206,13 +206,13 @@ export default function ManageAccountsModal({
         </div>
 
         {accounts === null ? (
-          <p className="py-6 font-inter text-[15px] text-ink/60">Loading…</p>
+          <p className="py-5 font-inter text-[14px] text-ink/80">Loading…</p>
         ) : loadError ? (
           <p role="alert" className={ERROR_CLASS}>
             {loadError}
           </p>
         ) : visible.length === 0 ? (
-          <p className="py-6 font-inter text-[15px] text-ink/60">
+          <p className="py-5 font-inter text-[14px] text-ink/80">
             {branchId
               ? "No doctors or receptionists at this branch yet."
               : "No admin accounts for this clinic yet."}
@@ -247,7 +247,7 @@ export default function ManageAccountsModal({
             <>
               This permanently removes{" "}
               <span className="font-semibold">{accountName(deleting)}</span>{" "}
-              <span className="text-ink/60">({deleting.email})</span>. This can&apos;t
+              <span className="text-ink/80">({deleting.email})</span>. This can&apos;t
               be undone.
             </>
           }
@@ -294,10 +294,10 @@ function AccountRow({
 }) {
   const suspended = account.status === "SUSPENDED";
   return (
-    <li className="flex items-center gap-3 rounded-2xl border border-field-border p-4">
+    <li className="flex flex-wrap items-center gap-3 rounded-[14px] border-[1.167px] border-black p-3.5">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate font-inter text-[15px] font-semibold text-ink">
+          <span className="truncate font-inter text-[14px] font-semibold text-ink">
             {accountName(account)}
           </span>
           <span className="rounded-md bg-[#f1f5f9] px-2 py-0.5 font-inter text-[11px] font-semibold uppercase tracking-wide text-brand">
@@ -309,7 +309,7 @@ function AccountRow({
             </span>
           )}
         </div>
-        <p className="truncate font-inter text-[13px] leading-5 text-ink/60">
+        <p className="truncate font-inter text-[13px] leading-5 text-ink/80">
           {account.email}
           {account.phone ? ` · ${account.phone}` : ""}
         </p>
@@ -397,16 +397,16 @@ function EditAccountForm({
     <Overlay onClose={onCancel} labelledBy="edit-account-title">
       <h2
         id="edit-account-title"
-        className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink"
+        className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink"
       >
         Edit Account
       </h2>
-      <p className="-mt-2 font-inter text-[13px] leading-5 text-ink/60">
+      <p className="-mt-2 font-inter text-[13px] leading-5 text-ink/80">
         {account.email} · {ROLE_LABELS[account.role]}
       </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="flex flex-col gap-5 sm:flex-row">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row">
           <div className="flex-1">
             <LabeledInput
               id="edit-first-name"
@@ -491,10 +491,10 @@ function TitleChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-4 py-2 font-inter text-[14px] font-semibold transition-colors ${
+      className={`rounded-full border-[1.167px] px-3.5 py-2 font-inter text-[14px] font-semibold transition-colors ${
         active
           ? "border-brand bg-brand text-white"
-          : "border-field-border text-ink hover:border-brand hover:text-brand"
+          : "border-black text-ink app-option-hover"
       }`}
     >
       {label}
@@ -533,7 +533,7 @@ function IconButton({
         ? "hover:border-amber-500 hover:text-amber-600"
         : tone === "green"
           ? "hover:border-green-600 hover:text-green-600"
-          : "hover:border-brand hover:text-brand";
+          : "hover:text-brand";
   return (
     <button
       type="button"
@@ -541,7 +541,7 @@ function IconButton({
       title={tooltip ?? label}
       onClick={onClick}
       disabled={disabled}
-      className={`flex size-9 items-center justify-center rounded-full border border-field-border text-ink/70 transition-colors disabled:opacity-40 ${hover}`}
+      className={`flex size-9 items-center justify-center rounded-full border-[1.167px] border-black text-ink/70 transition-colors disabled:opacity-40 ${hover}`}
     >
       {children}
     </button>

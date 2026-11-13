@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <FitToViewport className="bg-ink">
-      <div className="flex flex-col items-center gap-12 px-4">
+      <div className="flex w-full flex-col items-center gap-7 px-2 sm:gap-10 sm:px-3.5">
         <LoginCard />
 
         {/* System footer (non-nav version) */}

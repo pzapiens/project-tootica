@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useRef, useState } from "react";
+import FloatingPanel from "@/components/FloatingPanel";
 
 /**
  * Reusable date field used for every date selection in the app. It supports
@@ -19,90 +19,63 @@ export function DateInput({
   onChange,
   placeholder = "dd/mm/yyyy",
   disablePast,
+  disableFuture,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   /** When true, dates before today can't be selected (used by New Appointment). */
   disablePast?: boolean;
+  disableFuture?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (wrapRef.current?.contains(t) || popRef.current?.contains(t)) return;
-      setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, []);
-
-  // Keep the portaled calendar pinned under the field while open, even inside
-  // scrolling containers (so it's never clipped by an overflow parent).
-  useEffect(() => {
-    if (!open) return;
-    function reposition() {
-      const r = wrapRef.current?.getBoundingClientRect();
-      if (r) setPos({ top: r.bottom + 6, left: r.left });
-    }
-    reposition();
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
-    return () => {
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
-    };
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selected = parseDmy(value);
 
   return (
-    <div ref={wrapRef} className="relative">
-      <div className="flex items-center gap-2 border-b border-[#c2c6d4] pb-2 pt-1 focus-within:border-[#0077c0]">
+    <div className="relative">
+      <div className="flex items-center gap-2 border-b-[1.167px] border-black pb-2 pt-1 focus-within:border-[#0077c0]">
         <input
           value={value}
           onChange={(e) => onChange(maskDate(e.target.value))}
           onFocus={() => setOpen(false)}
           placeholder={placeholder}
           inputMode="numeric"
-          className="min-w-0 flex-1 bg-transparent font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#1e1e24]"
+          className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder"
         />
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-label="Open calendar"
+          aria-expanded={open}
+          aria-haspopup="dialog"
           className="shrink-0"
         >
           <Image src="/dashboard/calendar_today.svg" alt="" width={20} height={20} className="size-5" />
         </button>
       </div>
-      {open &&
-        pos &&
-        typeof document !== "undefined" &&
-        createPortal(
-          // `data-date-popover` marks this portaled calendar so ancestors that
-          // close on outside-click (e.g. the timeframe filter dropdown) can tell
-          // clicks here are "inside" — without it, selecting a day closes the
-          // parent before the selection registers.
-          <div
-            ref={popRef}
-            data-date-popover
-            style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 200 }}
+      {open && (
+          <FloatingPanel
+            anchor={triggerRef}
+            width={256}
+            onClose={() => setOpen(false)}
+            role="dialog"
+            label="Choose date"
+            datePopover
+            className="app-date-popover"
           >
             <DateCalendar
               value={selected}
               disablePast={disablePast}
+              disableFuture={disableFuture}
               onSelect={(d) => {
                 onChange(formatDmy(d));
                 setOpen(false);
               }}
             />
-          </div>,
-          document.body,
+          </FloatingPanel>
         )}
     </div>
   );
@@ -119,10 +92,12 @@ export function DateCalendar({
   value,
   onSelect,
   disablePast,
+  disableFuture,
 }: {
   value: Date | null;
   onSelect: (d: Date) => void;
   disablePast?: boolean;
+  disableFuture?: boolean;
 }) {
   const base = value ?? new Date();
   const [view, setView] = useState({ year: base.getFullYear(), month: base.getMonth() });
@@ -136,8 +111,7 @@ export function DateCalendar({
     // New Appointment: current year and forward only.
     for (let y = thisYear; y <= thisYear + 10; y++) years.push(y);
   } else {
-    // e.g. DOB: present year back to 1920 — never a future year.
-    for (let y = thisYear; y >= 1920; y--) years.push(y);
+    for (let y = disableFuture ? thisYear : thisYear + 10; y >= 1920; y--) years.push(y);
   }
 
   const first = new Date(view.year, view.month, 1);
@@ -156,7 +130,7 @@ export function DateCalendar({
   }
 
   return (
-    <div className="flex w-[256px] flex-col gap-[8px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]">
+    <div className="flex w-full flex-col gap-[8px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-[5px]">
           <PillSelect
@@ -179,6 +153,7 @@ export function DateCalendar({
           </PillSelect>
           <PillSelect
             label={String(view.year)}
+            matchTriggerWidth
             open={menu === "year"}
             onToggle={() => setMenu((m) => (m === "year" ? null : "year"))}
           >
@@ -198,10 +173,10 @@ export function DateCalendar({
         </div>
         <div className="flex items-center">
           <button type="button" aria-label="Previous month" onClick={() => shift(-1)}>
-            <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6" />
+            <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-5" />
           </button>
           <button type="button" aria-label="Next month" onClick={() => shift(1)}>
-            <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6 rotate-180" />
+            <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-5 rotate-180" />
           </button>
         </div>
       </div>
@@ -214,20 +189,20 @@ export function DateCalendar({
         ))}
         {cells.map((cell, i) => {
           if (!cell.inMonth) return <span key={i} />;
-          const past = disablePast ? cell.date < today : false;
+          const unavailable = Boolean((disablePast && cell.date < today) || (disableFuture && cell.date > today));
           const selected = value && sameDay(cell.date, value);
           return (
             <button
               key={i}
               type="button"
-              disabled={past}
+              disabled={unavailable}
               onClick={() => onSelect(cell.date)}
               className={`flex items-center justify-center rounded-[12px] py-[4px] text-center font-inter text-[12px] leading-[16px] ${
-                past
+                unavailable
                   ? "cursor-not-allowed text-[#cbd5e1]"
                   : selected
                     ? "bg-[#0077c0] font-bold text-white"
-                    : "text-[#1e1e24] hover:bg-[#f1f5f9]"
+                    : "text-[#1e1e24] app-option-hover"
               }`}
             >
               {cell.date.getDate()}
@@ -243,11 +218,13 @@ function PillSelect({
   label,
   open,
   onToggle,
+  matchTriggerWidth = false,
   children,
 }: {
   label: string;
   open: boolean;
   onToggle: () => void;
+  matchTriggerWidth?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -255,7 +232,7 @@ function PillSelect({
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center rounded-[8px] border border-[#c2c6d4] py-[6px] pl-[10px] pr-[5px] font-inter text-[11px] font-medium text-[#1e1e24]"
+        className="flex items-center rounded-[8px] border-[1.167px] border-black py-[6px] pl-[10px] pr-[5px] font-inter text-[11px] font-medium text-[#1e1e24]"
       >
         {label}
         <Image
@@ -263,11 +240,11 @@ function PillSelect({
           alt=""
           width={24}
           height={24}
-          className={`size-6 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          className={`size-5 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
       {open && (
-        <ul className="absolute left-0 top-[calc(100%+4px)] z-50 max-h-[180px] w-[90px] overflow-y-auto rounded-[10px] border border-[#c2c6d4] bg-white py-1 shadow-lg">
+        <ul className={`absolute left-0 top-[calc(100%+4px)] z-50 max-h-[180px] ${matchTriggerWidth ? "w-full" : "w-[90px]"} overflow-y-auto rounded-[10px] border-[1.167px] border-black bg-white py-1 shadow-lg`}>
           {children}
         </ul>
       )}
@@ -289,7 +266,7 @@ function MenuItem({
       <button
         type="button"
         onClick={onClick}
-        className={`w-full px-3 py-1.5 text-left font-inter text-[12px] hover:bg-[#f1f5f9] ${
+        className={`w-full px-3 py-1.5 text-left font-inter text-[12px] app-option-hover ${
           selected ? "font-semibold text-[#0077c0]" : "text-[#1e1e24]"
         }`}
       >

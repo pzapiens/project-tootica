@@ -216,7 +216,7 @@ clinic from losing its **last active admin**).
   as `SCHEDULED` ("Pending"). **Status** is **locked to *Upcoming*** for a new
   booking (read-only, with a block icon); **editing** an appointment unlocks a
   **colour-coded dropdown** with the four selectable states — **Upcoming** (blue),
-  **Completed** (green), **No Show** (slate) and **Cancelled** (red) — whose
+  **On going** (solid blue), **Completed** (green) and **Cancelled** (red) — whose
   option colours come from the app's single status palette (`statusColors.ts`) so
   they read the same here as their table/calendar badges. There is no separate
   "Confirmed": *Upcoming* is the one active state and maps to the backend
@@ -319,7 +319,7 @@ dashboard table + its status dropdown, and the calendar chips/cards/legend, so
 tuning a colour there updates every surface at once: **Pending → amber**
 (awaiting accept/reject), **Upcoming → blue** (scheduled), **On going → solid
 blue** (active now), **Completed → green** (done), **Rescheduled → purple**
-(moved), **Cancelled → red**, **No Show → slate** (absent). Header actions: a
+(moved), **Cancelled → red**. Header actions: a
 **WhatsApp** button opens the **"WhatsApp Appointments" popup** (below); **New
 Appointment** opens the shared
 **NewAppointmentModal** wizard; **Filter** opens an **Apply Filter** panel (ID
@@ -445,7 +445,7 @@ Summary**: four appointment **stat cards** (Total / Completed / Pending /
 Cancelled) scoped by an **All-Time** timeframe, each with a **Review** link that
 deep-links to the filtered appointments list, plus a CSV **export**. Below the
 cards a **segmented toggle** swaps the content: **Doctor Performance** (search +
-timeframe + a per-doctor table of Total / Upcoming / Completed / No Show /
+timeframe + a per-doctor table of Total / Upcoming / Completed /
 Cancelled counts, each with an **eye** drill-down to
 `/appointments?doctorId=…&status=…`) and **Consultation Type & Source of Enquiry**
 (a shared timeframe above two **Appointment Counts** cards — Consultation Type +

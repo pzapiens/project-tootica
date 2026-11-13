@@ -40,8 +40,9 @@ function fmt12(d: Date): string {
 export function computeCalStatus(item: AppointmentListItem): CalStatus {
   switch (item.status) {
     case "CANCELLED":
-    case "NO_SHOW":
       return "Cancelled";
+    case "ONGOING":
+      return "Ongoing";
     case "COMPLETED":
       return "Completed";
     case "CONFIRMED": {
@@ -103,4 +104,20 @@ export function groupByDay(
 /** Time part of a chip label, dropping the AM/PM suffix ("09:00 AM" → "09:00"). */
 export function chipTime(start: string): string {
   return start.replace(/\s?[AP]M$/i, "");
+}
+
+/** Compact day preview; keep an ongoing appointment in today's middle slot. */
+export function previewAppointmentsForDay(
+  appointments: CalAppointment[],
+  date: Date,
+  today: Date,
+): Array<CalAppointment | null> {
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const currentDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  if (day < currentDay) return appointments.slice(-3);
+  if (day > currentDay) return appointments.slice(0, 3);
+
+  const ongoing = appointments.findIndex(appointment => appointment.status === "Ongoing");
+  if (ongoing === -1) return appointments.slice(0, 3);
+  return [appointments[ongoing - 1] ?? null, appointments[ongoing], appointments[ongoing + 1] ?? null];
 }

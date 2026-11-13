@@ -91,7 +91,7 @@ export default function ClinicAdminView({
 
   return (
     <div className="flex min-h-dvh flex-col bg-white">
-      <div className="mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-6 p-6 md:gap-7 md:p-7">
+      <div className="app-page mx-auto flex w-full max-w-[1402px] flex-1 flex-col gap-5 p-5 md:gap-6 md:p-6">
         <DashboardTop greetingName={greetingName} me={me} setMe={setMe} />
         <div className="mt-2 md:mt-4">
           <SelectBranchSection

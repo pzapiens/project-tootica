@@ -1,5 +1,7 @@
 "use client";
 
+import TableViewport from "@/components/TableViewport";
+
 import { DoctorsSkeleton } from "@/components/loading/PageSkeletons";
 
 import Image from "next/image";
@@ -187,18 +189,18 @@ export default function DoctorsClient() {
   return (
     // Fill the panel's content area so the pagination pins to the bottom and only
     // the table body scrolls (same layout as Patients).
-    <div className="flex flex-1 flex-col gap-[24px]">
+    <div className="app-page flex flex-1 flex-col gap-[20px]">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-[19px]">
-        <h1 className="flex-1 font-manrope text-[35px] font-bold leading-[44px] tracking-[-0.7px] text-[#1e1e24]">
+      <div className="app-toolbar flex shrink-0 items-center gap-[16px]">
+        <h1 className="app-page-title flex-1 font-manrope text-[31px] font-bold leading-[39px] tracking-[-0.7px] text-[#1e1e24]">
           Doctors
         </h1>
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="flex h-[54px] items-center gap-[10px] rounded-[50px] bg-[#0077c0] px-[26px] font-inter text-[15px] font-semibold uppercase tracking-[0.5px] text-white transition-colors hover:bg-[#0069a8]"
+          className="app-action-button flex h-[40px] items-center rounded-[50px] bg-[#0077c0] font-inter text-[14px] font-semibold uppercase tracking-[0.5px] text-white transition-colors hover:bg-[#0069a8]"
         >
-          <Image src="/dashboard/add.svg" alt="" width={22} height={22} className="size-[22px] [filter:brightness(0)_invert(1)]" />
+          <Image src="/dashboard/add.svg" alt="" width={14} height={14} className="size-3.5 shrink-0" />
           Create Doctor
         </button>
         <IconButton
@@ -212,14 +214,14 @@ export default function DoctorsClient() {
       </div>
 
       {/* Search + count */}
-      <div className="flex shrink-0 items-center gap-[24px]">
-        <div className="relative flex-1">
+      <div className="app-toolbar flex shrink-0 items-center gap-[20px]">
+        <div className="app-search-field app-search-field-half relative flex-1">
           <Image
             src="/dashboard/search.svg"
             alt=""
             width={24}
             height={24}
-            className="pointer-events-none absolute left-[22px] top-1/2 size-6 -translate-y-1/2"
+            className="pointer-events-none absolute left-[22px] top-1/2 size-5 -translate-y-1/2"
           />
           <input
             type="search"
@@ -230,25 +232,25 @@ export default function DoctorsClient() {
             }}
             placeholder="Search here..."
             aria-label="Search doctors"
-            className="h-[54px] w-full rounded-[27px] border-[1.2px] border-[#c2c6d4] pl-[58px] pr-[20px] font-inter text-[16px] text-[#1e1e24] outline-none placeholder:text-[#94a3b8] focus:border-[#0077c0]"
+            className="app-search-input h-[40px] w-full rounded-[23px] border-[1.167px] border-black pl-[49px] pr-[17px] font-inter text-[14px] text-[#1e1e24] outline-none "
           />
         </div>
-        <p className="shrink-0 font-inter text-[19px] leading-[28px] text-[#1e1e24]">
+        <p className="shrink-0 font-inter text-[17px] leading-[25px] text-[#1e1e24]">
           Counts : <span className="font-bold">{loading ? "—" : total}</span>
         </p>
       </div>
 
       {/* Table — fills the space between search and pagination; the body scrolls. */}
-      <div className="flex flex-col overflow-hidden rounded-[28px] border-[1.2px] border-[#c2c6d4] bg-white">
+      <TableViewport label="Doctors" minWidth="1000px" className="flex flex-col rounded-[24px] border border-black bg-white">
         {/* Header row (fixed) */}
-        <div className="grid shrink-0 grid-cols-[minmax(0,130fr)_minmax(0,250fr)_minmax(0,190fr)_minmax(0,240fr)_minmax(165px,150fr)] border-b-[1.2px] border-[rgba(194,198,212,0.5)]">
+        <div className="app-table-header grid shrink-0 grid-cols-[minmax(0,130fr)_minmax(0,250fr)_minmax(0,190fr)_minmax(0,240fr)_minmax(165px,150fr)] border-b border-black">
           {["ID", "Doctor Name", "Phone", "Specialization", "Actions"].map((h) => (
             <span
               key={h}
               // The Actions cell's content is padded to px-[20px] (tighter, to fit
               // its icon buttons), so its header matches that start.
-              className={`py-[26px] text-left font-inter text-[14px] font-semibold uppercase leading-[19px] tracking-[0.7px] text-[#727783] ${
-                h === "Actions" ? "px-[20px]" : "px-[29px]"
+              className={`py-[22px] text-left font-inter text-[14px] font-semibold uppercase leading-[19px] tracking-[0.7px] text-[#727783] ${
+                h === "Actions" ? "px-[17px]" : "px-[24px]"
               }`}
             >
               {h}
@@ -259,9 +261,9 @@ export default function DoctorsClient() {
         {/* Body */}
         <div>
           {loading ? (
-            <p className="px-[29px] py-10 font-inter text-[16px] text-[#94a3b8]">Loading doctors…</p>
+            <p className="px-[24px] py-8 font-inter text-[14px] text-[#94a3b8]">Loading doctors…</p>
           ) : total === 0 ? (
-            <p className="px-[29px] py-10 font-inter text-[16px] text-[#94a3b8]">
+            <p className="px-[24px] py-8 font-inter text-[14px] text-[#94a3b8]">
               {query.trim() || filterCount(filters) > 0
                 ? "No doctors match your search."
                 : "No doctors yet."}
@@ -278,15 +280,15 @@ export default function DoctorsClient() {
             ))
           )}
         </div>
-      </div>
+      </TableViewport>
 
       {/* Footer: records + per-page + pagination. mt-auto pins it to the page
           bottom when the table is too short to scroll; it follows the rows once
           the table overflows and the page scrolls. */}
       {!loading && total > 0 && (
-        <div className="mt-auto flex shrink-0 flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-[24px]">
-            <span className="font-inter text-[15px] leading-[22px] text-[#1e1e24]">
+        <div className="mt-auto flex shrink-0 flex-wrap items-center justify-between gap-3.5">
+          <div className="app-pagination flex items-center gap-[20px]">
+            <span className="font-inter text-[14px] leading-[20px] text-[#1e1e24]">
               Showing {firstRow}-{lastRow} of {total} records
             </span>
             <div className="flex items-center gap-[10px]">
@@ -357,9 +359,9 @@ function IconButton({
       type="button"
       aria-label={badge > 0 ? `${label} (${badge} active)` : label}
       onClick={onClick}
-      className="group relative flex size-[54px] items-center justify-center rounded-full border-[1.4px] border-[#c2c6d4] transition-colors hover:border-[#0077c0]"
+      className="group relative flex size-[40px] items-center justify-center rounded-full border-[1.167px] border-black transition-colors"
     >
-      <Image src={icon} alt="" width={28} height={28} className="size-7" />
+      <Image src={icon} alt="" width={28} height={28} className="size-5" />
       {badge > 0 && (
         <span className="absolute -right-[2px] -top-[2px] flex size-[22px] items-center justify-center rounded-full border-2 border-white bg-[#0077c0] font-inter text-[12px] font-semibold leading-none text-white">
           {badge}
@@ -385,36 +387,36 @@ function DoctorRowView({
   // (role DOCTOR) are managed through the account flow.
   const deletable = doctor.role === "GUEST_DOCTOR";
   return (
-    <div className="grid grid-cols-[minmax(0,130fr)_minmax(0,250fr)_minmax(0,190fr)_minmax(0,240fr)_minmax(165px,150fr)] items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] last:border-b-0">
+    <div className="grid grid-cols-[minmax(0,130fr)_minmax(0,250fr)_minmax(0,190fr)_minmax(0,240fr)_minmax(165px,150fr)] items-center border-b border-black last:border-b-0">
       {/* ID */}
-      <span className="px-[29px] py-[24px] text-left font-inter text-[16px] font-medium leading-[24px] text-[#1e1e24]">
+      <span className="px-[24px] py-[20px] text-left font-inter text-[14px] font-medium leading-[21px] text-[#1e1e24]">
         {doctor.code ?? "—"}
       </span>
       {/* Name */}
-      <span className="px-[29px] py-[24px] text-left font-inter text-[16px] font-medium leading-[24px] text-[#1e1e24]">
+      <span className="px-[24px] py-[20px] text-left font-inter text-[14px] font-medium leading-[21px] text-[#1e1e24]">
         {drName(doctor.name)}
       </span>
       {/* Phone */}
-      <span className="px-[29px] py-[24px] text-left font-inter text-[14px] font-medium leading-[19px] text-[#1e1e24]">
+      <span className="px-[24px] py-[20px] text-left font-inter text-[14px] font-medium leading-[19px] text-[#1e1e24]">
         {fmtPhone(doctor.phone)}
       </span>
       {/* Specialization */}
-      <span className="px-[29px] py-[24px] text-left font-inter text-[16px] font-medium leading-[24px] text-[#1e1e24]">
+      <span className="px-[24px] py-[20px] text-left font-inter text-[14px] font-medium leading-[21px] text-[#1e1e24]">
         {doctor.specialization || "—"}
       </span>
       {/* Actions — edit (add shifts) + availability for all; delete only for guests. */}
-      <div className="flex items-center justify-start gap-[10px] px-[20px] py-[24px]">
-        <button type="button" onClick={onEdit} aria-label={`Edit ${drName(doctor.name)}`} className="group relative flex size-[34px] items-center justify-center">
-          <Image src="/dashboard/edit_square.svg" alt="" width={24} height={24} className="size-6" />
+      <div className="flex items-center justify-start gap-[10px] px-[17px] py-[20px]">
+        <button type="button" onClick={onEdit} aria-label={`Edit ${drName(doctor.name)}`} className="group relative flex size-[28px] items-center justify-center">
+          <Image src="/dashboard/edit_square.svg" alt="" width={24} height={24} className="size-5" />
           <Tip label="Edit" />
         </button>
-        <button type="button" onClick={onSchedule} aria-label={`Availability for ${drName(doctor.name)}`} className="group relative flex size-[34px] items-center justify-center">
-          <Image src="/dashboard/calendar_clock.svg" alt="" width={24} height={24} className="size-6" />
+        <button type="button" onClick={onSchedule} aria-label={`Availability for ${drName(doctor.name)}`} className="group relative flex size-[28px] items-center justify-center">
+          <Image src="/dashboard/calendar_clock.svg" alt="" width={24} height={24} className="size-5" />
           <Tip label="Availability" />
         </button>
         {deletable && (
-          <button type="button" onClick={onDelete} aria-label={`Delete ${drName(doctor.name)}`} className="group relative flex size-[34px] items-center justify-center">
-            <Image src="/dashboard/delete.svg" alt="" width={24} height={24} className="size-6" />
+          <button type="button" onClick={onDelete} aria-label={`Delete ${drName(doctor.name)}`} className="group relative flex size-[28px] items-center justify-center">
+            <Image src="/dashboard/delete.svg" alt="" width={24} height={24} className="size-5" />
             <Tip label="Delete" />
           </button>
         )}
@@ -441,7 +443,7 @@ function PerPageDropdown({ value, onChange }: { value: number; onChange: (n: num
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-[44px] items-center gap-[10px] rounded-[10px] border-[1.2px] border-[#c2c6d4] px-[16px] font-inter text-[15px] text-[#1e1e24] transition-colors hover:border-[#0077c0]"
+        className="flex h-[44px] items-center gap-[10px] rounded-[10px] border-[1.167px] border-black px-[13px] font-inter text-[14px] text-[#1e1e24] transition-colors"
       >
         {value} per page
         <Image
@@ -453,7 +455,7 @@ function PerPageDropdown({ value, onChange }: { value: number; onChange: (n: num
         />
       </button>
       {open && (
-        <div className="absolute bottom-[calc(100%+8px)] left-0 z-30 flex w-[176px] flex-col gap-[5px] rounded-[15px] border border-[#c2c6d4] bg-white p-[17px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
+        <div className="absolute bottom-[calc(100%+8px)] left-0 z-30 flex w-[176px] flex-col gap-[5px] rounded-[13px] border-[1.167px] border-black bg-white p-[14px] drop-shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
           {PER_PAGE_OPTIONS.map((n) => {
             const selected = n === value;
             return (
@@ -464,17 +466,17 @@ function PerPageDropdown({ value, onChange }: { value: number; onChange: (n: num
                   onChange(n);
                   setOpen(false);
                 }}
-                className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] p-[10px] text-left transition-colors hover:bg-[#e9eef4]"
+                className="flex w-full items-center justify-between rounded-[8px] bg-[#f1f5f9] p-[10px] text-left transition-colors app-option-hover"
               >
                 <span className="font-manrope text-[14px] font-semibold leading-[20px] text-[#1e1e24]">
                   {n} per page
                 </span>
                 {selected ? (
-                  <span className="flex size-3 shrink-0 items-center justify-center rounded-full border border-[#1e1e24]">
+                  <span className="flex size-3 shrink-0 items-center justify-center rounded-full border-[1.167px] border-black">
                     <span className="size-1.5 rounded-full bg-[#1e1e24]" />
                   </span>
                 ) : (
-                  <span className="size-3 shrink-0 rounded-full border border-[#1e1e24]" />
+                  <span className="size-3 shrink-0 rounded-full border-[1.167px] border-black" />
                 )}
               </button>
             );
@@ -497,11 +499,11 @@ function Pagination({
 }) {
   if (total <= 1) return null;
   return (
-    <div className="flex items-center gap-[8px]">
+    <div className="app-pagination-controls flex items-center gap-[8px]">
       <PageArrow label="Previous page" disabled={current === 1} onClick={() => onChange(current - 1)} flip />
       {pageList(current, total).map((p, i) =>
         p === "…" ? (
-          <span key={`e${i}`} className="px-[6px] font-inter text-[15px] text-[#94a3b8]">
+          <span key={`e${i}`} className="px-[6px] font-inter text-[14px] text-[#94a3b8]">
             …
           </span>
         ) : (
@@ -510,8 +512,8 @@ function Pagination({
             type="button"
             aria-current={p === current ? "page" : undefined}
             onClick={() => onChange(p)}
-            className={`flex size-[40px] items-center justify-center rounded-[10px] font-inter text-[15px] transition-colors ${
-              p === current ? "bg-[#0077c0] font-semibold text-white" : "text-[#1e1e24] hover:bg-[#f1f5f9]"
+            className={`flex size-[40px] items-center justify-center rounded-[10px] font-inter text-[14px] transition-colors ${
+              p === current ? "bg-[#0077c0] font-semibold text-white" : "text-[#1e1e24] app-option-hover"
             }`}
           >
             {p}
@@ -540,7 +542,7 @@ function PageArrow({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-[40px] items-center justify-center rounded-[10px] border-[1.2px] border-[#c2c6d4] transition-colors hover:border-[#0077c0] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#c2c6d4]"
+      className="flex size-[40px] items-center justify-center rounded-[10px] border-[1.167px] border-black transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-black"
     >
       <Image src="/dashboard/chevron_dark.svg" alt="" width={20} height={20} className={`size-5 ${flip ? "" : "rotate-180"}`} />
     </button>

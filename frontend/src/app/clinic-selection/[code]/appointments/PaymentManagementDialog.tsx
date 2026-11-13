@@ -1,5 +1,7 @@
 "use client";
 
+import TableViewport from "@/components/TableViewport";
+
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -133,7 +135,7 @@ export default function PaymentManagementDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -142,11 +144,11 @@ export default function PaymentManagementDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="payment-mgmt-title"
-        className="my-auto flex w-full max-w-[830px] flex-col overflow-hidden rounded-[20px] bg-white shadow-[0px_24px_48px_-12px_rgba(0,0,0,0.18)]"
+        className="app-dialog my-auto flex w-full max-w-[830px] flex-col overflow-hidden rounded-[17px] bg-white shadow-[0px_24px_48px_-12px_rgba(0,0,0,0.18)]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[rgba(194,198,212,0.4)] px-[30px] pb-[16px] pt-[30px]">
-          <h2 id="payment-mgmt-title" className="font-manrope text-[28px] font-semibold tracking-[-0.7px] text-[#1e1e24]">
+        <div className="app-toolbar flex items-center justify-between border-b-[1.167px] border-black px-[clamp(13px,3vw,25px)] pb-[13px] pt-[25px]">
+          <h2 id="payment-mgmt-title" className="font-manrope text-[25px] font-semibold tracking-[-0.7px] text-[#1e1e24]">
             Payment Management
           </h2>
           <button
@@ -155,13 +157,13 @@ export default function PaymentManagementDialog({
             aria-label="Close"
             className="flex size-[38px] items-center justify-center rounded-[11px] text-[#1e1e24] transition-colors hover:bg-[#f1f5f9]"
           >
-            <CloseIcon className="size-6" />
+            <CloseIcon className="size-5" />
           </button>
         </div>
 
         {/* Toolbar: paid summary + add new */}
-        <div className="flex items-center justify-between px-[30px] py-[20px]">
-          <span className="font-inter text-[15px] text-[#1e1e24]">
+        <div className="app-toolbar flex items-center justify-between px-[clamp(13px,3vw,25px)] py-[17px]">
+          <span className="font-inter text-[14px] text-[#1e1e24]">
             {payments.length === 0
               ? "No payments yet"
               : `${payments.filter((p) => p.paid).length} of ${payments.length} received`}
@@ -169,22 +171,22 @@ export default function PaymentManagementDialog({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="flex h-[39px] items-center justify-center rounded-[8px] bg-[#0077c0] px-[26px] font-inter text-[15px] font-semibold uppercase tracking-[0.5px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#0069a8]"
+            className="flex h-[39px] items-center justify-center rounded-[8px] bg-[#0077c0] px-[clamp(13px,3vw,22px)] font-inter text-[14px] font-semibold uppercase tracking-[0.5px] text-white shadow-[0px_1px_1px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#0069a8]"
           >
             Add New
           </button>
         </div>
 
         {error && (
-          <p role="alert" className="px-[30px] pb-[8px] font-inter text-[13px] text-[#ba1a1a]">
+          <p role="alert" className="px-[clamp(13px,3vw,25px)] pb-[8px] font-inter text-[13px] text-[#ba1a1a]">
             {error}
           </p>
         )}
 
         {/* Table */}
-        <div className="mx-[30px] mb-[30px] overflow-hidden rounded-[12px] border border-[#c2c6d4]">
+        <TableViewport label="Payments" minWidth="760px" className="mx-[30px] mb-[30px] rounded-[12px] border border-black">
           {/* Header row */}
-          <div className={`${COLS} border-b border-[#c2c6d4] px-[16px] py-[16px]`}>
+          <div className={`app-table-header ${COLS} border-b border-black px-[13px] py-[13px]`}>
             <span className={HEAD}>SI No.</span>
             <span className={HEAD}>Description</span>
             <span className={HEAD}>Date</span>
@@ -195,7 +197,7 @@ export default function PaymentManagementDialog({
 
           {/* Payment rows */}
           {payments.map((p, i) => (
-            <div key={p.id} className={`${COLS} px-[16px] py-[19px]`}>
+            <div key={p.id} className={`${COLS} px-[13px] py-[16px]`}>
               <span className="font-inter text-[14px] text-[#1e1e24]">#{i + 1}</span>
               <span className="break-words font-inter text-[14px] text-[#1e1e24]">{p.description}</span>
               <span className="font-inter text-[14px] text-[#1e1e24]">{fmtDate(p.createdAt)}</span>
@@ -207,7 +209,7 @@ export default function PaymentManagementDialog({
                   label={`Mark ${p.description} ${p.paid ? "not received" : "received"}`}
                 />
               </span>
-              <span className="flex justify-end">
+              <span className="app-toolbar flex justify-end">
                 <button
                   type="button"
                   onClick={() => setPendingDelete(p)}
@@ -222,21 +224,21 @@ export default function PaymentManagementDialog({
           ))}
 
           {(loading || payments.length === 0) && (
-            <p className="px-[16px] py-[24px] text-center font-inter text-[14px] text-[#94a3b8]">
+            <p className="px-[13px] py-[clamp(13px,3vw,20px)] text-center font-inter text-[14px] text-[#94a3b8]">
               {loading ? "Loading payments…" : "No payments recorded yet."}
             </p>
           )}
 
           {/* Total */}
-          <div className="flex items-center justify-between border-t border-[#c2c6d4] px-[24px] py-[16px]">
-            <span className="font-manrope text-[20px] font-semibold leading-[28px] text-[#1e1e24]">
+          <div className="app-toolbar flex items-center justify-between border-t border-black px-[clamp(13px,3vw,20px)] py-[13px]">
+            <span className="font-manrope text-[18px] font-semibold leading-[25px] text-[#1e1e24]">
               Total Amount
             </span>
-            <span className="font-manrope text-[20px] font-semibold leading-[28px] text-[#0077c0]">
+            <span className="font-manrope text-[18px] font-semibold leading-[25px] text-[#0077c0]">
               {total === 0 ? "₹0" : formatAmount(total)}
             </span>
           </div>
-        </div>
+        </TableViewport>
       </div>
 
       {adding && (
@@ -294,7 +296,7 @@ function NewPaymentDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
@@ -303,11 +305,11 @@ function NewPaymentDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-payment-title"
-        className="my-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-[20px] bg-white shadow-[0px_24px_48px_-12px_rgba(0,0,0,0.18)]"
+        className="app-dialog my-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-[17px] bg-white shadow-[0px_24px_48px_-12px_rgba(0,0,0,0.18)]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-[30px] pb-[15px] pt-[30px]">
-          <h2 id="new-payment-title" className="font-manrope text-[28px] font-semibold tracking-[-0.7px] text-[#1e1e24]">
+        <div className="app-toolbar flex items-center justify-between px-[clamp(13px,3vw,25px)] pb-[15px] pt-[25px]">
+          <h2 id="new-payment-title" className="font-manrope text-[25px] font-semibold tracking-[-0.7px] text-[#1e1e24]">
             New Payment
           </h2>
           <button
@@ -316,12 +318,12 @@ function NewPaymentDialog({
             aria-label="Close"
             className="flex size-[38px] items-center justify-center rounded-[11px] text-[#1e1e24] transition-colors hover:bg-[#f1f5f9]"
           >
-            <CloseIcon className="size-6" />
+            <CloseIcon className="size-5" />
           </button>
         </div>
 
         {/* Form */}
-        <div className="flex flex-col gap-[26px] px-[30px] pb-[24px] pt-[15px]">
+        <div className="flex flex-col gap-[22px] px-[clamp(13px,3vw,25px)] pb-[20px] pt-[15px]">
           <div className="flex flex-col gap-[4px]">
             <label htmlFor="payment-description" className="font-inter text-[11px] uppercase tracking-[0.5px] text-[#1e1e24]">
               Description <span className="text-[#ff0000]">*</span>
@@ -333,7 +335,7 @@ function NewPaymentDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Consultation fee, Scaling, Root canal"
               aria-label={`Payment description for ${patientName}`}
-              className="w-full border-b border-[rgba(194,198,212,0.6)] pb-[10px] pt-[9px] font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4] focus:border-[#0077c0]"
+              className="w-full border-b-[1.167px] border-black pb-[10px] pt-[9px] font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-[#0077c0]"
             />
           </div>
 
@@ -342,7 +344,7 @@ function NewPaymentDialog({
               Amount <span className="text-[#ff0000]">*</span>
             </label>
             <div className="flex items-end gap-[15px]">
-              <span className="pb-[10px] font-inter text-[15px] font-medium text-[#1e1e24]">₹</span>
+              <span className="pb-[10px] font-inter text-[14px] font-medium text-[#1e1e24]">₹</span>
               <input
                 id="payment-amount"
                 type="text"
@@ -350,18 +352,18 @@ function NewPaymentDialog({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                 placeholder="e.g. 1500"
-                className="min-w-0 flex-1 border-b border-[rgba(194,198,212,0.6)] pb-[10px] pt-[9px] font-inter text-[15px] text-[#1e1e24] outline-none placeholder:text-[#c2c6d4] focus:border-[#0077c0]"
+                className="min-w-0 flex-1 border-b-[1.167px] border-black pb-[10px] pt-[9px] font-inter text-[14px] text-[#1e1e24] outline-none placeholder:text-field-placeholder focus:border-[#0077c0]"
               />
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-[11px] px-[30px] py-[22px]">
+        <div className="app-toolbar flex items-center justify-end gap-[11px] px-[clamp(13px,3vw,25px)] py-[18px]">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-[11px] px-[30px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.57px] text-[#1e1e24] transition-colors hover:text-[#0077c0]"
+            className="rounded-[11px] px-[clamp(13px,3vw,25px)] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.57px] text-[#1e1e24] transition-colors hover:text-[#0077c0]"
           >
             Cancel
           </button>
@@ -369,7 +371,7 @@ function NewPaymentDialog({
             type="button"
             onClick={submit}
             disabled={!canSubmit}
-            className="rounded-[11px] bg-[#0077c0] px-[30px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.57px] text-white shadow-[0px_4px_6px_rgba(0,71,141,0.2)] transition-colors hover:bg-[#0069a8] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#0077c0]"
+            className="rounded-[11px] bg-[#0077c0] px-[clamp(13px,3vw,25px)] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.57px] text-white shadow-[0px_4px_6px_rgba(0,71,141,0.2)] transition-colors hover:bg-[#0069a8] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#0077c0]"
           >
             Submit
           </button>
@@ -383,7 +385,7 @@ function NewPaymentDialog({
 
 /** Shared column grid for the payments table header + rows (SI No / Description /
  *  Date / Amount / Paid / Actions). */
-const COLS = "grid grid-cols-[52px_minmax(0,1fr)_110px_100px_72px_72px] items-center gap-[20px]";
+const COLS = "grid grid-cols-[52px_minmax(0,1fr)_110px_100px_72px_72px] items-center gap-[17px]";
 /** Column-header cell styling. */
 const HEAD = "font-inter text-[12px] font-semibold uppercase tracking-[0.6px] text-[#1e1e24]";
 
@@ -409,8 +411,8 @@ function CheckBox({
           onChange();
         }
       }}
-      className={`flex size-[20px] shrink-0 items-center justify-center rounded-[4px] border ${
-        checked ? "border-[#0077c0] bg-[#0077c0]" : "border-[#1e1e24] bg-white"
+      className={`flex size-[20px] shrink-0 items-center justify-center rounded-[4px] border-[1.167px] ${
+        checked ? "border-[#0077c0] bg-[#0077c0]" : "border-black bg-white"
       }`}
     >
       {checked && (

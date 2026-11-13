@@ -1,5 +1,7 @@
 "use client";
 
+import TableViewport from "@/components/TableViewport";
+
 import Image from "next/image";
 import { useEffect } from "react";
 
@@ -52,7 +54,7 @@ export default function AppointmentWhatsAppDialog({
 
   return (
     <div
-      className="animate-fade-in fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+      className="app-dialog-backdrop animate-fade-in fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-3.5"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -61,13 +63,13 @@ export default function AppointmentWhatsAppDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="whatsapp-appts-title"
-        className="animate-modal-in my-auto flex max-h-[85vh] w-full max-w-[880px] flex-col overflow-hidden rounded-[20px] border border-[#c2c6d4] bg-white shadow-[0px_20px_60px_rgba(0,0,0,0.2)]"
+        className="app-dialog animate-modal-in my-auto flex max-h-[85vh] w-full max-w-[880px] flex-col overflow-hidden rounded-[17px] border-[1.167px] border-black bg-white shadow-[0px_20px_60px_rgba(0,0,0,0.2)]"
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center gap-[14px] border-b border-[rgba(194,198,212,0.6)] px-[28px] py-[22px]">
+        <div className="flex shrink-0 items-center gap-[14px] border-b-[1.167px] border-black px-[clamp(13px,3vw,24px)] py-[18px]">
           <Image src="/dashboard/whatsapp.svg" alt="" width={40} height={40} className="size-[40px] shrink-0" />
           <div className="flex-1">
-            <h2 id="whatsapp-appts-title" className="font-manrope text-[22px] font-bold leading-[28px] text-[#1e1e24]">
+            <h2 id="whatsapp-appts-title" className="font-manrope text-[19px] font-bold leading-[25px] text-[#1e1e24]">
               WhatsApp Appointments
             </h2>
             <p className="font-inter text-[13px] leading-[18px] text-[#727783]">
@@ -89,15 +91,15 @@ export default function AppointmentWhatsAppDialog({
 
         {/* Table — inset from the dialog edges (a margin on all four sides) so
             the popup reads wider than the table itself. */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-[28px] py-[24px]">
-          <div className="rounded-[16px] border-[1.2px] border-[#c2c6d4]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-[clamp(13px,3vw,24px)] py-[clamp(13px,3vw,20px)]">
+          <TableViewport label="Pending WhatsApp appointments" minWidth="760px" className="rounded-[13px] border border-black">
           {/* Column header — not sticky so a first-row action tooltip paints in
               front of it instead of being covered by the sticky (opaque) header. */}
-          <div className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] px-[28px]`}>
+          <div className={`app-table-header grid ${COLS} items-center border-b border-black px-[clamp(13px,3vw,24px)]`}>
             {["Patient Name", "Consultation Type", "Date", "Age / Gender", "Actions"].map((h) => (
               <span
                 key={h}
-                className={`py-[24px] font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.5px] text-[#727783] ${
+                className={`py-[clamp(13px,3vw,20px)] font-inter text-[13px] font-semibold uppercase leading-[17px] tracking-[0.5px] text-[#727783] ${
                   h === "Actions" ? "text-center" : "text-left"
                 }`}
               >
@@ -107,11 +109,11 @@ export default function AppointmentWhatsAppDialog({
           </div>
 
           {rows.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 px-[28px] py-16 text-center">
+            <div className="flex flex-col items-center gap-3 px-[clamp(13px,3vw,24px)] py-16 text-center">
               <span className="flex size-[52px] items-center justify-center rounded-full bg-[#f1f5f9]">
                 <Image src="/dashboard/whatsapp.svg" alt="" width={26} height={26} className="size-[26px] opacity-40" />
               </span>
-              <p className="font-inter text-[15px] font-medium text-[#1e1e24]">No pending WhatsApp appointments</p>
+              <p className="font-inter text-[14px] font-medium text-[#1e1e24]">No pending WhatsApp appointments</p>
               <p className="max-w-[360px] font-inter text-[13px] leading-[18px] text-[#94a3b8]">
                 New bookings that patients send through WhatsApp will appear here for you to accept or reject.
               </p>
@@ -120,21 +122,21 @@ export default function AppointmentWhatsAppDialog({
             rows.map((row) => (
               <div
                 key={row.id}
-                className={`grid ${COLS} items-center border-b-[1.2px] border-[rgba(194,198,212,0.5)] px-[28px] last:border-b-0`}
+                className={`grid ${COLS} items-center border-b border-black px-[clamp(13px,3vw,24px)] last:border-b-0`}
               >
-                <span className="py-[22px] pr-3 font-inter text-[15px] font-medium leading-[21px] text-[#1e1e24]">
+                <span className="py-[18px] pr-3 font-inter text-[14px] font-medium leading-[21px] text-[#1e1e24]">
                   {row.patientName}
                 </span>
-                <span className="py-[22px] pr-3 font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
+                <span className="py-[18px] pr-3 font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
                   {row.consultationType}
                 </span>
-                <span className="py-[22px] pr-3 font-inter text-[13px] font-medium leading-[18px] text-[#1e1e24]">
+                <span className="py-[18px] pr-3 font-inter text-[13px] font-medium leading-[18px] text-[#1e1e24]">
                   {row.date}
                 </span>
-                <span className="py-[22px] pr-3 font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
+                <span className="py-[18px] pr-3 font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">
                   {row.age === null ? "--" : row.age} / {row.gender || "--"}
                 </span>
-                <div className="flex items-center justify-center gap-[14px] py-[22px]">
+                <div className="flex items-center justify-center gap-[14px] py-[18px]">
                   <button
                     type="button"
                     onClick={() => onAccept(row)}
@@ -157,7 +159,7 @@ export default function AppointmentWhatsAppDialog({
               </div>
             ))
           )}
-          </div>
+          </TableViewport>
         </div>
       </div>
     </div>

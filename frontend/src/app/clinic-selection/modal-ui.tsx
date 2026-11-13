@@ -12,8 +12,7 @@ export const ERROR_CLASS = "pl-1 font-inter text-[13px] leading-5 text-red-500";
 
 /**
  * Backdrop + centered card. Closes on Escape and backdrop click. Pass
- * `className` to tweak the card (e.g. `[zoom:0.95]` to shrink a tall form so it
- * fits the viewport without scrolling).
+ * `className` to tweak the card. Long forms scroll within the viewport.
  */
 export function Overlay({
   onClose,
@@ -36,7 +35,7 @@ export function Overlay({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+      className="app-dialog-backdrop fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-3.5 sm:items-center"
       // Close only when the backdrop itself is clicked. Not stopping propagation
       // inside the dialog lets child dropdowns' outside-click handlers still fire.
       onMouseDown={(e) => {
@@ -47,7 +46,7 @@ export function Overlay({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`my-auto flex w-full max-w-[520px] flex-col gap-6 rounded-3xl bg-white p-8 shadow-[0_10px_40px_rgba(0,0,0,0.12)] ${className}`}
+        className={`app-dialog my-auto flex w-full max-w-[520px] flex-col gap-5 rounded-[20px] bg-white p-7 shadow-[0_10px_40px_rgba(0,0,0,0.12)] ${className}`}
       >
         {children}
       </div>
@@ -80,8 +79,8 @@ export function LabeledInput({
         {label}
       </label>
       <div
-        className={`flex items-center rounded-lg border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
-          error ? "border-red-500 focus-within:border-red-500" : "border-field-border focus-within:border-brand"
+        className={`clinic-field-border flex items-center rounded-lg border-[1.167px] bg-white/60 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
+          error ? "border-red-500 focus-within:border-red-500" : "border-black focus-within:border-black"
         }`}
       >
         <input
@@ -128,8 +127,8 @@ export function LabeledPhone({
         {label}
       </label>
       <div
-        className={`flex items-center gap-2 rounded-lg border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
-          error ? "border-red-500 focus-within:border-red-500" : "border-field-border focus-within:border-brand"
+        className={`clinic-field-border flex items-center gap-2 rounded-lg border-[1.167px] bg-white/60 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${
+          error ? "border-red-500 focus-within:border-red-500" : "border-black focus-within:border-black"
         }`}
       >
         <PhoneNumberInput
@@ -157,7 +156,7 @@ export function PrimaryButton({
   return (
     <button
       {...props}
-      className="flex flex-1 items-center justify-center rounded-lg bg-brand py-4 font-inter text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+      className="flex flex-1 items-center justify-center rounded-lg bg-brand py-2.5 font-inter text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
     >
       {children}
     </button>
@@ -171,7 +170,7 @@ export function SecondaryButton({
   return (
     <button
       {...props}
-      className="flex flex-1 items-center justify-center rounded-lg border border-field-border py-4 font-inter text-[15px] font-semibold text-ink transition-colors hover:bg-black/[.02] disabled:opacity-50"
+      className="flex flex-1 items-center justify-center rounded-lg border-[1.167px] border-black py-2.5 font-inter text-[14px] font-semibold text-ink transition-colors hover:bg-black/[.02] disabled:opacity-50"
     >
       {children}
     </button>
@@ -185,7 +184,7 @@ export function DangerButton({
   return (
     <button
       {...props}
-      className="flex flex-1 items-center justify-center rounded-lg bg-[#BA1A1A] py-4 font-inter text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+      className="flex flex-1 items-center justify-center rounded-lg bg-[#BA1A1A] py-2.5 font-inter text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
     >
       {children}
     </button>
@@ -230,18 +229,18 @@ export function ConfirmDialog({
     <Overlay onClose={onCancel} labelledBy="confirm-dialog-title">
       <h2
         id="confirm-dialog-title"
-        className="font-manrope text-[24px] leading-[32px] tracking-[-0.5px] text-ink"
+        className="font-manrope text-[21px] leading-[28px] tracking-[-0.5px] text-ink"
       >
         {title}
       </h2>
-      <p className="font-inter text-[15px] leading-[24px] text-ink">{message}</p>
+      <p className="font-inter text-[14px] leading-[21px] text-ink">{message}</p>
 
       {requireCode && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor="delete-code" className={LABEL_CLASS}>
             {codeLabel}
           </label>
-          <div className="flex items-center rounded-lg border border-field-border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus-within:border-brand">
+          <div className="clinic-field-border flex items-center rounded-lg border-[1.167px] border-black bg-white/60 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus-within:border-black">
             <input
               id="delete-code"
               type="password"

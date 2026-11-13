@@ -378,7 +378,7 @@ export default function DoctorAvailabilityModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+      className="app-dialog-backdrop fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-black/40 p-3.5 sm:items-center"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -387,35 +387,35 @@ export default function DoctorAvailabilityModal({
         role="dialog"
         aria-modal="true"
         aria-label="Doctor Availability"
-        className="my-auto flex max-h-[90dvh] w-full max-w-[672px] flex-col overflow-hidden rounded-[32px] border-2 border-[#c2c6d4] bg-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] [zoom:0.9]"
+        className="app-dialog my-auto flex max-h-[90dvh] w-full max-w-[672px] flex-col overflow-hidden rounded-[27px] border-[1.167px] border-black bg-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-[#c2c6d4]/50 px-[32px] pb-[16px] pt-[32px]">
+        <div className="app-toolbar flex shrink-0 items-center justify-between border-b-[1.167px] border-black/20 px-[clamp(13px,3vw,27px)] pb-[13px] pt-[27px]">
           <div className="flex flex-col text-[#1e1e24]">
-            <p className="font-manrope text-[30px] font-bold leading-[38px] tracking-[-0.75px]">
+            <p className="font-manrope text-[26px] font-bold leading-[33px] tracking-[-0.75px]">
               Doctor Availability
             </p>
-            <p className="font-manrope text-[15px] font-normal leading-[24px] tracking-[0.25px]">
+            <p className="font-manrope text-[14px] font-normal leading-[21px] tracking-[0.25px]">
               {doctor || "—"}
             </p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="shrink-0">
-            <CloseIcon className="size-6 text-[#1e1e24]" />
+            <CloseIcon className="size-5 text-[#1e1e24]" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex min-h-0 flex-1 flex-col gap-[20px] overflow-y-auto p-[32px]">
+        <div className="flex min-h-0 flex-1 flex-col gap-[17px] overflow-y-auto p-[clamp(13px,3vw,27px)]">
           {/* Date navigator */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-[24px]">
+          <div className="app-toolbar flex items-center justify-between">
+            <div className="flex items-center gap-[20px]">
               <button
                 type="button"
                 aria-label="Previous day"
                 onClick={() => shiftDay(-1)}
-                className="flex size-[40px] items-center justify-center rounded-[12px] border border-[#1e1e24]"
+                className="flex size-[40px] items-center justify-center rounded-[12px] border-[1.167px] border-black"
               >
-                <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6" />
+                <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-5" />
               </button>
               {/* The present day is shown in blue (day + date); any other day in
                   black — the only "today" indicator, keeping the original layout. */}
@@ -424,7 +424,7 @@ export default function DoctorAvailabilityModal({
                   {MONTHS[view.getMonth()]} {view.getFullYear()}
                 </span>
                 <span
-                  className={`font-manrope text-[24px] font-semibold leading-[32px] ${
+                  className={`font-manrope text-[21px] font-semibold leading-[28px] ${
                     isToday ? "text-[#0077c0]" : "text-[#1e1e24]"
                   }`}
                 >
@@ -435,9 +435,9 @@ export default function DoctorAvailabilityModal({
                 type="button"
                 aria-label="Next day"
                 onClick={() => shiftDay(1)}
-                className="flex size-[40px] items-center justify-center rounded-[12px] border border-[#1e1e24]"
+                className="flex size-[40px] items-center justify-center rounded-[12px] border-[1.167px] border-black"
               >
-                <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-6 rotate-180" />
+                <Image src="/dashboard/chevron_dark.svg" alt="" width={24} height={24} className="size-5 rotate-180" />
               </button>
             </div>
 
@@ -463,9 +463,9 @@ export default function DoctorAvailabilityModal({
                 disabled={isToday}
                 aria-label="Go to today"
                 title={isToday ? "Showing today" : "Go to today"}
-                className={`rounded-[8px] border px-[16px] py-[8px] font-inter text-[14px] font-medium transition-colors ${
+                className={`rounded-[8px] border-[1.167px] px-[13px] py-[8px] font-inter text-[14px] font-medium transition-colors ${
                   isToday
-                    ? "cursor-default border-[#c2c6d4] text-[#94a3b8]"
+                    ? "cursor-default border-[#0077c0] bg-[#0077c0] text-white"
                     : "border-[#0077c0] text-[#0077c0] hover:bg-[#0077c0]/[.06]"
                 }`}
               >
@@ -480,14 +480,14 @@ export default function DoctorAvailabilityModal({
             <span className="font-inter text-[11px] font-normal uppercase tracking-[0.5px] text-[#1e1e24]">
               Block Time Slot <span className="text-[#ba1a1a]">*</span>
             </span>
-            <div className="flex flex-wrap items-end gap-[16px]">
+            <div className="flex flex-wrap items-end gap-[13px]">
               <TimeInput label="From" value={from} onChange={setFrom} />
               <TimeInput label="To" value={to} onChange={setTo} />
               <button
                 type="button"
                 onClick={addBlock}
                 disabled={!canBlock}
-                className={`rounded-[10px] px-[20px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.5px] text-white transition-colors ${
+                className={`rounded-[10px] px-[17px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.5px] text-white transition-colors ${
                   canBlock ? "bg-[#0077c0] hover:bg-[#0069a8]" : "cursor-not-allowed bg-[#0077c0] opacity-50"
                 }`}
               >
@@ -497,7 +497,7 @@ export default function DoctorAvailabilityModal({
                 <button
                   type="button"
                   onClick={cancelBlockEdit}
-                  className="rounded-[10px] border border-[#c2c6d4] px-[20px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.5px] text-[#1e1e24] transition-colors hover:border-[#0077c0]"
+                  className="rounded-[10px] border-[1.167px] border-black px-[17px] py-[11px] font-inter text-[12px] font-semibold uppercase tracking-[0.5px] text-[#1e1e24] transition-colors"
                 >
                   Cancel
                 </button>
@@ -512,7 +512,7 @@ export default function DoctorAvailabilityModal({
           )}
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center justify-end gap-[28px]">
+          <div className="app-toolbar flex flex-wrap items-center justify-end gap-[24px]">
             <LegendItem color="#1e1e24" label="Not Available" />
             <LegendItem color="#ef4444" label="Blocked" />
             <LegendItem color="#0077c0" label="Booked" />
@@ -522,17 +522,17 @@ export default function DoctorAvailabilityModal({
           {/* Timeline */}
           <div className="flex flex-col gap-[10px]">
             {loading ? (
-              <p className="py-6 text-center font-inter text-[14px] text-[#1e1e24]/60">
+              <p className="py-5 text-center font-inter text-[14px] text-[#1e1e24]/60">
                 Loading availability…
               </p>
             ) : error ? (
-              <p role="alert" className="py-6 text-center font-inter text-[14px] text-[#ba1a1a]">
+              <p role="alert" className="py-5 text-center font-inter text-[14px] text-[#ba1a1a]">
                 {error}
               </p>
             ) : (
               <>
-                <div className="relative w-full rounded-[24px] bg-[#eff4ff] p-[12px] shadow-[inset_0px_2px_4px_0px_rgba(0,0,0,0.05)]">
-                  <div className="relative h-[56px] w-full">
+                <div className="relative w-full rounded-[20px] bg-[#eff4ff] p-[12px] shadow-[inset_0px_2px_4px_0px_rgba(0,0,0,0.05)]">
+                  <div className="relative h-[40px] w-full">
                     {/* Not Available (dark) — business hours with no shift window. */}
                     {notAvailableSegs.map((n, i) => (
                       <div
@@ -595,11 +595,11 @@ export default function DoctorAvailabilityModal({
                     under its segment edge — the domain-end label stays under the
                     bar rather than drifting out to the outer box edge. */}
                 <div className="px-[12px]">
-                  <div className="relative h-[54px] w-full">
+                  <div className="relative h-[40px] w-full">
                     {ticks.map((m) => (
                       <div
                         key={m}
-                        className="absolute top-0 flex h-[54px] items-center justify-center"
+                        className="absolute top-0 flex h-[40px] items-center justify-center"
                         style={{ left: `${pct(m)}%`, transform: "translateX(-50%)" }}
                       >
                         <span className="-rotate-90 whitespace-nowrap font-inter text-[11px] font-medium uppercase tracking-[-0.55px] text-[#1e1e24]">
@@ -617,14 +617,14 @@ export default function DoctorAvailabilityModal({
               grid with equal row/column gaps. Up to 4 (two rows) show at once;
               a 5th makes the group scroll. */}
           {!viewOnly && dayBlocks.length > 0 && (
-            <div className="grid max-h-[180px] grid-cols-2 content-start gap-[24px] overflow-y-auto pr-[4px]">
+            <div className="app-form-grid grid max-h-[180px] grid-cols-2 content-start gap-[20px] overflow-y-auto pr-[4px]">
               {dayBlocks.map((b) => (
                 <div
                   key={b.id}
-                  className="flex h-[76px] flex-col overflow-hidden rounded-[12px] border border-[#c2c6d4]"
+                  className="flex h-[76px] flex-col overflow-hidden rounded-[12px] border-[1.167px] border-black"
                 >
-                  <div className="flex items-center border-b border-[#c2c6d4] py-[9px]">
-                    <span className="flex-1 pl-[20px] font-inter text-[11px] font-semibold uppercase tracking-[0.4px] text-[#1e1e24]">
+                  <div className="flex items-center border-b-[1.167px] border-black py-[9px]">
+                    <span className="flex-1 pl-[17px] font-inter text-[11px] font-semibold uppercase tracking-[0.4px] text-[#1e1e24]">
                       Blocked Time Slot
                     </span>
                     <span className="w-[92px] text-center font-inter text-[11px] font-semibold uppercase tracking-[0.4px] text-[#1e1e24]">
@@ -632,7 +632,7 @@ export default function DoctorAvailabilityModal({
                     </span>
                   </div>
                   <div className="flex flex-1 items-center">
-                    <span className="flex-1 pl-[20px] font-inter text-[13px] text-[#1e1e24]">
+                    <span className="flex-1 pl-[17px] font-inter text-[13px] text-[#1e1e24]">
                       {fmtMin(b.startMin)} - {fmtMin(b.endMin)}
                     </span>
                     <div className="flex w-[92px] items-center justify-center gap-[6px]">
@@ -678,7 +678,7 @@ function TimeInput({
   onChange: (v: TimeParts) => void;
 }) {
   const box =
-    "w-[46px] rounded-[8px] border border-[#c2c6d4] py-[8px] text-center font-inter text-[14px] text-[#1e1e24] outline-none focus:border-[#0077c0]";
+    "w-[46px] rounded-[8px] border-[1.167px] border-black py-[8px] text-center font-inter text-[14px] text-[#1e1e24] outline-none focus:border-[#0077c0]";
   return (
     <div className="flex flex-col gap-[6px]">
       <span className="font-inter text-[10px] uppercase tracking-[0.5px] text-[#1e1e24]">{label}</span>
@@ -691,7 +691,7 @@ function TimeInput({
           inputMode="numeric"
           className={box}
         />
-        <span className="font-inter text-[15px] text-[#424752]">:</span>
+        <span className="font-inter text-[14px] text-[#424752]">:</span>
         <input
           aria-label={`${label} minute`}
           value={value.mm}
@@ -704,7 +704,7 @@ function TimeInput({
           type="button"
           aria-label={`${label} meridiem, currently ${value.period} — click to toggle`}
           onClick={() => onChange({ ...value, period: value.period === "AM" ? "PM" : "AM" })}
-          className="rounded-[8px] border border-[#c2c6d4] bg-[#c2c6d4] px-[12px] py-[8px] font-inter text-[12px] font-semibold text-[#1e1e24] transition-colors"
+          className="rounded-[8px] border-[1.167px] border-black bg-[#c2c6d4] px-[12px] py-[8px] font-inter text-[12px] font-semibold text-[#1e1e24] transition-colors"
         >
           {value.period}
         </button>
@@ -717,7 +717,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-[4.474px]">
       <span className="size-[9px] rounded-full" style={{ backgroundColor: color }} />
-      <span className="font-inter text-[15.658px] leading-[22.369px]" style={{ color }}>
+      <span className="font-inter text-[14px] leading-[20px]" style={{ color }}>
         {label}
       </span>
     </div>
@@ -751,7 +751,7 @@ function PickerButton<T extends number>({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-[8px] rounded-[8px] border border-[#1e1e24] py-[8px] pl-[16px] pr-[10px]"
+        className="flex items-center gap-[8px] rounded-[8px] border-[1.167px] border-black py-[8px] pl-[13px] pr-[10px]"
       >
         <span className="font-inter text-[14px] font-medium leading-[20px] text-[#1e1e24]">{label}</span>
         <Image
@@ -759,11 +759,11 @@ function PickerButton<T extends number>({
           alt=""
           width={24}
           height={24}
-          className={`size-6 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
+          className={`size-5 transition-transform ${open ? "rotate-90" : "-rotate-90"}`}
         />
       </button>
       {open && (
-        <ul className="absolute right-0 top-[calc(100%+6px)] z-10 max-h-[220px] w-[110px] overflow-y-auto rounded-[10px] border border-[#c2c6d4] bg-white py-1 shadow-lg">
+        <ul className="absolute right-0 top-[calc(100%+6px)] z-10 max-h-[220px] w-[110px] overflow-y-auto rounded-[10px] border-[1.167px] border-black bg-white py-1 shadow-lg">
           {options.map((opt) => (
             <li key={opt.label}>
               <button
@@ -772,7 +772,7 @@ function PickerButton<T extends number>({
                   onSelect(opt.value);
                   setOpen(false);
                 }}
-                className={`w-full px-3 py-1.5 text-left font-inter text-[13px] hover:bg-[#f1f5f9] ${
+                className={`w-full px-3 py-1.5 text-left font-inter text-[13px] app-option-hover ${
                   opt.value === selected ? "font-semibold text-[#0077c0]" : "text-[#1e1e24]"
                 }`}
               >

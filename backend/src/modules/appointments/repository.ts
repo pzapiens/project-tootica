@@ -9,7 +9,7 @@ import type {
 /** Digits-only form of a phone number, for tolerant matching (ignores +, spaces). */
 const digitsOf = (phone: string): string => phone.replace(/\D/g, '');
 
-// Bookings that occupy a slot — cancellations and no-shows free it up.
+// Bookings that occupy a slot — cancellations free it up.
 const BLOCKING_STATUSES = ['SCHEDULED', 'CONFIRMED', 'ONGOING', 'COMPLETED'] as const;
 
 // Join the patient + doctor (with the doctor's user name) so the list can show

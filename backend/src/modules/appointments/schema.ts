@@ -6,7 +6,6 @@ export const appointmentStatuses = [
   'ONGOING',
   'COMPLETED',
   'CANCELLED',
-  'NO_SHOW',
 ] as const;
 
 // How the booking came in. Mirrors the Prisma `BookingChannel` enum.

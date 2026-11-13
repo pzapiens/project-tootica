@@ -12,6 +12,7 @@ import {
   type VerifyOtpResponse,
 } from "@/lib/api";
 import { checkPassword, passwordPolicyError } from "@/lib/password";
+import { AUTH_CARD_CLASS_NAME } from "../login/auth-card";
 import PasswordToggle from "@/components/PasswordToggle";
 
 /**
@@ -109,7 +110,7 @@ function EmailStep({
         title="Forgot Password?"
         subtitle="No worries, we'll send you reset instructions."
       />
-      <div className="flex flex-col gap-[23.5px] pt-2">
+      <div className="flex flex-col gap-[20px] pt-2">
         <Field
           id="email"
           label="Email Address"
@@ -239,7 +240,7 @@ function VerifyStep({
         }
       />
 
-      <div className="flex w-full max-w-[380px] items-center justify-between self-center">
+      <div className="app-otp max-w-[380px] self-center">
         {digits.map((digit, i) => (
           <input
             key={i}
@@ -254,7 +255,7 @@ function VerifyStep({
             onChange={(e) => setDigit(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(i, e)}
             onPaste={handlePaste}
-            className="size-[54px] rounded-[5px] border-[1.134px] border-field-border bg-white text-center font-manrope text-[28px] text-ink shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none focus:border-[#00478d] focus:shadow-[0px_0px_0px_2px_rgba(0,71,141,0.2)]"
+            className="size-[40px] rounded-[5px] border-[1.167px] border-black bg-white text-center font-manrope text-[25px] text-ink shadow-[0px_1px_2px_rgba(0,0,0,0.05)] outline-none focus:border-[#00478d] focus:shadow-[0px_0px_0px_2px_rgba(0,71,141,0.2)]"
           />
         ))}
       </div>
@@ -348,7 +349,7 @@ function ResetStep({
           </>
         }
       />
-      <div className="flex flex-col gap-[23.5px] pt-2">
+      <div className="flex flex-col gap-[20px] pt-2">
         <Field
           id="new-password"
           label="Enter Password"
@@ -416,8 +417,7 @@ function Card({
   onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
   children: React.ReactNode;
 }) {
-  const className =
-    "flex w-[460px] max-w-[460px] flex-col gap-8 overflow-hidden rounded-3xl bg-white p-10 shadow-[0_10px_40px_rgba(0,0,0,0.12)]";
+  const className = AUTH_CARD_CLASS_NAME;
   if (as === "form") {
     return (
       <form onSubmit={onSubmit} className={className}>
@@ -440,7 +440,7 @@ function Header({
   return (
     <div className="flex flex-col items-center gap-[11px] pt-2">
       <h1 className={`font-manrope text-ink ${titleClassName}`}>{title}</h1>
-      <p className="max-w-[280px] text-center font-inter text-[15px] leading-[24px] text-ink">
+      <p className="max-w-[280px] text-center font-inter text-[14px] leading-[21px] text-ink">
         {subtitle}
       </p>
     </div>
@@ -458,11 +458,11 @@ function PrimaryButton({
   return (
     <button
       {...props}
-      className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-4 font-inter text-[15px] font-semibold text-white transition-opacity disabled:opacity-50"
+      className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-2.5 font-inter text-[14px] font-semibold text-white transition-opacity disabled:opacity-50"
     >
       {label}
       {withChevron && (
-        <Image src="/auth/chevron.svg" alt="" width={28} height={28} className="size-7 rotate-180" />
+        <Image src="/auth/chevron.svg" alt="" width={28} height={28} className="size-5 rotate-180" />
       )}
     </button>
   );
@@ -481,10 +481,10 @@ function PasswordChecklist({ password }: { password: string }) {
         >
           <span
             aria-hidden
-            className={`flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] ${
+            className={`flex size-4 shrink-0 items-center justify-center rounded-full border-[1.167px] text-[9px] ${
               rule.met
                 ? "border-green-600 bg-green-600 text-white"
-                : "border-field-border text-transparent"
+                : "border-black text-transparent"
             }`}
           >
             ✓
@@ -521,7 +521,7 @@ function BackToLogin() {
         href="/login"
         className="flex items-center gap-2 font-inter text-[14px] leading-5 text-ink"
       >
-        <Image src="/auth/chevron-back.svg" alt="" width={28} height={28} className="size-7" />
+        <Image src="/auth/chevron-back.svg" alt="" width={28} height={28} className="size-5" />
         Back to Login
       </Link>
     </div>
@@ -551,8 +551,8 @@ function Field({ id, label, icon, type, placeholder, value, onChange, autoComple
       >
         {label}
       </label>
-      <div className="flex items-center gap-[15px] rounded-lg border border-field-border bg-white/60 px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus-within:border-brand">
-        <Image src={icon} alt="" width={24} height={24} className="size-6 shrink-0" />
+      <div className="flex items-center gap-[15px] rounded-lg border-[1.167px] border-black bg-white/60 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] focus-within:border-brand">
+        <Image src={icon} alt="" width={24} height={24} className="size-5 shrink-0" />
         <input
           id={id}
           type={inputType}
@@ -562,7 +562,7 @@ function Field({ id, label, icon, type, placeholder, value, onChange, autoComple
           autoComplete={autoComplete}
           className="min-w-0 flex-1 bg-transparent font-inter text-[14px] text-ink outline-none placeholder:text-field-placeholder"
         />
-        {isPassword && <PasswordToggle visible={show} onToggle={() => setShow((s) => !s)} />}
+        {isPassword && <PasswordToggle visible={show} hasValue={value.length > 0} onToggle={() => setShow((s) => !s)} />}
       </div>
     </div>
   );
